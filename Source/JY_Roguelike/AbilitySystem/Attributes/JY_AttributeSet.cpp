@@ -7,8 +7,8 @@ UJY_AttributeSet::UJY_AttributeSet()
 {
 }
 
-/** Lyra LyraAttributeSet.cpp와 동일 — Outer(PlayerState)의 월드를 돌려준다 */
-UWorld* UJY_AttributeSet::GetWorld() const
+/* Lyra LyraAttributeSet.cpp와 동일 — Outer(PlayerState)의 월드를 돌려준다 */
+UWorld* UJY_AttributeSet::GetWorld() const //override
 {
 	const UObject* Outer = GetOuter();
 	check(Outer);

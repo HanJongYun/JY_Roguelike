@@ -14,44 +14,44 @@
 
 AJY_Character::AJY_Character()
 {
-	/** 매 프레임 할 일이 없음. 이동은 CMC, 입력은 이벤트로 처리 */
+	/* 매 프레임 할 일이 없음. 이동은 CMC, 입력은 이벤트로 처리 */
 	PrimaryActorTick.bCanEverTick = false;
 
 	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
 
-	/** 몸은 컨트롤러 회전을 따르지 않고 이동 방향으로 돈다 */
+	/* 몸은 컨트롤러 회전을 따르지 않고 이동 방향으로 돈다 */
 	bUseControllerRotationPitch = false;
 	bUseControllerRotationYaw = false;
 	bUseControllerRotationRoll = false;
 
-	UCharacterMovementComponent* MoveComp = GetCharacterMovement();
-	MoveComp->bOrientRotationToMovement = true;
-	MoveComp->RotationRate = FRotator(0.0f, 500.0f, 0.0f);
-	MoveComp->MaxWalkSpeed = 500.f;
-	MoveComp->MinAnalogWalkSpeed = 20.f;
-	MoveComp->BrakingDecelerationWalking = 2000.f;
+	UCharacterMovementComponent* MovementComp = GetCharacterMovement();
+	MovementComp->bOrientRotationToMovement = true;
+	MovementComp->RotationRate = FRotator(0.0f, 500.0f, 0.0f);
+	MovementComp->MaxWalkSpeed = 500.f;
+	MovementComp->MinAnalogWalkSpeed = 20.f;
+	MovementComp->BrakingDecelerationWalking = 2000.f;
 
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
 	CameraBoom->SetupAttachment(RootComponent);
 
-	/** 절대 회전 — 캐릭터가 돌아도 카메라는 고정 (쿼터뷰) */
+	/* 절대 회전 — 캐릭터가 돌아도 카메라는 고정 (쿼터뷰) */
 	CameraBoom->SetUsingAbsoluteRotation(true);
 	CameraBoom->bUsePawnControlRotation = false;
 
-	/** 충돌 테스트 끔 — 벽 뒤로 가도 카메라가 캐릭터 쪽으로 당겨지지 않게 */
+	/* 충돌 테스트 끔 — 벽 뒤로 가도 카메라가 캐릭터 쪽으로 당겨지지 않게 */
 	CameraBoom->bDoCollisionTest = false;
 
 	TopDownCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("TopDownCamera"));
 	TopDownCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
 	TopDownCamera->bUsePawnControlRotation = false;
 
-	/** Lyra LyraCharacter.cpp:68~69와 같이 생성자에서 죽음 이벤트 연결 */
+	/* Lyra LyraCharacter.cpp:68~69와 같이 생성자에서 죽음 이벤트 연결 */
 	HealthComponent = CreateDefaultSubobject<UJY_HealthComponent>(TEXT("HealthComponent"));
 	HealthComponent->OnDeathStarted.AddDynamic(this, &ThisClass::OnDeathStarted);
 }
 
-/** BP에서 바꾼 카메라 수치를 붐에 적용. 절대 회전이라 SetRelativeRotation = 월드 회전 */
-void AJY_Character::OnConstruction(const FTransform& Transform)
+/* BP에서 바꾼 카메라 수치를 붐에 적용. 절대 회전이라 SetRelativeRotation = 월드 회전 */
+void AJY_Character::OnConstruction(const FTransform& Transform) //override
 {
 	Super::OnConstruction(Transform);
 
@@ -60,24 +60,24 @@ void AJY_Character::OnConstruction(const FTransform& Transform)
 }
 
 // [Server]
-/** 서버는 빙의 시점에 PlayerState가 확실히 있다 */
-void AJY_Character::PossessedBy(AController* NewController)
+/* 서버는 빙의 시점에 PlayerState가 확실히 있다 */
+void AJY_Character::PossessedBy(AController* NewController) //override
 {
 	Super::PossessedBy(NewController);
 
 	InitializeAbilitySystem();
 }
 
-// [Client]
-/** 클라는 PlayerState가 복제로 늦게 올 수 있어 도착 시점에 연결 */
-void AJY_Character::OnRep_PlayerState()
+// [OwnClient] [SimulatedProxy]
+/* 클라는 PlayerState가 복제로 늦게 올 수 있어 도착 시점에 연결 */
+void AJY_Character::OnRep_PlayerState() //override
 {
 	Super::OnRep_PlayerState();
 
 	InitializeAbilitySystem();
 }
 
-/** 소유자 = PlayerState(ASC 주인), 아바타 = 이 캐릭터. 폰이 바뀌면 아바타만 갈아끼운다 */
+/* 소유자 = PlayerState(ASC 주인), 아바타 = 이 캐릭터. 폰이 바뀌면 아바타만 갈아끼운다 */
 void AJY_Character::InitializeAbilitySystem()
 {
 	AJY_PlayerState* JYPlayerState = GetPlayerState<AJY_PlayerState>();
@@ -93,7 +93,7 @@ void AJY_Character::InitializeAbilitySystem()
 	UE_LOG(LogJY, Log, TEXT("[%s] JYHealth InitAbilityActorInfo %s"), JY_GetNetRoleTag(this), *GetNameSafe(this));
 }
 
-void AJY_Character::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
+void AJY_Character::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) //override
 {
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
 
@@ -107,8 +107,8 @@ void AJY_Character::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 	EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &AJY_Character::Move);
 }
 
-// [Client/ListenHost] 로컬 입력 → CMC가 예측 이동, 서버가 검증
-/** 카메라 붐 Yaw 기준으로 방향을 잡아 W가 항상 화면 위가 되게 한다 */
+// [OwnClient] 로컬 입력 → CMC가 예측 이동, 서버가 검증
+/* 카메라 붐 Yaw 기준으로 방향을 잡아 W가 항상 화면 위가 되게 한다 */
 void AJY_Character::Move(const FInputActionValue& Value)
 {
 	const FVector2D MovementVector = Value.Get<FVector2D>();
@@ -121,13 +121,13 @@ void AJY_Character::Move(const FInputActionValue& Value)
 	AddMovementInput(RightDir, MovementVector.X);
 }
 
-// [Server] [Client] 둘 다 — HealthComponent가 양쪽에서 방송
+// [Server] [OwnClient] [SimulatedProxy] — HealthComponent가 모두에서 방송
 void AJY_Character::OnDeathStarted(AActor* OwningActor)
 {
 	DisableMovementAndCollision();
 }
 
-/** Lyra DisableMovementAndCollision과 같은 목적 — 죽은 뒤 입력·이동·충돌을 막는다 */
+/* Lyra DisableMovementAndCollision과 같은 목적 — 죽은 뒤 입력·이동·충돌을 막는다 */
 void AJY_Character::DisableMovementAndCollision()
 {
 	if (GetController() != nullptr)
@@ -140,7 +140,7 @@ void AJY_Character::DisableMovementAndCollision()
 	CapsuleComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	CapsuleComp->SetCollisionResponseToAllChannels(ECR_Ignore);
 
-	UCharacterMovementComponent* MoveComp = GetCharacterMovement();
-	MoveComp->StopMovementImmediately();
-	MoveComp->DisableMovement();
+	UCharacterMovementComponent* MovementComp = GetCharacterMovement();
+	MovementComp->StopMovementImmediately();
+	MovementComp->DisableMovement();
 }

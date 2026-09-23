@@ -4,7 +4,7 @@
 #include "AbilitySystemComponent.h"
 #include "JY_AbilitySystemComponent.generated.h"
 
-/** 프로젝트 전용 ASC (지금은 비어 있는 확장 지점) */
+/* 프로젝트 전용 ASC (지금은 비어 있는 확장 지점) */
 UCLASS()
 class UJY_AbilitySystemComponent : public UAbilitySystemComponent
 {

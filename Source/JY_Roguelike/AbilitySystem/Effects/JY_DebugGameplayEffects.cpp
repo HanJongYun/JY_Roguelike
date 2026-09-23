@@ -6,7 +6,7 @@
 
 namespace
 {
-	/** 메타 속성에 SetByCaller 크기를 AddBase로 더하는 모디파이어 */
+	/* 메타 속성에 SetByCaller 크기를 AddBase로 더하는 모디파이어 */
 	FGameplayModifierInfo MakeSetByCallerModifier(const FGameplayAttribute& Attribute, const FGameplayTag& DataTag)
 	{
 		FSetByCallerFloat SetByCaller;

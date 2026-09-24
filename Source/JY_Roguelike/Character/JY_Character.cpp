@@ -5,6 +5,8 @@
 #include "System/JY_LogChannels.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
+#include "Components/StaticMeshComponent.h"
+#include "Components/PointLightComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "EnhancedInputComponent.h"
@@ -48,6 +50,23 @@ AJY_Character::AJY_Character()
 	/* Lyra LyraCharacter.cpp:68~69와 같이 생성자에서 죽음 이벤트 연결 */
 	HealthComponent = CreateDefaultSubobject<UJY_HealthComponent>(TEXT("HealthComponent"));
 	HealthComponent->OnDeathStarted.AddDynamic(this, &ThisClass::OnDeathStarted);
+
+	/* 외형 전용 — 판정은 나중에 전투에서 따로 한다 */
+	WeaponMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WeaponMesh"));
+	WeaponMesh->SetupAttachment(GetMesh(), WeaponSocketName);
+	WeaponMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+	/* 화면 연출용이라 복제 없음 — 각 클라가 자기 화면에서만 그린다. 데디 서버는 렌더링하지 않아 비용 없음 */
+	CharacterLight = CreateDefaultSubobject<UPointLightComponent>(TEXT("CharacterLight"));
+	CharacterLight->SetupAttachment(RootComponent);
+	CharacterLight->SetRelativeLocation(FVector(0.0f, 0.0f, 150.0f));
+	CharacterLight->SetIntensityUnits(ELightUnits::Candelas);
+	CharacterLight->SetIntensity(10.0f);
+	CharacterLight->SetAttenuationRadius(400.0f);
+	CharacterLight->SetLightColor(FLinearColor(1.0f, 0.85f, 0.7f));
+
+	/* 그림자 끔 — 동적 그림자 비용 절감, 캐릭터 자체 그림자와 겹치지 않게 */
+	CharacterLight->SetCastShadows(false);
 }
 
 /* BP에서 바꾼 카메라 수치를 붐에 적용. 절대 회전이라 SetRelativeRotation = 월드 회전 */
@@ -57,6 +76,9 @@ void AJY_Character::OnConstruction(const FTransform& Transform) //override
 
 	CameraBoom->SetRelativeRotation(CameraBoomRotation);
 	CameraBoom->TargetArmLength = CameraBoomLength;
+
+	/* BP에서 소켓 이름을 바꿨을 수 있어 다시 붙인다 */
+	WeaponMesh->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, WeaponSocketName);
 }
 
 // [Server]

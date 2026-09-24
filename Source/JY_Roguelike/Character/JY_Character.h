@@ -6,6 +6,8 @@
 
 class USpringArmComponent;
 class UCameraComponent;
+class UStaticMeshComponent;
+class UPointLightComponent;
 class UInputAction;
 class UJY_HealthComponent;
 struct FInputActionValue;
@@ -31,6 +33,8 @@ public:
 	USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 	UCameraComponent* GetTopDownCamera() const { return TopDownCamera; }
 	UJY_HealthComponent* GetHealthComponent() const { return HealthComponent; }
+	UStaticMeshComponent* GetWeaponMesh() const { return WeaponMesh; }
+	UPointLightComponent* GetCharacterLight() const { return CharacterLight; }
 
 protected:
 	/* 이동 입력 처리 */
@@ -57,6 +61,14 @@ private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "JY|Health", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UJY_HealthComponent> HealthComponent;
 
+	/* 손에 든 무기 외형. 메시 에셋은 BP_JY_Character에서 지정 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "JY|Weapon", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UStaticMeshComponent> WeaponMesh;
+
+	/* 어두운 맵에서 캐릭터 주변을 밝히는 조명. 밝기·반경·색은 BP_JY_Character의 이 컴포넌트에서 조정 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "JY|Light", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UPointLightComponent> CharacterLight;
+
 private:
 	/* 설정값 — BP_JY_Character의 Class Defaults에서 수정 */
 
@@ -67,6 +79,10 @@ private:
 	/* 캐릭터와 카메라 사이 거리 */
 	UPROPERTY(EditDefaultsOnly, Category = "JY|Camera")
 	float CameraBoomLength = 1400.0f;
+
+	/* 무기를 붙일 캐릭터 메시 소켓. GhostSamurai 애니가 움직이는 weapon_r 뼈의 소켓 */
+	UPROPERTY(EditDefaultsOnly, Category = "JY|Weapon")
+	FName WeaponSocketName = TEXT("weapon_rSocket");
 
 	/* 이동 입력 (Vector2D: X=오른쪽, Y=앞) */
 	UPROPERTY(EditAnywhere, Category = "JY|Input")

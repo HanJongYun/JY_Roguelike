@@ -3,7 +3,7 @@
 #include "System/JY_AssetManager.h"
 #include "System/JY_GameData.h"
 #include "UI/JY_UISettings.h"
-#include "UI/ViewModels/JY_HealthViewModel.h"
+#include "UI/ViewModels/JY_StatsViewModel.h"
 #include "System/JY_LogChannels.h"
 #include "GameFramework/PlayerController.h"
 
@@ -43,27 +43,27 @@ void UJY_UIManagerSubsystem::PlayerControllerChanged(APlayerController* NewPlaye
  * ViewModel을 LocalPlayer 단위로 두는 이유 — 위젯·레벨이 바뀌어도 값이 유지되고, 여러 화면이 같은 ViewModel을 공유.
  * 클래스는 프로젝트 설정(JY UI)에서 고른다. BP 자식으로 색·기준값을 바꿔 끼울 수 있게 (비어 있으면 C++ 기본 클래스).
  */
-UJY_HealthViewModel* UJY_UIManagerSubsystem::GetHealthViewModel()
+UJY_StatsViewModel* UJY_UIManagerSubsystem::GetStatsViewModel()
 {
-	if (HealthViewModel == nullptr)
+	if (StatsViewModel == nullptr)
 	{
 		/* 한 번만 생성되고 계속 보관되므로 동기 로드 1회 비용은 무시할 수준 */
-		TSubclassOf<UJY_HealthViewModel> ViewModelClass = GetDefault<UJY_UISettings>()->HealthViewModelClass.LoadSynchronous();
+		TSubclassOf<UJY_StatsViewModel> ViewModelClass = GetDefault<UJY_UISettings>()->StatsViewModelClass.LoadSynchronous();
 		if (ViewModelClass == nullptr)
 		{
-			ViewModelClass = UJY_HealthViewModel::StaticClass();
+			ViewModelClass = UJY_StatsViewModel::StaticClass();
 		}
 
-		HealthViewModel = NewObject<UJY_HealthViewModel>(this, ViewModelClass);
+		StatsViewModel = NewObject<UJY_StatsViewModel>(this, ViewModelClass);
 	}
 
-	return HealthViewModel;
+	return StatsViewModel;
 }
 
 // [OwnClient] 로컬 플레이어만
 void UJY_UIManagerSubsystem::BindAbilitySystem(UJY_AbilitySystemComponent* InASC)
 {
-	GetHealthViewModel()->BindAbilitySystem(InASC);
+	GetStatsViewModel()->BindAbilitySystem(InASC);
 }
 
 /*

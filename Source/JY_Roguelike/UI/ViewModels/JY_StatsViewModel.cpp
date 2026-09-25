@@ -1,17 +1,17 @@
-#include "UI/ViewModels/JY_HealthViewModel.h"
+#include "UI/ViewModels/JY_StatsViewModel.h"
 #include "AbilitySystem/Attributes/JY_HealthSet.h"
 #include "AbilitySystem/JY_AbilitySystemComponent.h"
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(JY_HealthViewModel)
+#include UE_INLINE_GENERATED_CPP_BY_NAME(JY_StatsViewModel)
 
 /* ASC 연결 전(클라에 PlayerState 도착 전) 표시 — 빈 막대 대신 "모름" 상태를 보여준다 */
-UJY_HealthViewModel::UJY_HealthViewModel()
+UJY_StatsViewModel::UJY_StatsViewModel()
 {
 	HealthText = INVTEXT("-- / --");
 }
 
 /* 색은 BP 자식에서 바꾼 NormalHealthColor가 적용된 뒤 맞춰야 해서 생성자가 아니라 여기서 */
-void UJY_HealthViewModel::PostInitProperties() //override
+void UJY_StatsViewModel::PostInitProperties() //override
 {
 	Super::PostInitProperties();
 
@@ -24,7 +24,7 @@ void UJY_HealthViewModel::PostInitProperties() //override
  * 클라 OnRep 경로(GAMEPLAYATTRIBUTE_REPNOTIFY)와 서버 GE 경로 둘 다에서 방송된다 (GameplayEffect.cpp:3783, 3945~3973).
  * → 서버에서 직접 바뀌든 복제로 받든 같은 코드로 갱신된다.
  */
-void UJY_HealthViewModel::BindAbilitySystem(UJY_AbilitySystemComponent* InASC)
+void UJY_StatsViewModel::BindAbilitySystem(UJY_AbilitySystemComponent* InASC)
 {
 	if (InASC == nullptr)
 		return;
@@ -42,7 +42,7 @@ void UJY_HealthViewModel::BindAbilitySystem(UJY_AbilitySystemComponent* InASC)
 	RefreshDisplayValues(InASC->GetNumericAttribute(UJY_HealthSet::GetHealthAttribute()), InASC->GetNumericAttribute(UJY_HealthSet::GetMaxHealthAttribute()));
 }
 
-void UJY_HealthViewModel::UnbindAbilitySystem()
+void UJY_StatsViewModel::UnbindAbilitySystem()
 {
 	UJY_AbilitySystemComponent* ASC = AbilitySystemComponent.Get();
 	if (ASC != nullptr)
@@ -56,25 +56,25 @@ void UJY_HealthViewModel::UnbindAbilitySystem()
 	AbilitySystemComponent.Reset();
 }
 
-void UJY_HealthViewModel::BeginDestroy() //override
+void UJY_StatsViewModel::BeginDestroy() //override
 {
 	UnbindAbilitySystem();
 
 	Super::BeginDestroy();
 }
 
-void UJY_HealthViewModel::HandleHealthChanged(const FOnAttributeChangeData& ChangeData)
+void UJY_StatsViewModel::HandleHealthChanged(const FOnAttributeChangeData& ChangeData)
 {
 	RefreshDisplayValues(ChangeData.NewValue, MaxHealth);
 }
 
-void UJY_HealthViewModel::HandleMaxHealthChanged(const FOnAttributeChangeData& ChangeData)
+void UJY_StatsViewModel::HandleMaxHealthChanged(const FOnAttributeChangeData& ChangeData)
 {
 	RefreshDisplayValues(CurrentHealth, ChangeData.NewValue);
 }
 
 /* 값이 실제로 바뀐 필드만 알림이 나간다 (SetPropertyValue가 비교) */
-void UJY_HealthViewModel::RefreshDisplayValues(float NewCurrentHealth, float NewMaxHealth)
+void UJY_StatsViewModel::RefreshDisplayValues(float NewCurrentHealth, float NewMaxHealth)
 {
 	UE_MVVM_SET_PROPERTY_VALUE(CurrentHealth, NewCurrentHealth);
 	UE_MVVM_SET_PROPERTY_VALUE(MaxHealth, NewMaxHealth);

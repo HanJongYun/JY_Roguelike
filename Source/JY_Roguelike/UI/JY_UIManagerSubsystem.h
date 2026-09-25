@@ -6,7 +6,7 @@
 
 class APlayerController;
 class UJY_AbilitySystemComponent;
-class UJY_HealthViewModel;
+class UJY_StatsViewModel;
 class UJY_PrimaryLayout;
 
 /* 로컬 플레이어의 화면과 ViewModel을 관리 */
@@ -20,9 +20,9 @@ public:
 	virtual void PlayerControllerChanged(APlayerController* NewPlayerController) override;
 
 public:
-	/* 체력 ViewModel (없으면 생성) */
+	/* 능력치 ViewModel (없으면 생성) */
 	UFUNCTION(BlueprintCallable, Category = "JY|UI")
-	UJY_HealthViewModel* GetHealthViewModel();
+	UJY_StatsViewModel* GetStatsViewModel();
 
 	/* ASC를 ViewModel에 연결 */
 	void BindAbilitySystem(UJY_AbilitySystemComponent* InASC);
@@ -39,5 +39,5 @@ private:
 	TObjectPtr<UJY_PrimaryLayout> PrimaryLayout;
 
 	UPROPERTY(Transient)
-	TObjectPtr<UJY_HealthViewModel> HealthViewModel;
+	TObjectPtr<UJY_StatsViewModel> StatsViewModel;
 };

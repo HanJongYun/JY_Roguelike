@@ -4,12 +4,10 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(JY_HealthViewModel)
 
-#define LOCTEXT_NAMESPACE "JY_HealthViewModel"
-
 /* ASC 연결 전(클라에 PlayerState 도착 전) 표시 — 빈 막대 대신 "모름" 상태를 보여준다 */
 UJY_HealthViewModel::UJY_HealthViewModel()
 {
-	HealthText = LOCTEXT("HealthTextUnknown", "-- / --");
+	HealthText = INVTEXT("-- / --");
 }
 
 /* 색은 BP 자식에서 바꾼 NormalHealthColor가 적용된 뒤 맞춰야 해서 생성자가 아니라 여기서 */
@@ -85,7 +83,7 @@ void UJY_HealthViewModel::RefreshDisplayValues(float NewCurrentHealth, float New
 	const float NewPercent = NewMaxHealth > 0.0f ? FMath::Clamp(NewCurrentHealth / NewMaxHealth, 0.0f, 1.0f) : 0.0f;
 	UE_MVVM_SET_PROPERTY_VALUE(HealthPercent, NewPercent);
 
-	const FText NewText = FText::Format(LOCTEXT("HealthTextFormat", "{0} / {1}"), FText::AsNumber(FMath::RoundToInt(NewCurrentHealth)), FText::AsNumber(FMath::RoundToInt(NewMaxHealth)));
+	const FText NewText = FText::Format(INVTEXT("{0} / {1}"), FText::AsNumber(FMath::RoundToInt(NewCurrentHealth)), FText::AsNumber(FMath::RoundToInt(NewMaxHealth)));
 	UE_MVVM_SET_PROPERTY_VALUE(HealthText, NewText);
 
 	const bool bNewLowHealth = NewPercent <= LowHealthRatio;
@@ -94,5 +92,3 @@ void UJY_HealthViewModel::RefreshDisplayValues(float NewCurrentHealth, float New
 	/* 색을 ViewModel에서 정해 위젯은 값만 받는다 — 여러 화면이 같은 기준·색을 공유 */
 	UE_MVVM_SET_PROPERTY_VALUE(HealthBarColor, bNewLowHealth ? LowHealthColor : NormalHealthColor);
 }
-
-#undef LOCTEXT_NAMESPACE

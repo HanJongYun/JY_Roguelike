@@ -3,7 +3,6 @@
 #include "AbilitySystem/JY_AbilitySystemComponent.h"
 #include "AbilitySystem/Effects/JY_DebugGameplayEffects.h"
 #include "System/JY_GameplayTags.h"
-#include "UI/JY_ScreenWidget.h"
 #include "UI/JY_UIManagerSubsystem.h"
 #include "GameFramework/CheatManagerDefines.h"
 #include "EnhancedInputSubsystems.h"
@@ -44,7 +43,7 @@ void AJY_PlayerController::OnRep_PlayerState() //override
 }
 
 // [OwnClient] 로컬 컨트롤러만
-/* 두 번 불려도 안전 — ShowHUD는 이미 있으면 무시, BindAbilitySystem은 같은 ASC면 값만 갱신 */
+/* 두 번 불려도 안전 — BindAbilitySystem은 같은 ASC면 값만 갱신 */
 void AJY_PlayerController::InitializeLocalUI()
 {
 	if (IsLocalPlayerController() == false)
@@ -53,8 +52,6 @@ void AJY_PlayerController::InitializeLocalUI()
 	UJY_UIManagerSubsystem* UIManager = ULocalPlayer::GetSubsystem<UJY_UIManagerSubsystem>(GetLocalPlayer());
 	if (UIManager == nullptr)
 		return;
-
-	UIManager->ShowHUD(this, HUDWidgetClass);
 
 	AJY_PlayerState* JYPlayerState = GetPlayerState<AJY_PlayerState>();
 	if (JYPlayerState == nullptr)

@@ -1,13 +1,43 @@
 #include "UI/JY_UIManagerSubsystem.h"
-#include "UI/JY_ScreenWidget.h"
+#include "UI/Foundation/JY_PrimaryLayout.h"
+#include "System/JY_AssetManager.h"
+#include "System/JY_GameData.h"
 #include "UI/JY_UISettings.h"
 #include "UI/ViewModels/JY_HealthViewModel.h"
 #include "System/JY_LogChannels.h"
 #include "GameFramework/PlayerController.h"
-#include "MVVMSubsystem.h"
-#include "View/MVVMView.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(JY_UIManagerSubsystem)
+
+// [OwnClient]
+void UJY_UIManagerSubsystem::Deinitialize() //override
+{
+	DestroyPrimaryLayout();
+
+	Super::Deinitialize();
+}
+
+/*
+ * 엔진이 로컬 플레이어에 새 PC를 붙일 때마다 부른다 (LocalPlayer.cpp:745 ReceivedPlayerController).
+ * 데디 서버에는 로컬 플레이어가 없어 이 서브시스템 자체가 없다 → 클라에서만 실행.
+ * 맵 이동 뒤: 위젯 Outer가 GameInstance라 옛 레이아웃 포인터가 살아 있다(UserWidget.cpp:2752) → 지우고 새 PC로 다시 만든다.
+ */
+// [OwnClient]
+void UJY_UIManagerSubsystem::PlayerControllerChanged(APlayerController* NewPlayerController) //override
+{
+	Super::PlayerControllerChanged(NewPlayerController);
+
+	/* 같은 PC로 두 번 알림이 와도(SetPlayer·ReceivedPlayer 둘 다 호출, Player.cpp:174 / PlayerController.cpp:954) 다시 만들지 않는다 */
+	if (PrimaryLayout != nullptr && PrimaryLayout->GetOwningPlayer() == NewPlayerController)
+		return;
+
+	DestroyPrimaryLayout();
+
+	if (NewPlayerController == nullptr)
+		return;
+
+	CreatePrimaryLayout(NewPlayerController);
+}
 
 /*
  * ViewModel을 LocalPlayer 단위로 두는 이유 — 위젯·레벨이 바뀌어도 값이 유지되고, 여러 화면이 같은 ViewModel을 공유.
@@ -31,41 +61,43 @@ UJY_HealthViewModel* UJY_UIManagerSubsystem::GetHealthViewModel()
 }
 
 // [OwnClient] 로컬 플레이어만
-void UJY_UIManagerSubsystem::ShowHUD(APlayerController* PC, TSubclassOf<UJY_ScreenWidget> HUDClass)
-{
-	if (PC == nullptr)
-		return;
-
-	if (HUDClass == nullptr)
-	{
-		UE_LOG(LogJY, Warning, TEXT("[%s] JYHealth ShowHUD: HUDWidgetClass 비어 있음 (%s)"), JY_GetNetRoleTag(PC), *GetNameSafe(PC));
-		return;
-	}
-
-	if (HUDWidget != nullptr)
-		return;
-
-	HUDWidget = CreateWidget<UJY_ScreenWidget>(PC, HUDClass);
-	if (HUDWidget == nullptr)
-		return;
-
-	/*
-	 * View는 CreateWidget 안의 NativeOnInitialized에서 만들어진다 (UserWidget.cpp:1843 → MVVMViewClass.cpp:785).
-	 * 그래서 생성 직후, 화면에 붙이기 전에 꽂는다. 위젯이 이 ViewModel을 안 쓰면 false = 정상.
-	 */
-	UMVVMView* View = UMVVMSubsystem::GetViewFromUserWidget(HUDWidget);
-	if (View != nullptr)
-	{
-		const bool bSet = View->SetViewModelByClass(GetHealthViewModel());
-		UE_LOG(LogJY, Log, TEXT("[%s] JYHealth HUD SetViewModel %s"), JY_GetNetRoleTag(PC), bSet ? TEXT("OK") : TEXT("NotUsed"));
-	}
-
-	/* 화면 전체가 아니라 이 플레이어 영역에 붙인다 — 분할 화면 협동 대비 */
-	HUDWidget->AddToPlayerScreen();
-}
-
-// [OwnClient] 로컬 플레이어만
 void UJY_UIManagerSubsystem::BindAbilitySystem(UJY_AbilitySystemComponent* InASC)
 {
 	GetHealthViewModel()->BindAbilitySystem(InASC);
+}
+
+/*
+ * ZOrder 1000 — 옛 경로로 붙는 위젯(ZOrder 0)보다 위. 틀 자체는 투명하고 클릭을 통과시킨다(UserWidget 기본 SelfHitTestInvisible).
+ * 클래스는 Soft 참조라 여기서 처음 로드된다. 틀은 플레이어당 1개·맵당 1회라 동기 로드로 충분.
+ */
+// [OwnClient]
+void UJY_UIManagerSubsystem::CreatePrimaryLayout(APlayerController* PC)
+{
+	const UJY_GameData* GameData = UJY_AssetManager::Get().GetGameData();
+	if (GameData == nullptr)
+		return;
+
+	const TSubclassOf<UJY_PrimaryLayout> LayoutClass = GameData->PrimaryLayoutClass.LoadSynchronous();
+	if (LayoutClass == nullptr)
+	{
+		UE_LOG(LogJY, Error, TEXT("[%s] JYUI PrimaryLayoutClass 비어 있음 (DA_JY_GameData)"), JY_GetNetRoleTag(PC));
+		return;
+	}
+
+	PrimaryLayout = CreateWidget<UJY_PrimaryLayout>(PC, LayoutClass);
+	if (PrimaryLayout == nullptr)
+		return;
+
+	PrimaryLayout->AddToPlayerScreen(1000);
+	UE_LOG(LogJY, Log, TEXT("[%s] JYUI Layout created %s (%s)"), JY_GetNetRoleTag(PC), *GetNameSafe(PrimaryLayout), *GetNameSafe(PC));
+}
+
+// [OwnClient]
+void UJY_UIManagerSubsystem::DestroyPrimaryLayout()
+{
+	if (PrimaryLayout == nullptr)
+		return;
+
+	PrimaryLayout->RemoveFromParent();
+	PrimaryLayout = nullptr;
 }

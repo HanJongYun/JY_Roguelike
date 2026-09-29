@@ -1,16 +1,13 @@
 #include "Interaction/JY_InteractableActor.h"
 #include "Interaction/JY_InteractionComponent.h"
-#include "UI/Foundation/JY_ScreenWidget.h"
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
-#include "Engine/AssetManager.h"
 #include "GameFramework/Pawn.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(JY_InteractableActor)
 
 /*
  * 쿼터뷰라 라인트레이스(Lyra 1인칭 방식) 대신 범위 겹침으로 대상을 잡는다.
- * 안내는 하데스처럼 화면 아래 가운데 HUD가 보여 준다 — 액터는 이름만 제공 (월드 위젯 없음 → 틱·서버 로드 비용 없음).
  * 복제 + 처음부터 휴면(DORM_Initial):
  *   - Server RPC 인자로 넘기려면 서버·클라가 같은 액터를 가리켜야 한다. 레벨 배치 액터는 이름으로 맞춰지지만,
  *     방을 깬 뒤 서버가 스폰하는 문·보상 상자는 복제돼야 클라에 생기고 RPC 인자로 쓸 수 있다.
@@ -35,7 +32,6 @@ AJY_InteractableActor::AJY_InteractableActor()
 	InteractionRange->SetCollisionProfileName(TEXT("OverlapAllDynamic"));
 }
 
-/* 화면형이면 클라에서 그 화면을 미리 비동기 로드 — 첫 E 때 끊기지 않게. 데디 서버는 UI를 올리지 않는다 */
 // [Server] [OwnClient]
 void AJY_InteractableActor::BeginPlay() //override
 {
@@ -43,11 +39,6 @@ void AJY_InteractableActor::BeginPlay() //override
 
 	InteractionRange->OnComponentBeginOverlap.AddDynamic(this, &AJY_InteractableActor::HandleRangeBeginOverlap);
 	InteractionRange->OnComponentEndOverlap.AddDynamic(this, &AJY_InteractableActor::HandleRangeEndOverlap);
-
-	if (OpensScreen() == true && IsNetMode(NM_DedicatedServer) == false)
-	{
-		ScreenPreloadHandle = UAssetManager::GetStreamableManager().RequestAsyncLoad(ScreenClass.ToSoftObjectPath());
-	}
 }
 
 // [Server]
@@ -60,7 +51,7 @@ bool AJY_InteractableActor::IsWithinInteractRange(const AActor* User) const
 	return FVector::DistSquared(User->GetActorLocation(), InteractionRange->GetComponentLocation()) <= FMath::Square(MaxDistance);
 }
 
-/* 겹침은 서버·클라 모두에서 일어난다 — 내가 조종하는 폰일 때만 후보에 넣는다 (탐지·안내는 로컬 일) */
+/* 겹침은 서버·클라 모두에서 일어난다 — 내가 조종하는 폰일 때만 후보에 넣는다 (대상 고르기는 로컬 일) */
 // [Server] [OwnClient]
 void AJY_InteractableActor::HandleRangeBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
@@ -75,7 +66,7 @@ void AJY_InteractableActor::HandleRangeBeginOverlap(UPrimitiveComponent* Overlap
 	InteractionComponent->AddCandidate(this);
 }
 
-/* 나갈 때는 조종 여부를 묻지 않는다 — 폰이 죽거나 빙의가 풀린 뒤 나가도 안내가 남지 않게 (후보에 없으면 아무 일 없음) */
+/* 나갈 때는 조종 여부를 묻지 않는다 — 폰이 죽거나 빙의가 풀린 뒤 나가도 후보가 남지 않게 (후보에 없으면 아무 일 없음) */
 // [Server] [OwnClient]
 void AJY_InteractableActor::HandleRangeEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
 {

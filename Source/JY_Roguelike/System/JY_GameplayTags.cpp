@@ -9,10 +9,4 @@ namespace JYGameplayTags
 
 	/* Service — 새 서비스(상점·축복 NPC)는 새 태그 1줄 */
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Service_MetaAltar,     "Service.MetaAltar",     "메타 강화 구매·환불을 받는 제단.");
-
-	/* UI.Layer */
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(UI_Layer_Game,         "UI.Layer.Game",         "HUD 층. 게임 입력 유지.");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(UI_Layer_GameMenu,     "UI.Layer.GameMenu",     "게임 안 메뉴 층. 기록판·제단·축복 선택.");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(UI_Layer_Menu,         "UI.Layer.Menu",         "시스템 메뉴 층. 정지 메뉴·설정.");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(UI_Layer_Modal,        "UI.Layer.Modal",        "맨 위 팝업 층. 확인 팝업.");
 }

@@ -3,7 +3,6 @@
 #include "System/JY_GameData.h"
 #include "System/JY_GameplayTags.h"
 #include "System/JY_LogChannels.h"
-#include "System/JY_WorldSettings.h"
 #include "Interaction/JY_InteractableActor.h"
 #include "Character/JY_Character.h"
 #include "Player/JY_PlayerController.h"
@@ -35,14 +34,6 @@ void AJY_GameMode::HandleStartingNewPlayer_Implementation(APlayerController* New
 	LoadProgress(NewPlayer->GetPlayerState<AJY_PlayerState>());
 
 	Super::HandleStartingNewPlayer_Implementation(NewPlayer);
-
-	/* 도착 배너 문구는 맵(World Settings)이 갖고, 띄우는 시점은 서버가 정한다 — 나중에 "첫 방문" 같은 상황별 문구를 서버가 고를 수 있게 */
-	const AJY_WorldSettings* WorldSettings = Cast<AJY_WorldSettings>(GetWorldSettings());
-	AJY_PlayerController* JYPlayerController = Cast<AJY_PlayerController>(NewPlayer);
-	if (WorldSettings != nullptr && JYPlayerController != nullptr && WorldSettings->GetAreaNameText().IsEmpty() == false)
-	{
-		JYPlayerController->Client_ShowNotification(EJY_NotificationType::Banner, WorldSettings->GetAreaNameText());
-	}
 }
 
 // [Server]
@@ -121,12 +112,6 @@ void AJY_GameMode::TryBuyMetaUpgrade(APlayerController* Buyer, FGameplayTag Upgr
 	NewProgress.SoulStones -= Cost;
 	NewProgress.SetMetaRank(UpgradeTag, CurrentRank + 1);
 	CommitProgress(PlayerState, NewProgress, EJY_ProgressCommitScope::MetaRanksChanged);
-
-	AJY_PlayerController* JYPlayerController = Cast<AJY_PlayerController>(Buyer);
-	if (JYPlayerController != nullptr)
-	{
-		JYPlayerController->Client_ShowNotification(EJY_NotificationType::Toast, FText::Format(MetaData->GetPurchaseToastFormat(), Definition->DisplayName, CurrentRank + 1));
-	}
 }
 
 // [Server]

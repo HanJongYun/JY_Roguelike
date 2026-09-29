@@ -8,9 +8,8 @@
 class APlayerController;
 class USphereComponent;
 class UStaticMeshComponent;
-class UJY_ScreenWidget;
 
-/* 다가가면 화면 아래에 "[E] 이름"이 뜨고 E로 쓰는 월드 물체 — 제단·기록판·포털의 부모 */
+/* 다가가서 E로 쓰는 월드 물체 — 제단·기록판·포털의 부모 */
 UCLASS()
 class AJY_InteractableActor : public AActor
 {
@@ -26,15 +25,10 @@ public:
 	/* 이 거리 안이면 사용 가능 — 서버가 요청을 믿기 전에 다시 확인 */
 	bool IsWithinInteractRange(const AActor* User) const;
 
-	/* 화면을 여는 대상인가 (아니면 서버에 요청하는 대상) */
-	bool OpensScreen() const { return ScreenClass.IsNull() == false; }
-
-	/* 서버 동작형: 서버가 검증을 통과시킨 뒤 호출 (자식이 재정의) */
+	/* 서버가 거리 검증을 통과시킨 뒤 호출 (자식이 재정의 — 포털은 맵 이동) */
 	virtual void OnServerInteract(APlayerController* User) {}
 
 	const FText& GetDisplayName() const { return DisplayName; }
-	const TSoftClassPtr<UJY_ScreenWidget>& GetScreenClass() const { return ScreenClass; }
-	const FText& GetConfirmText() const { return ConfirmText; }
 	const FGameplayTag& GetServiceTag() const { return ServiceTag; }
 
 private:
@@ -56,17 +50,9 @@ private:
 protected:
 	/* 설정값 — BP_JY_Interactable_* · BP_JY_Portal의 Class Defaults에서 수정 */
 
-	/* 안내·팝업에 보일 이름 (예: 제단) — 화면 아래 "[E] 제단" */
+	/* 이 물체의 이름 (예: 제단) — 나중에 화면 아래 "[E] 제단" 안내에 쓴다 */
 	UPROPERTY(EditAnywhere, Category = "JY|Interaction")
 	FText DisplayName;
-
-	/* 지정하면 E로 GameMenu 층에 이 화면을 연다 (제단·기록판). 비우면 서버 동작형 (포털) */
-	UPROPERTY(EditAnywhere, Category = "JY|Interaction")
-	TSoftClassPtr<UJY_ScreenWidget> ScreenClass;
-
-	/* 서버 동작형에서 먼저 물어볼 문구 (비우면 바로 실행). 예: 던전으로 출발할까요? */
-	UPROPERTY(EditAnywhere, Category = "JY|Interaction")
-	FText ConfirmText;
 
 	/* 이 물체가 제공하는 서비스 (제단 = Service.MetaAltar). 서버가 구매·환불 요청의 판매 대상인지 이것으로 확인 */
 	UPROPERTY(EditAnywhere, Category = "JY|Interaction", meta = (Categories = "Service"))
@@ -75,7 +61,4 @@ protected:
 	/* 서버 거리 검증 여유 (cm) */
 	UPROPERTY(EditAnywhere, Category = "JY|Interaction", meta = (ClampMin = "0.0"))
 	float ServerRangeTolerance = 100.0f;
-
-private:
-	TSharedPtr<struct FStreamableHandle> ScreenPreloadHandle;
 };

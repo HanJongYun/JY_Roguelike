@@ -50,7 +50,7 @@ private:
 public:
 	/* 델리게이트 */
 
-	/* 진행 값이 바뀜 (서버: SetProgress / 소유 클라: 복제 도착) — UJY_ProgressViewModel이 구독 */
+	/* 진행 값이 바뀜 (서버: SetProgress / 소유 클라: 복제 도착) — 화면(영혼석 표시 등)이 구독 */
 	FSimpleMulticastDelegate OnProgressChanged;
 
 private:

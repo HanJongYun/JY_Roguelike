@@ -39,7 +39,7 @@ protected:
 	void ClampAttribute(const FGameplayAttribute& Attribute, float& NewValue) const;
 
 public:
-	/* 델리게이트 — 가해자·원인 정보가 필요한 곳용(사망 처리, 이후 데미지 숫자). 체력바 UI는 ASC 값 변경 델리게이트를 쓴다(UJY_StatsViewModel) */
+	/* 델리게이트 — 가해자·원인 정보가 필요한 곳용(사망 처리, 이후 데미지 숫자). 체력바 UI는 ASC 값 변경 델리게이트를 쓴다 */
 
 	/* 체력이 바뀌면 방송 (클라에선 가해자 정보 없음) */
 	mutable FJY_AttributeEvent OnHealthChanged;

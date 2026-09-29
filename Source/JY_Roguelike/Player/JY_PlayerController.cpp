@@ -3,9 +3,6 @@
 #include "AbilitySystem/JY_AbilitySystemComponent.h"
 #include "AbilitySystem/Effects/JY_DebugGameplayEffects.h"
 #include "System/JY_GameplayTags.h"
-#include "UI/JY_UIManagerSubsystem.h"
-#include "UI/ViewModels/JY_StatsViewModel.h"
-#include "UI/ViewModels/JY_ProgressViewModel.h"
 #include "System/JY_GameMode.h"
 #include "GameFramework/CheatManagerDefines.h"
 #include "EnhancedInputSubsystems.h"
@@ -16,50 +13,6 @@
 
 AJY_PlayerController::AJY_PlayerController()
 {
-}
-
-// [OwnClient] 로컬 컨트롤러만
-void AJY_PlayerController::BeginPlay() //override
-{
-	Super::BeginPlay();
-
-	if (IsLocalPlayerController() == false)
-		return;
-
-	/* 입력 모드·커서는 CommonUI가 관리 (UJY_UIManagerSubsystem::ApplyDefaultInputConfig, 화면별 GetDesiredInputConfig) */
-
-	InitializeLocalUI();
-}
-
-// [OwnClient]
-/* 클라는 PlayerState가 BeginPlay보다 늦게 올 수 있어 도착 시점에 다시 연결 (서버는 BeginPlay 때 이미 있어 OnRep이 안 옴) */
-void AJY_PlayerController::OnRep_PlayerState() //override
-{
-	Super::OnRep_PlayerState();
-
-	InitializeLocalUI();
-}
-
-// [OwnClient] 로컬 컨트롤러만
-/*
- * 복제 상태 → ViewModel 연결은 여기 한 곳 (UIManager 헤더의 ViewModel 규칙 1). 새 복제 ViewModel도 여기 1줄 추가.
- * 두 번 불려도 안전 — BindAbilitySystem은 같은 ASC면 값만 갱신.
- */
-void AJY_PlayerController::InitializeLocalUI()
-{
-	if (IsLocalPlayerController() == false)
-		return;
-
-	UJY_UIManagerSubsystem* UIManager = ULocalPlayer::GetSubsystem<UJY_UIManagerSubsystem>(GetLocalPlayer());
-	if (UIManager == nullptr)
-		return;
-
-	AJY_PlayerState* JYPlayerState = GetPlayerState<AJY_PlayerState>();
-	if (JYPlayerState == nullptr)
-		return;
-
-	UIManager->GetOrCreateViewModel<UJY_StatsViewModel>()->BindAbilitySystem(JYPlayerState->GetJYAbilitySystemComponent());
-	UIManager->GetOrCreateViewModel<UJY_ProgressViewModel>()->BindPlayerState(JYPlayerState);
 }
 
 // [OwnClient] 로컬 컨트롤러만
@@ -146,17 +99,6 @@ void AJY_PlayerController::Server_DebugApplyHealthDelta_Implementation(float Del
 #endif
 }
 
-/*
- * 솔로 게임이라 클라 요청을 그대로 받는다. 엔진 ServerPause는 토글이라(PlayerController.cpp:1980) 두 번 오면 반대가 된다 → 원하는 상태를 bool로 받는다.
- * SetPause → GameMode::SetPause → WorldSettings PauserPlayerState 복제 → 클라 월드도 멈춤.
- */
-// [Server]
-void AJY_PlayerController::Server_SetUIPaused_Implementation(bool bPaused)
-{
-	/* 정지를 건 PC에 해제 조건을 묶어 둔다 — 이 PC가 나가면 엔진이 그 정지를 지운다(GameModeBase.cpp:284 ForceClearUnpauseDelegates) */
-	SetPause(bPaused, FCanUnpause::CreateUObject(this, &APlayerController::DefaultCanUnpause));
-}
-
 /* 값 검증(판매 대상·거리·가격)은 전부 GameMode — PC는 요청을 전달만 한다 */
 // [Server]
 void AJY_PlayerController::Server_BuyMetaUpgrade_Implementation(FGameplayTag UpgradeTag, AJY_InteractableActor* Seller)
@@ -176,21 +118,6 @@ void AJY_PlayerController::Server_RefundAllMetaUpgrades_Implementation(AJY_Inter
 		return;
 
 	GameMode->RefundAllMetaUpgrades(this, Seller);
-}
-
-/*
- * 일회성 알림 전용 — 놓쳐도 되는 것만(도착 배너·구매 토스트). 접속 직후 틀보다 먼저 오면 UIManager가 모아 뒀다 표시.
- * 서버가 여는 화면(축복 선택·결과)은 이 RPC로 열지 않는다 → 복제 상태로 두고 클라가 틀 생성·OnRep 때 Push (늦게 접속·맵 이동에도 다시 열림).
- * 리슨 서버 호스트는 이 RPC가 자기 자신에게 바로 실행된다.
- */
-// [OwnClient]
-void AJY_PlayerController::Client_ShowNotification_Implementation(EJY_NotificationType Type, const FText& Message)
-{
-	UJY_UIManagerSubsystem* UIManager = ULocalPlayer::GetSubsystem<UJY_UIManagerSubsystem>(GetLocalPlayer());
-	if (UIManager == nullptr)
-		return;
-
-	UIManager->ShowNotification(Type, Message);
 }
 
 // [OwnClient] 콘솔 입력을 받은 로컬 컨트롤러

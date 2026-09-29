@@ -1,6 +1,5 @@
 #include "UI/Foundation/JY_PrimaryLayout.h"
 #include "System/JY_GameplayTags.h"
-#include "System/JY_LogChannels.h"
 #include "Widgets/CommonActivatableWidgetContainer.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(JY_PrimaryLayout)
@@ -31,10 +30,7 @@ void UJY_PrimaryLayout::RegisterLayer(FGameplayTag LayerTag, UCommonActivatableW
 		return;
 
 	if (LayerWidget == nullptr)
-	{
-		UE_LOG(LogJY, Error, TEXT("JYUI RegisterLayer: %s 스택 없음"), *LayerTag.ToString());
 		return;
-	}
 
 	LayerWidget->SetTransitionDuration(0.f);
 	Layers.Add(LayerTag, LayerWidget);

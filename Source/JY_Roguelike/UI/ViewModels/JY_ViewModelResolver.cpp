@@ -3,7 +3,6 @@
 #include "Blueprint/UserWidget.h"
 #include "Engine/LocalPlayer.h"
 #include "MVVMViewModelBase.h"
-#include "System/JY_LogChannels.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(JY_ViewModelResolver)
 
@@ -17,14 +16,9 @@ UObject* UJY_ViewModelResolver::CreateInstance(const UClass* ExpectedType, const
 	const ULocalPlayer* LocalPlayer = UserWidget != nullptr ? UserWidget->GetOwningLocalPlayer() : nullptr;
 	UJY_UIManagerSubsystem* UIManager = ULocalPlayer::GetSubsystem<UJY_UIManagerSubsystem>(LocalPlayer);
 	if (UIManager == nullptr)
-	{
-		UE_LOG(LogJY, Warning, TEXT("JYUI Resolver 실패: %s 로컬 플레이어 없음"), *GetNameSafe(UserWidget));
 		return nullptr;
-	}
 
-	UMVVMViewModelBase* ViewModel = UIManager->GetOrCreateViewModel(const_cast<UClass*>(ExpectedType));
-	UE_LOG(LogJY, Log, TEXT("JYUI Resolver OK %s -> %s"), *GetNameSafe(ExpectedType), *GetNameSafe(UserWidget));
-	return ViewModel;
+	return UIManager->GetOrCreateViewModel(const_cast<UClass*>(ExpectedType));
 }
 
 /* 위젯이 사라질 때 엔진이 부른다. ViewModel은 UIManager가 플레이어 수명 동안 보관·공유하므로 여기서 지우지 않는다 */

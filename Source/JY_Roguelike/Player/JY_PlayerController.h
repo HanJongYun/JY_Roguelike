@@ -5,7 +5,6 @@
 #include "JY_PlayerController.generated.h"
 
 class UInputMappingContext;
-class UJY_ScreenWidget;
 
 /* 입력 매핑 등록, UI 연결, 디버그 명령을 맡는 컨트롤러 */
 UCLASS()
@@ -30,9 +29,9 @@ public:
 	UFUNCTION(Exec)
 	void JYHeal(float Amount);
 
-	/* 콘솔 명령(임시): 테스트 화면을 Menu 층에 올리기 (예: JYUIPush) */
-	UFUNCTION(Exec)
-	void JYUIPush();
+	/* 정지 화면(ESC 메뉴 등)이 켜지거나 모두 꺼졌을 때 서버에 월드 정지·해제 요청 */
+	UFUNCTION(Server, Reliable)
+	void Server_SetUIPaused(bool bPaused);
 
 protected:
 	/* 로컬이면 PlayerState의 ASC를 UI에 연결 */
@@ -48,8 +47,4 @@ private:
 	/* 로컬 플레이어에 등록할 입력 매핑 */
 	UPROPERTY(EditAnywhere, Category = "JY|Input")
 	TArray<TObjectPtr<UInputMappingContext>> DefaultMappingContexts;
-
-	/* JYUIPush로 띄울 테스트 화면 (임시, WBP_JY_TestMenu) — Soft라 서버는 로드 안 함 */
-	UPROPERTY(EditDefaultsOnly, Category = "JY|Debug")
-	TSoftClassPtr<UJY_ScreenWidget> DebugPushScreenClass;
 };

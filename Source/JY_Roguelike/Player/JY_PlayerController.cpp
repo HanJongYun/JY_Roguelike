@@ -4,7 +4,6 @@
 #include "AbilitySystem/Effects/JY_DebugGameplayEffects.h"
 #include "System/JY_GameplayTags.h"
 #include "UI/JY_UIManagerSubsystem.h"
-#include "UI/Foundation/JY_ScreenWidget.h"
 #include "GameFramework/CheatManagerDefines.h"
 #include "EnhancedInputSubsystems.h"
 #include "Engine/LocalPlayer.h"
@@ -140,13 +139,12 @@ void AJY_PlayerController::Server_DebugApplyHealthDelta_Implementation(float Del
 #endif
 }
 
-// [OwnClient] 로컬 컨트롤러만
-void AJY_PlayerController::JYUIPush()
+/*
+ * 솔로 게임이라 클라 요청을 그대로 받는다. 엔진 ServerPause는 토글이라(PlayerController.cpp:1980) 두 번 오면 반대가 된다 → 원하는 상태를 bool로 받는다.
+ * SetPause → GameMode::SetPause → WorldSettings PauserPlayerState 복제 → 클라 월드도 멈춤.
+ */
+// [Server]
+void AJY_PlayerController::Server_SetUIPaused_Implementation(bool bPaused)
 {
-	UJY_UIManagerSubsystem* UIManager = ULocalPlayer::GetSubsystem<UJY_UIManagerSubsystem>(GetLocalPlayer());
-	if (UIManager == nullptr)
-		return;
-
-	/* 디버그 명령이라 동기 로드 */
-	UIManager->PushScreen(JYGameplayTags::UI_Layer_Menu, DebugPushScreenClass.LoadSynchronous());
+	SetPause(bPaused);
 }

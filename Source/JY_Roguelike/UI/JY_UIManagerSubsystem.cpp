@@ -1,6 +1,8 @@
 #include "UI/JY_UIManagerSubsystem.h"
 #include "UI/Foundation/JY_PrimaryLayout.h"
 #include "UI/Foundation/JY_ScreenWidget.h"
+#include "UI/Foundation/JY_HUDLayout.h"
+#include "System/JY_GameplayTags.h"
 #include "Widgets/CommonActivatableWidgetContainer.h"
 #include "Input/CommonUIActionRouterBase.h"
 #include "CommonInputSubsystem.h"
@@ -9,8 +11,8 @@
 #include "System/JY_AssetManager.h"
 #include "System/JY_GameData.h"
 #include "UI/ViewModels/JY_StatsViewModel.h"
-#include "System/JY_LogChannels.h"
 #include "GameFramework/PlayerController.h"
+#include "Player/JY_PlayerController.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(JY_UIManagerSubsystem)
 
@@ -57,14 +59,64 @@ UJY_ScreenWidget* UJY_UIManagerSubsystem::PushScreen(FGameplayTag LayerTag, TSub
 
 	UCommonActivatableWidgetContainerBase* Layer = PrimaryLayout->GetLayer(LayerTag);
 	if (Layer == nullptr)
-	{
-		UE_LOG(LogJY, Error, TEXT("JYUI Push 실패: 층 %s 없음"), *LayerTag.ToString());
 		return nullptr;
-	}
 
 	UJY_ScreenWidget* Screen = Layer->AddWidget<UJY_ScreenWidget>(ScreenClass);
-	UE_LOG(LogJY, Log, TEXT("JYUI Push %s %s"), *LayerTag.ToString(), *GetNameSafe(Screen));
 	return Screen;
+}
+
+/* 팝업 클래스는 GameData에서 — 팝업 모양을 바꿔도 부르는 쪽 코드는 그대로 */
+// [OwnClient]
+void UJY_UIManagerSubsystem::ShowConfirm(const FText& Title, const FText& Body, FJY_OnConfirmResult OnResult)
+{
+	const UJY_GameData* GameData = UJY_AssetManager::Get().GetGameData();
+	const TSubclassOf<UJY_ConfirmDialog> DialogClass = GameData != nullptr ? GameData->ConfirmDialogClass.LoadSynchronous() : nullptr;
+	if (DialogClass == nullptr)
+		return;
+
+	UJY_ConfirmDialog* Dialog = Cast<UJY_ConfirmDialog>(PushScreen(JYGameplayTags::UI_Layer_Modal, DialogClass));
+	if (Dialog == nullptr)
+		return;
+
+	Dialog->SetupDialog(Title, Body, MoveTemp(OnResult));
+}
+
+/*
+ * 예: ESC 메뉴(정지) 위에 확인 팝업(정지) → 목록 2개. 팝업을 닫으면 1개 → 여전히 정지. 메뉴까지 닫아야 0개 → 해제.
+ * 정지는 서버가 건다(SetPause는 서버 GameMode 권한). 월드가 멈춰도 PC·네트워크는 돌아 해제 RPC가 도착한다.
+ */
+// [OwnClient]
+void UJY_UIManagerSubsystem::SetPauseScreenActive(UJY_ScreenWidget* Screen, bool bActive)
+{
+	const bool bWasPaused = PauseScreens.Num() > 0;
+
+	if (bActive == true)
+	{
+		PauseScreens.Add(Screen);
+	}
+	else
+	{
+		PauseScreens.Remove(Screen);
+	}
+
+	/* 닫히지 않고 사라진 화면 정리 */
+	for (auto It = PauseScreens.CreateIterator(); It; ++It)
+	{
+		if (It->IsValid() == false)
+		{
+			It.RemoveCurrent();
+		}
+	}
+
+	const bool bIsPaused = PauseScreens.Num() > 0;
+	if (bWasPaused == bIsPaused)
+		return;
+
+	AJY_PlayerController* PC = Cast<AJY_PlayerController>(GetLocalPlayer()->PlayerController);
+	if (PC == nullptr)
+		return;
+
+	PC->Server_SetUIPaused(bIsPaused);
 }
 
 /*
@@ -118,17 +170,20 @@ void UJY_UIManagerSubsystem::CreatePrimaryLayout(APlayerController* PC)
 
 	const TSubclassOf<UJY_PrimaryLayout> LayoutClass = GameData->PrimaryLayoutClass.LoadSynchronous();
 	if (LayoutClass == nullptr)
-	{
-		UE_LOG(LogJY, Error, TEXT("[%s] JYUI PrimaryLayoutClass 비어 있음 (DA_JY_GameData)"), JY_GetNetRoleTag(PC));
 		return;
-	}
 
 	PrimaryLayout = CreateWidget<UJY_PrimaryLayout>(PC, LayoutClass);
 	if (PrimaryLayout == nullptr)
 		return;
 
 	PrimaryLayout->AddToPlayerScreen(1000);
-	UE_LOG(LogJY, Log, TEXT("[%s] JYUI Layout created %s (%s)"), JY_GetNetRoleTag(PC), *GetNameSafe(PrimaryLayout), *GetNameSafe(PC));
+
+	/* 층은 CreateWidget 안의 NativeOnInitialized에서 이미 등록됨 → 바로 Push 가능. 맵마다 레이아웃과 함께 새로 생긴다 */
+	const TSubclassOf<UJY_HUDLayout> HUDClass = GameData->HUDLayoutClass.LoadSynchronous();
+	if (HUDClass == nullptr)
+		return;
+
+	PushScreen(JYGameplayTags::UI_Layer_Game, HUDClass);
 }
 
 // [OwnClient]
@@ -139,6 +194,9 @@ void UJY_UIManagerSubsystem::DestroyPrimaryLayout()
 
 	PrimaryLayout->RemoveFromParent();
 	PrimaryLayout = nullptr;
+
+	/* 맵 이동 시 새 월드는 정지 상태로 시작하지 않는다 → 목록도 비운다 */
+	PauseScreens.Reset();
 }
 
 /*
@@ -157,10 +215,7 @@ void UJY_UIManagerSubsystem::ApplyDefaultInputConfig(APlayerController* PC)
 	const UCommonInputSubsystem* CommonInputSubsystem = ULocalPlayer::GetSubsystem<UCommonInputSubsystem>(GetLocalPlayer());
 	const UCommonInputActionDomainTable* DefaultTable = CommonInputSubsystem != nullptr ? CommonInputSubsystem->GetActionDomainTable() : nullptr;
 	if (DefaultTable == nullptr)
-	{
-		UE_LOG(LogJY, Error, TEXT("[%s] JYUI ActionDomainTable 비어 있음 — DefaultGame.ini CommonInputSettings 확인"), JY_GetNetRoleTag(PC));
 		return;
-	}
 
 	ActionRouter->SetActiveUIInputConfig(FUIInputConfig(DefaultTable->InputMode, DefaultTable->MouseCaptureMode, DefaultTable->bHideCursorDuringViewportCapture), DefaultTable);
 }

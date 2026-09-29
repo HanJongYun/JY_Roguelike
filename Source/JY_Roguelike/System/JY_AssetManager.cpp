@@ -1,6 +1,5 @@
 #include "System/JY_AssetManager.h"
 #include "System/JY_GameData.h"
-#include "System/JY_LogChannels.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(JY_AssetManager)
 
@@ -13,10 +12,7 @@ UJY_AssetManager& UJY_AssetManager::Get()
 	check(GEngine != nullptr);
 
 	UJY_AssetManager* AssetManager = Cast<UJY_AssetManager>(GEngine->AssetManager);
-	if (AssetManager == nullptr)
-	{
-		UE_LOG(LogJY, Fatal, TEXT("JYUI AssetManagerClassName이 JY_AssetManager가 아님 — DefaultEngine.ini 확인"));
-	}
+	check(AssetManager != nullptr);
 
 	return *AssetManager;
 }
@@ -31,18 +27,11 @@ const UJY_GameData* UJY_AssetManager::GetGameData()
 		return GameData;
 
 	if (GameDataPath.IsNull() == true)
-	{
-		UE_LOG(LogJY, Error, TEXT("JYUI GameDataPath 비어 있음 — DefaultGame.ini [/Script/JY_Roguelike.JY_AssetManager] 확인"));
 		return nullptr;
-	}
 
 	GameData = GameDataPath.LoadSynchronous();
 	if (GameData == nullptr)
-	{
-		UE_LOG(LogJY, Error, TEXT("JYUI GameData 로드 실패 %s"), *GameDataPath.ToString());
 		return nullptr;
-	}
 
-	UE_LOG(LogJY, Log, TEXT("JYUI GameData loaded %s"), *GetNameSafe(GameData));
 	return GameData;
 }

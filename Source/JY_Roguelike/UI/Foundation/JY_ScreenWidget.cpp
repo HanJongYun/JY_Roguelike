@@ -1,5 +1,7 @@
 #include "UI/Foundation/JY_ScreenWidget.h"
 #include "Input/UIActionBindingHandle.h"
+#include "UI/JY_UIManagerSubsystem.h"
+#include "Engine/LocalPlayer.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(JY_ScreenWidget)
 
@@ -22,4 +24,34 @@ TOptional<FUIInputConfig> UJY_ScreenWidget::GetDesiredInputConfig() const //over
 		/* 메뉴는 게임이 마우스를 잡을 일이 없음 */
 		return FUIInputConfig(ECommonInputMode::Menu, EMouseCaptureMode::NoCapture, false);
 	}
+}
+
+// [OwnClient]
+void UJY_ScreenWidget::NativeOnActivated() //override
+{
+	Super::NativeOnActivated();
+
+	NotifyPauseScreen(true);
+}
+
+// [OwnClient]
+void UJY_ScreenWidget::NativeOnDeactivated() //override
+{
+	NotifyPauseScreen(false);
+
+	Super::NativeOnDeactivated();
+}
+
+/* 화면은 "정지가 필요하다"만 알린다 — 여러 정지 화면이 겹칠 때 실제 정지·해제 판단은 UIManager가 목록으로 한다 */
+// [OwnClient]
+void UJY_ScreenWidget::NotifyPauseScreen(bool bActive)
+{
+	if (bPauseGame == false)
+		return;
+
+	UJY_UIManagerSubsystem* UIManager = ULocalPlayer::GetSubsystem<UJY_UIManagerSubsystem>(GetOwningLocalPlayer());
+	if (UIManager == nullptr)
+		return;
+
+	UIManager->SetPauseScreenActive(this, bActive);
 }

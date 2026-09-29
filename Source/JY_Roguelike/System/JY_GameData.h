@@ -5,6 +5,8 @@
 #include "JY_GameData.generated.h"
 
 class UJY_PrimaryLayout;
+class UJY_HUDLayout;
+class UJY_ConfirmDialog;
 class UMVVMViewModelBase;
 
 /* 게임 전체가 같이 쓰는 데이터 한 벌 (에셋 DA_JY_GameData) */
@@ -19,6 +21,14 @@ public:
 	/* 화면 전체 틀 위젯 (WBP_JY_PrimaryLayout) */
 	UPROPERTY(EditDefaultsOnly, Category = "UI")
 	TSoftClassPtr<UJY_PrimaryLayout> PrimaryLayoutClass;
+
+	/* 레이아웃이 생기면 Game 층에 올릴 HUD (WBP_JY_HUD) */
+	UPROPERTY(EditDefaultsOnly, Category = "UI")
+	TSoftClassPtr<UJY_HUDLayout> HUDLayoutClass;
+
+	/* 확인 팝업 (WBP_JY_ConfirmDialog) — ShowConfirm이 Modal 층에 올림 */
+	UPROPERTY(EditDefaultsOnly, Category = "UI")
+	TSoftClassPtr<UJY_ConfirmDialog> ConfirmDialogClass;
 
 	/* ViewModel 교체 표 — 키: C++ ViewModel 클래스, 값: 대신 만들 BP 자식(색·기준값 조정). 없는 키는 C++ 클래스 그대로 */
 	UPROPERTY(EditDefaultsOnly, Category = "UI")

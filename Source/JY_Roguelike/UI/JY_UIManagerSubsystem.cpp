@@ -1,5 +1,11 @@
 #include "UI/JY_UIManagerSubsystem.h"
 #include "UI/Foundation/JY_PrimaryLayout.h"
+#include "UI/Foundation/JY_ScreenWidget.h"
+#include "Widgets/CommonActivatableWidgetContainer.h"
+#include "Input/CommonUIActionRouterBase.h"
+#include "CommonInputSubsystem.h"
+#include "CommonInputActionDomain.h"
+#include "Engine/LocalPlayer.h"
 #include "System/JY_AssetManager.h"
 #include "System/JY_GameData.h"
 #include "UI/JY_UISettings.h"
@@ -37,6 +43,29 @@ void UJY_UIManagerSubsystem::PlayerControllerChanged(APlayerController* NewPlaye
 		return;
 
 	CreatePrimaryLayout(NewPlayerController);
+	ApplyDefaultInputConfig(NewPlayerController);
+}
+
+/*
+ * 층 스택에 넣으면 스택이 위젯을 만들고 켠다(Activate) → 화면의 GetDesiredInputConfig로 입력 모드가 바뀐다.
+ * 닫기는 화면이 스스로 DeactivateWidget → 스택이 빼고 아래 화면(없으면 기본 입력)으로 돌아간다.
+ */
+// [OwnClient]
+UJY_ScreenWidget* UJY_UIManagerSubsystem::PushScreen(FGameplayTag LayerTag, TSubclassOf<UJY_ScreenWidget> ScreenClass)
+{
+	if (PrimaryLayout == nullptr || ScreenClass == nullptr)
+		return nullptr;
+
+	UCommonActivatableWidgetContainerBase* Layer = PrimaryLayout->GetLayer(LayerTag);
+	if (Layer == nullptr)
+	{
+		UE_LOG(LogJY, Error, TEXT("JYUI Push 실패: 층 %s 없음"), *LayerTag.ToString());
+		return nullptr;
+	}
+
+	UJY_ScreenWidget* Screen = Layer->AddWidget<UJY_ScreenWidget>(ScreenClass);
+	UE_LOG(LogJY, Log, TEXT("JYUI Push %s %s"), *LayerTag.ToString(), *GetNameSafe(Screen));
+	return Screen;
 }
 
 /*
@@ -100,4 +129,28 @@ void UJY_UIManagerSubsystem::DestroyPrimaryLayout()
 
 	PrimaryLayout->RemoveFromParent();
 	PrimaryLayout = nullptr;
+}
+
+/*
+ * 켜진 화면이 하나도 없으면 CommonUI는 마지막 입력 모드를 그대로 둔다 → 메뉴를 닫아도 이동이 막힌 채 남는다.
+ * 엔진은 이때 ActionDomainTable 기본값을 적용한다(CommonUIActionRouterBase.cpp:1834 RefreshActionDomainLeafNodeConfig) →
+ * 그 에셋(DA_JY_InputDefaults)에 "게임 모드·커서 표시"를 두고, 시작할 때도 같은 값을 여기서 한 번 적용한다(시작 시엔 엔진이 안 부름).
+ */
+// [OwnClient]
+void UJY_UIManagerSubsystem::ApplyDefaultInputConfig(APlayerController* PC)
+{
+	UCommonUIActionRouterBase* ActionRouter = ULocalPlayer::GetSubsystem<UCommonUIActionRouterBase>(GetLocalPlayer());
+	if (ActionRouter == nullptr)
+		return;
+
+	/* 라우터가 쓰는 것과 같은 곳에서 꺼낸다 (CommonUIActionRouterBase.cpp:1091) — CDO(GetDefault)는 에셋이 로드 안 된 상태 */
+	const UCommonInputSubsystem* CommonInputSubsystem = ULocalPlayer::GetSubsystem<UCommonInputSubsystem>(GetLocalPlayer());
+	const UCommonInputActionDomainTable* DefaultTable = CommonInputSubsystem != nullptr ? CommonInputSubsystem->GetActionDomainTable() : nullptr;
+	if (DefaultTable == nullptr)
+	{
+		UE_LOG(LogJY, Error, TEXT("[%s] JYUI ActionDomainTable 비어 있음 — DefaultGame.ini CommonInputSettings 확인"), JY_GetNetRoleTag(PC));
+		return;
+	}
+
+	ActionRouter->SetActiveUIInputConfig(FUIInputConfig(DefaultTable->InputMode, DefaultTable->MouseCaptureMode, DefaultTable->bHideCursorDuringViewportCapture), DefaultTable);
 }

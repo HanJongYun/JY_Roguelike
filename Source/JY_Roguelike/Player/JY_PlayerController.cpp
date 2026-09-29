@@ -4,6 +4,7 @@
 #include "AbilitySystem/Effects/JY_DebugGameplayEffects.h"
 #include "System/JY_GameplayTags.h"
 #include "UI/JY_UIManagerSubsystem.h"
+#include "UI/Foundation/JY_ScreenWidget.h"
 #include "GameFramework/CheatManagerDefines.h"
 #include "EnhancedInputSubsystems.h"
 #include "Engine/LocalPlayer.h"
@@ -23,12 +24,7 @@ void AJY_PlayerController::BeginPlay() //override
 	if (IsLocalPlayerController() == false)
 		return;
 
-	/* 쿼터뷰라 커서 상시 표시. 클릭 중에도 커서가 사라지지 않게 */
-	bShowMouseCursor = true;
-
-	FInputModeGameAndUI InputMode;
-	InputMode.SetHideCursorDuringCapture(false);
-	SetInputMode(InputMode);
+	/* 입력 모드·커서는 CommonUI가 관리 (UJY_UIManagerSubsystem::ApplyDefaultInputConfig, 화면별 GetDesiredInputConfig) */
 
 	InitializeLocalUI();
 }
@@ -142,4 +138,15 @@ void AJY_PlayerController::Server_DebugApplyHealthDelta_Implementation(float Del
 	SpecHandle.Data->SetSetByCallerMagnitude(MagnitudeTag, FMath::Abs(Delta));
 	JYASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
 #endif
+}
+
+// [OwnClient] 로컬 컨트롤러만
+void AJY_PlayerController::JYUIPush()
+{
+	UJY_UIManagerSubsystem* UIManager = ULocalPlayer::GetSubsystem<UJY_UIManagerSubsystem>(GetLocalPlayer());
+	if (UIManager == nullptr)
+		return;
+
+	/* 디버그 명령이라 동기 로드 */
+	UIManager->PushScreen(JYGameplayTags::UI_Layer_Menu, DebugPushScreenClass.LoadSynchronous());
 }

@@ -6,8 +6,7 @@
 #include "CommonInputSettings.h"
 #include "Input/CommonUIInputTypes.h"
 #include "Engine/AssetManager.h"
-#include "System/JY_GameMode.h"
-#include "GameFramework/GameStateBase.h"
+#include "System/JY_WorldSettings.h"
 #include "Engine/World.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(JY_HUDLayout)
@@ -24,6 +23,8 @@ UJY_HUDLayout::UJY_HUDLayout(const FObjectInitializer& ObjectInitializer)
 }
 
 /*
+ * 뒤로가기 키 = CommonInput 설정의 뒤로가기 액션 (DefaultGame.ini InputData → BP_JY_CommonInputData의 IA_JY_UI_Back → IMC에서 Tab).
+ *   Tab인 이유: PIE에서 ESC는 에디터가 플레이 종료 키로 먼저 가져간다. 패키지 게임에서 ESC로 바꾸려면 IMC 키만 바꾼다.
  * bIsBackHandler를 쓰지 않는 이유: 엔진이 등록하는 뒤로가기 바인딩은 Menu 모드 전용(CommonUIInputTypes.h:62 기본값)이고,
  * 라우터는 현재 입력 모드와 바인딩 모드가 같을 때만 실행한다(UIActionRouterTypes.cpp:852) → Game 모드인 HUD에선 무시된다.
  * 그래서 같은 뒤로가기 액션을 Game 모드로 직접 등록한다.
@@ -35,42 +36,36 @@ void UJY_HUDLayout::NativeOnInitialized() //override
 	Super::NativeOnInitialized();
 
 	const UInputAction* BackAction = ICommonInputModule::GetSettings().GetEnhancedInputBackAction();
-	if (BackAction == nullptr)
-		return;
+	if (BackAction != nullptr)
+	{
+		FBindUIActionArgs BindArgs(BackAction, false, FSimpleDelegate::CreateUObject(this, &UJY_HUDLayout::HandleBackAction));
+		BindArgs.InputMode = ECommonInputMode::Game;
+		RegisterUIActionBinding(BindArgs);
+	}
 
-	FBindUIActionArgs BindArgs(BackAction, false, FSimpleDelegate::CreateUObject(this, &UJY_HUDLayout::HandleEscapeAction));
-	BindArgs.InputMode = ECommonInputMode::Game;
-	RegisterUIActionBinding(BindArgs);
-
-	/* ESC 메뉴를 처음 열 때 끊기지 않게 지금 비동기로 미리 올려 둔다 */
+	/* 정지 메뉴를 처음 열 때 끊기지 않게 지금 비동기로 미리 올려 둔다 */
 	if (EscapeMenuClass.IsNull() == false)
 	{
 		EscapeMenuPreloadHandle = UAssetManager::GetStreamableManager().RequestAsyncLoad(EscapeMenuClass.ToSoftObjectPath());
 	}
 
-	/* 클라에는 GameMode가 없지만 GameState가 GameMode 클래스를 복제해 준다 → 그 기본값을 읽는다 */
-	AGameStateBase* GameState = GetWorld()->GetGameState();
-	if (GameState == nullptr)
-	{
-		GetWorld()->GameStateSetEvent.AddUObject(this, &UJY_HUDLayout::RefreshCombatPanel);
-		CombatPanel->SetVisibility(ESlateVisibility::Collapsed);
-		return;
-	}
-
-	RefreshCombatPanel(GameState);
+	RefreshCombatPanel();
 }
 
-/* 예: 허브 GameMode bShowCombatHUD=false → 체력바 숨김, 던전 GameMode true → 표시 (하데스 허브엔 체력바가 없다) */
+/*
+ * 예: 허브 World Settings bShowCombatHUD=false → 체력바 숨김, 던전 true → 표시 (하데스 허브엔 체력바가 없다).
+ * World Settings는 맵 파일에 들어 있어 클라도 맵을 여는 순간 갖고 있다 → 복제를 기다릴 필요가 없다.
+ */
 // [OwnClient]
-void UJY_HUDLayout::RefreshCombatPanel(AGameStateBase* GameState)
+void UJY_HUDLayout::RefreshCombatPanel()
 {
-	const AJY_GameMode* GameModeDefaults = GameState != nullptr ? GameState->GetDefaultGameMode<AJY_GameMode>() : nullptr;
-	const bool bShowCombatHUD = GameModeDefaults == nullptr || GameModeDefaults->ShouldShowCombatHUD() == true;
+	const AJY_WorldSettings* WorldSettings = Cast<AJY_WorldSettings>(GetWorld()->GetWorldSettings());
+	const bool bShowCombatHUD = WorldSettings == nullptr || WorldSettings->ShouldShowCombatHUD() == true;
 	CombatPanel->SetVisibility(bShowCombatHUD == true ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
 }
 
 // [OwnClient]
-void UJY_HUDLayout::HandleEscapeAction()
+void UJY_HUDLayout::HandleBackAction()
 {
 	UJY_UIManagerSubsystem* UIManager = GetUIManager();
 	if (UIManager == nullptr)
@@ -83,4 +78,3 @@ void UJY_HUDLayout::HandleEscapeAction()
 
 	UIManager->PushScreen(JYGameplayTags::UI_Layer_Menu, MenuClass);
 }
-

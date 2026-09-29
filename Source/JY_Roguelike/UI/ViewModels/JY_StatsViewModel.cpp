@@ -42,7 +42,17 @@ void UJY_StatsViewModel::BindAbilitySystem(UJY_AbilitySystemComponent* InASC)
 	RefreshHealthValues(InASC->GetNumericAttribute(UJY_HealthSet::GetHealthAttribute()), InASC->GetNumericAttribute(UJY_HealthSet::GetMaxHealthAttribute()));
 }
 
+/* 연결이 끊긴 뒤 옛 체력이 남아 보이지 않게 표시를 "모름"으로 되돌린다 */
 void UJY_StatsViewModel::UnbindAbilitySystem()
+{
+	RemoveAbilitySystemBindings();
+
+	DisplayedCurrentHealth = INDEX_NONE;
+	DisplayedMaxHealth = INDEX_NONE;
+	UE_MVVM_SET_PROPERTY_VALUE(HealthText, INVTEXT("-- / --"));
+}
+
+void UJY_StatsViewModel::RemoveAbilitySystemBindings()
 {
 	UJY_AbilitySystemComponent* ASC = AbilitySystemComponent.Get();
 	if (ASC != nullptr)
@@ -56,9 +66,10 @@ void UJY_StatsViewModel::UnbindAbilitySystem()
 	AbilitySystemComponent.Reset();
 }
 
+/* 사라지는 중엔 위젯에 알리지 않는다 — 구독만 푼다 */
 void UJY_StatsViewModel::BeginDestroy() //override
 {
-	UnbindAbilitySystem();
+	RemoveAbilitySystemBindings();
 
 	Super::BeginDestroy();
 }
@@ -83,8 +94,15 @@ void UJY_StatsViewModel::RefreshHealthValues(float NewCurrentHealth, float NewMa
 	const float NewPercent = NewMaxHealth > 0.0f ? FMath::Clamp(NewCurrentHealth / NewMaxHealth, 0.0f, 1.0f) : 0.0f;
 	UE_MVVM_SET_PROPERTY_VALUE(HealthPercent, NewPercent);
 
-	const FText NewText = FText::Format(INVTEXT("{0} / {1}"), FText::AsNumber(FMath::RoundToInt(NewCurrentHealth)), FText::AsNumber(FMath::RoundToInt(NewMaxHealth)));
-	UE_MVVM_SET_PROPERTY_VALUE(HealthText, NewText);
+	/* FText는 새로 만들면 항상 "다른 값"이라(UJY_MetaEntryViewModel::Refresh 참고) 반올림한 정수가 바뀔 때만 만든다 — 99.6 → 99.8은 알림 없음 */
+	const int32 RoundedCurrentHealth = FMath::RoundToInt(NewCurrentHealth);
+	const int32 RoundedMaxHealth = FMath::RoundToInt(NewMaxHealth);
+	if (RoundedCurrentHealth != DisplayedCurrentHealth || RoundedMaxHealth != DisplayedMaxHealth)
+	{
+		DisplayedCurrentHealth = RoundedCurrentHealth;
+		DisplayedMaxHealth = RoundedMaxHealth;
+		UE_MVVM_SET_PROPERTY_VALUE(HealthText, FText::Format(INVTEXT("{0} / {1}"), FText::AsNumber(RoundedCurrentHealth), FText::AsNumber(RoundedMaxHealth)));
+	}
 
 	const bool bNewLowHealth = NewPercent <= LowHealthRatio;
 	UE_MVVM_SET_PROPERTY_VALUE(bLowHealth, bNewLowHealth);

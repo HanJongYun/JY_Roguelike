@@ -41,7 +41,10 @@ void AJY_PlayerController::OnRep_PlayerState() //override
 }
 
 // [OwnClient] 로컬 컨트롤러만
-/* 두 번 불려도 안전 — BindAbilitySystem은 같은 ASC면 값만 갱신 */
+/*
+ * 복제 상태 → ViewModel 연결은 여기 한 곳 (UIManager 헤더의 ViewModel 규칙 1). 새 복제 ViewModel도 여기 1줄 추가.
+ * 두 번 불려도 안전 — BindAbilitySystem은 같은 ASC면 값만 갱신.
+ */
 void AJY_PlayerController::InitializeLocalUI()
 {
 	if (IsLocalPlayerController() == false)
@@ -154,27 +157,32 @@ void AJY_PlayerController::Server_SetUIPaused_Implementation(bool bPaused)
 	SetPause(bPaused, FCanUnpause::CreateUObject(this, &APlayerController::DefaultCanUnpause));
 }
 
-/* 값 검증은 전부 GameMode — PC는 요청을 전달만 한다 */
+/* 값 검증(판매 대상·거리·가격)은 전부 GameMode — PC는 요청을 전달만 한다 */
 // [Server]
-void AJY_PlayerController::Server_BuyMetaUpgrade_Implementation(FGameplayTag UpgradeTag)
+void AJY_PlayerController::Server_BuyMetaUpgrade_Implementation(FGameplayTag UpgradeTag, AJY_InteractableActor* Seller)
 {
 	AJY_GameMode* GameMode = GetWorld()->GetAuthGameMode<AJY_GameMode>();
 	if (GameMode == nullptr)
 		return;
 
-	GameMode->TryBuyMetaUpgrade(this, UpgradeTag);
+	GameMode->TryBuyMetaUpgrade(this, UpgradeTag, Seller);
 }
 
 // [Server]
-void AJY_PlayerController::Server_RefundAllMetaUpgrades_Implementation()
+void AJY_PlayerController::Server_RefundAllMetaUpgrades_Implementation(AJY_InteractableActor* Seller)
 {
 	AJY_GameMode* GameMode = GetWorld()->GetAuthGameMode<AJY_GameMode>();
 	if (GameMode == nullptr)
 		return;
 
-	GameMode->RefundAllMetaUpgrades(this);
+	GameMode->RefundAllMetaUpgrades(this, Seller);
 }
 
+/*
+ * 일회성 알림 전용 — 놓쳐도 되는 것만(도착 배너·구매 토스트). 접속 직후 틀보다 먼저 오면 UIManager가 모아 뒀다 표시.
+ * 서버가 여는 화면(축복 선택·결과)은 이 RPC로 열지 않는다 → 복제 상태로 두고 클라가 틀 생성·OnRep 때 Push (늦게 접속·맵 이동에도 다시 열림).
+ * 리슨 서버 호스트는 이 RPC가 자기 자신에게 바로 실행된다.
+ */
 // [OwnClient]
 void AJY_PlayerController::Client_ShowNotification_Implementation(EJY_NotificationType Type, const FText& Message)
 {

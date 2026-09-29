@@ -1,6 +1,10 @@
 #include "System/JY_GameMode.h"
 #include "System/JY_AssetManager.h"
 #include "System/JY_GameData.h"
+#include "System/JY_GameplayTags.h"
+#include "System/JY_LogChannels.h"
+#include "System/JY_WorldSettings.h"
+#include "Interaction/JY_InteractableActor.h"
 #include "Character/JY_Character.h"
 #include "Player/JY_PlayerController.h"
 #include "Player/JY_PlayerState.h"
@@ -20,6 +24,7 @@ AJY_GameMode::AJY_GameMode()
 
 /*
  * 세이브는 서버만 만진다 — 클라가 파일을 고쳐도 영향 없음. GameMode는 서버에만 있어 별도 서브시스템이 필요 없다.
+ * 1인 게임 전제 — 슬롯 1개를 접속한 플레이어가 쓴다. 협동을 넣으면 플레이어별 슬롯(계정 ID)으로 나눈다.
  * 맵이 바뀌면 GameMode·PlayerState가 새로 생기므로 들어올 때마다 파일에서 다시 읽는다.
  * PostLogin 대신 여기: 일반 접속(PostLogin)과 Seamless 이동(HandleSeamlessTravelPlayer) 모두 이 함수를 거친다(GameModeBase.cpp:607).
  * 효과는 PlayerState의 ASC에 걸려 순서와 무관하지만, 먼저 읽으면 폰이 생길 때 최대 체력이 이미 정해져 있다.
@@ -31,10 +36,12 @@ void AJY_GameMode::HandleStartingNewPlayer_Implementation(APlayerController* New
 
 	Super::HandleStartingNewPlayer_Implementation(NewPlayer);
 
+	/* 도착 배너 문구는 맵(World Settings)이 갖고, 띄우는 시점은 서버가 정한다 — 나중에 "첫 방문" 같은 상황별 문구를 서버가 고를 수 있게 */
+	const AJY_WorldSettings* WorldSettings = Cast<AJY_WorldSettings>(GetWorldSettings());
 	AJY_PlayerController* JYPlayerController = Cast<AJY_PlayerController>(NewPlayer);
-	if (JYPlayerController != nullptr && WelcomeBannerText.IsEmpty() == false)
+	if (WorldSettings != nullptr && JYPlayerController != nullptr && WorldSettings->GetAreaNameText().IsEmpty() == false)
 	{
-		JYPlayerController->Client_ShowNotification(EJY_NotificationType::Banner, WelcomeBannerText);
+		JYPlayerController->Client_ShowNotification(EJY_NotificationType::Banner, WorldSettings->GetAreaNameText());
 	}
 }
 
@@ -45,19 +52,51 @@ void AJY_GameMode::LoadProgress(AJY_PlayerState* PlayerState)
 		return;
 
 	/* 첫 실행엔 파일이 없다 — 없는 파일을 읽으면 엔진이 경고를 남겨 먼저 확인 */
-	const UJY_ProgressSaveGame* SaveGame = UGameplayStatics::DoesSaveGameExist(SaveSlotName, 0) == true ? Cast<UJY_ProgressSaveGame>(UGameplayStatics::LoadGameFromSlot(SaveSlotName, 0)) : nullptr;
+	const bool bSaveExists = UGameplayStatics::DoesSaveGameExist(SaveSlotName, 0);
+	const UJY_ProgressSaveGame* SaveGame = bSaveExists == true ? Cast<UJY_ProgressSaveGame>(UGameplayStatics::LoadGameFromSlot(SaveSlotName, 0)) : nullptr;
+
+	/*
+	 * 파일은 있는데 못 읽음(클래스 이름 변경·파일 손상) → 빈 진행으로 시작하되, 다음 저장이 덮어쓰기 전에 원본 바이트를 "<슬롯>_Broken"에 남긴다.
+	 * 이게 없으면 첫 구매·영혼석 획득 때 몇 시간 치 진행이 조용히 사라진다.
+	 */
+	if (bSaveExists == true && SaveGame == nullptr)
+	{
+		TArray<uint8> BrokenSaveData;
+		if (UGameplayStatics::LoadDataFromSlot(OUT BrokenSaveData, SaveSlotName, 0) == true)
+		{
+			UGameplayStatics::SaveDataToSlot(BrokenSaveData, SaveSlotName + TEXT("_Broken"), 0);
+		}
+
+		UE_LOG(LogJY, Warning, TEXT("세이브 %s 를 읽지 못해 빈 진행으로 시작 — 원본은 %s_Broken 에 보관"), *SaveSlotName, *SaveSlotName);
+	}
+
 	PlayerState->SetProgress(SaveGame != nullptr ? SaveGame->Progress : FJY_PlayerProgress());
 
 	const UJY_GameData* GameData = UJY_AssetManager::Get().GetGameData();
 	PlayerState->RefreshMetaEffects(GameData != nullptr ? GameData->MetaUpgradeData.Get() : nullptr);
 }
 
+/*
+ * 판매 대상 검증: 제단(Service.MetaAltar)이 맞고, 요청한 플레이어 폰이 그 사용 범위 안에 있어야 한다.
+ * 개조 클라가 던전에서·멀리서 구매 요청을 보내도 여기서 거절된다. 상점·축복 NPC는 같은 방식으로 자기 서비스 태그를 쓴다.
+ */
+// [Server]
+bool AJY_GameMode::IsValidMetaSeller(const APlayerController* Requester, const AJY_InteractableActor* Seller) const
+{
+	if (Requester == nullptr || Seller == nullptr)
+		return false;
+
+	if (Seller->GetServiceTag() != JYGameplayTags::Service_MetaAltar)
+		return false;
+
+	return Seller->IsWithinInteractRange(Requester->GetPawn());
+}
+
 /* 연타해도 요청이 서버에서 하나씩 처리되고, 매번 현재 값으로 다시 검증 → 영혼석이 음수가 되거나 최대를 넘지 않는다 */
 // [Server]
-void AJY_GameMode::TryBuyMetaUpgrade(APlayerController* Buyer, FGameplayTag UpgradeTag)
+void AJY_GameMode::TryBuyMetaUpgrade(APlayerController* Buyer, FGameplayTag UpgradeTag, AJY_InteractableActor* Seller)
 {
-	/* 제단 화면은 클라에서만 열려 서버가 모른다 → "이 맵에서 허용?"을 서버 규칙으로 막는다 */
-	if (bAllowMetaUpgrades == false)
+	if (IsValidMetaSeller(Buyer, Seller) == false)
 		return;
 
 	AJY_PlayerState* PlayerState = Buyer != nullptr ? Buyer->GetPlayerState<AJY_PlayerState>() : nullptr;
@@ -81,7 +120,7 @@ void AJY_GameMode::TryBuyMetaUpgrade(APlayerController* Buyer, FGameplayTag Upgr
 
 	NewProgress.SoulStones -= Cost;
 	NewProgress.SetMetaRank(UpgradeTag, CurrentRank + 1);
-	CommitProgress(PlayerState, NewProgress, true);
+	CommitProgress(PlayerState, NewProgress, EJY_ProgressCommitScope::MetaRanksChanged);
 
 	AJY_PlayerController* JYPlayerController = Cast<AJY_PlayerController>(Buyer);
 	if (JYPlayerController != nullptr)
@@ -91,9 +130,9 @@ void AJY_GameMode::TryBuyMetaUpgrade(APlayerController* Buyer, FGameplayTag Upgr
 }
 
 // [Server]
-void AJY_GameMode::RefundAllMetaUpgrades(APlayerController* Requester)
+void AJY_GameMode::RefundAllMetaUpgrades(APlayerController* Requester, AJY_InteractableActor* Seller)
 {
-	if (bAllowMetaUpgrades == false)
+	if (IsValidMetaSeller(Requester, Seller) == false)
 		return;
 
 	AJY_PlayerState* PlayerState = Requester != nullptr ? Requester->GetPlayerState<AJY_PlayerState>() : nullptr;
@@ -124,7 +163,7 @@ void AJY_GameMode::RefundAllMetaUpgrades(APlayerController* Requester)
 
 	NewProgress.SoulStones = static_cast<int32>(FMath::Min<int64>(RefundedSoulStones, MAX_int32));
 	NewProgress.MetaRanks.Reset();
-	CommitProgress(PlayerState, NewProgress, true);
+	CommitProgress(PlayerState, NewProgress, EJY_ProgressCommitScope::MetaRanksChanged);
 }
 
 // [Server]
@@ -136,7 +175,7 @@ void AJY_GameMode::AddSoulStones(APlayerController* Receiver, int32 Amount)
 
 	FJY_PlayerProgress NewProgress = PlayerState->GetProgress();
 	NewProgress.SoulStones = static_cast<int32>(FMath::Min<int64>(static_cast<int64>(NewProgress.SoulStones) + Amount, MAX_int32));
-	CommitProgress(PlayerState, NewProgress, false);
+	CommitProgress(PlayerState, NewProgress, EJY_ProgressCommitScope::ValuesOnly);
 }
 
 /*
@@ -144,7 +183,7 @@ void AJY_GameMode::AddSoulStones(APlayerController* Receiver, int32 Amount)
  * 메타 효과는 단계가 바뀔 때만 다시 건다 — 영혼석만 바뀔 때 다시 걸면 최대 체력 복제만 늘어난다.
  */
 // [Server]
-void AJY_GameMode::CommitProgress(AJY_PlayerState* PlayerState, const FJY_PlayerProgress& NewProgress, bool bMetaRanksChanged)
+void AJY_GameMode::CommitProgress(AJY_PlayerState* PlayerState, const FJY_PlayerProgress& NewProgress, EJY_ProgressCommitScope Scope)
 {
 	PlayerState->SetProgress(NewProgress);
 
@@ -152,7 +191,7 @@ void AJY_GameMode::CommitProgress(AJY_PlayerState* PlayerState, const FJY_Player
 	SaveGame->Progress = NewProgress;
 	UGameplayStatics::SaveGameToSlot(SaveGame, SaveSlotName, 0);
 
-	if (bMetaRanksChanged == false)
+	if (Scope != EJY_ProgressCommitScope::MetaRanksChanged)
 		return;
 
 	const UJY_GameData* GameData = UJY_AssetManager::Get().GetGameData();

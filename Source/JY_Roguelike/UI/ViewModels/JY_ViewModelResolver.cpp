@@ -18,6 +18,9 @@ UObject* UJY_ViewModelResolver::CreateInstance(const UClass* ExpectedType, const
 	if (UIManager == nullptr)
 		return nullptr;
 
+	/* 규칙: WBP 뷰모델 목록에는 C++ 클래스를 고른다. 색·기준값을 바꾼 BP 자식은 DA_JY_GameData 교체 표에 넣는다 (골라도 키는 C++ 클래스로 맞춰져 동작은 같다) */
+	ensureMsgf(ExpectedType == nullptr || ExpectedType->HasAnyClassFlags(CLASS_Native) == true, TEXT("%s: WBP에서는 C++ ViewModel을 고르고, BP 자식은 DA_JY_GameData 교체 표에 지정"), *GetNameSafe(UserWidget));
+
 	return UIManager->GetOrCreateViewModel(const_cast<UClass*>(ExpectedType));
 }
 

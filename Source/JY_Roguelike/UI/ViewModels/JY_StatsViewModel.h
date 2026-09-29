@@ -26,7 +26,7 @@ public:
 	/* ASC 능력치 변화 구독 + 현재 값으로 한 번 갱신 */
 	void BindAbilitySystem(UJY_AbilitySystemComponent* InASC);
 
-	/* 구독 해제 */
+	/* 구독 해제 + 표시를 "모름"(-- / --)으로 되돌림 */
 	void UnbindAbilitySystem();
 
 	float GetCurrentHealth() const { return CurrentHealth; }
@@ -42,6 +42,9 @@ private:
 
 	/* 체력·최대 체력으로 나머지 표시 값 다시 계산 */
 	void RefreshHealthValues(float NewCurrentHealth, float NewMaxHealth);
+
+	/* ASC 델리게이트 구독만 해제 (표시 값은 그대로) */
+	void RemoveAbilitySystemBindings();
 
 private:
 	/* 델리게이트 */
@@ -100,4 +103,8 @@ private:
 
 private:
 	TWeakObjectPtr<UJY_AbilitySystemComponent> AbilitySystemComponent;
+
+	/* 마지막으로 글자를 만든 반올림 값 (-1 = 아직 없음) — 정수가 바뀔 때만 글자를 새로 만든다 */
+	int32 DisplayedCurrentHealth = INDEX_NONE;
+	int32 DisplayedMaxHealth = INDEX_NONE;
 };

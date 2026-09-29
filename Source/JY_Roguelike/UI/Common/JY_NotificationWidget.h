@@ -3,13 +3,13 @@
 #include "CoreMinimal.h"
 #include "CommonUserWidget.h"
 #include "Containers/Ticker.h"
-#include "JY_BannerWidget.generated.h"
+#include "JY_NotificationWidget.generated.h"
 
 class UCommonTextBlock;
 
-/* 글자를 잠깐 보여 주고 사라지는 알림 칸 — 여러 개가 오면 차례대로 표시 */
+/* 글자를 잠깐 보여 주고 사라지는 알림 칸 (배너·토스트가 같은 클래스, 모양만 WBP로 다름) — 여러 개가 오면 차례대로 표시 */
 UCLASS(Abstract, Blueprintable, meta = (DisableNativeTick))
-class UJY_BannerWidget : public UCommonUserWidget
+class UJY_NotificationWidget : public UCommonUserWidget
 {
 	GENERATED_BODY()
 

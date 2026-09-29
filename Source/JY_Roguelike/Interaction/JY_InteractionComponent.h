@@ -5,8 +5,9 @@
 #include "JY_InteractionComponent.generated.h"
 
 class AJY_InteractableActor;
+class UJY_UIManagerSubsystem;
 
-/* 플레이어 캐릭터에 붙어 가까운 상호작용 대상을 고르고 E 입력을 처리 */
+/* 플레이어 캐릭터에 붙어 가까운 상호작용 대상을 고르고 E 입력을 처리 (화면 아래 안내 표시도 겸함) */
 UCLASS(ClassGroup = (JY), meta = (BlueprintSpawnableComponent))
 class UJY_InteractionComponent : public UActorComponent
 {
@@ -14,6 +15,9 @@ class UJY_InteractionComponent : public UActorComponent
 
 public:
 	UJY_InteractionComponent();
+
+protected:
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 public:
 	/* 대상 범위에 들어옴 — 가장 최근에 들어온 대상이 초점 */
@@ -29,8 +33,11 @@ private:
 	/* 초점이 바뀌었으면 화면 아래 안내를 바꿈 */
 	void RefreshFocus();
 
+	/* 화면 아래 안내 글자를 바꿈 (빈 글자면 숨김) */
+	void SetPromptName(UJY_UIManagerSubsystem* UIManager, const FText& Name);
+
 	/* 이 폰 주인(로컬 플레이어)의 UI 관리자 */
-	class UJY_UIManagerSubsystem* GetUIManager() const;
+	UJY_UIManagerSubsystem* GetUIManager() const;
 
 	/* 확인 팝업 결과 → 확인이면 서버에 요청 */
 	void HandleConfirmResult(bool bConfirmed, TWeakObjectPtr<AJY_InteractableActor> Target);
@@ -45,4 +52,7 @@ private:
 
 	/* 지금 안내가 떠 있는 대상 */
 	TWeakObjectPtr<AJY_InteractableActor> FocusedInteractable;
+
+	/* 안내를 띄운 UI 관리자 — 사라질 때(EndPlay) 폰의 컨트롤러가 이미 없어도 안내를 지울 수 있게 기억 */
+	TWeakObjectPtr<UJY_UIManagerSubsystem> PromptUIManager;
 };

@@ -19,10 +19,11 @@ public:
 
 protected:
 	virtual void NativeOnInitialized() override;
+	virtual void NativeDestruct() override;
 	virtual bool NativeOnHandleBackAction() override;
 
 public:
-	/* 글자와 결과 콜백을 채움 (UJY_UIManagerSubsystem::ShowConfirm이 호출) */
+	/* 글자와 결과 콜백을 채움 (UJY_UIManagerSubsystem::ShowConfirm이 켜기 전 초기화 함수에서 호출) */
 	void SetupDialog(const FText& Title, const FText& Body, FJY_OnConfirmResult InOnResult);
 
 private:

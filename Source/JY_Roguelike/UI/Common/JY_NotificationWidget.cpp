@@ -1,11 +1,11 @@
-#include "UI/Common/JY_BannerWidget.h"
+#include "UI/Common/JY_NotificationWidget.h"
 #include "CommonTextBlock.h"
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(JY_BannerWidget)
+#include UE_INLINE_GENERATED_CPP_BY_NAME(JY_NotificationWidget)
 
-/* 레이아웃에 1개씩 미리 만들어 두고 계속 재사용 — 알림마다 위젯을 새로 만들지 않는다 */
+/* 레이아웃(WBP_JY_PrimaryLayout)에 종류별로 1개씩 미리 배치해 두고 계속 재사용 — 알림마다 위젯을 새로 만들지 않는다 */
 // [OwnClient]
-void UJY_BannerWidget::NativeOnInitialized() //override
+void UJY_NotificationWidget::NativeOnInitialized() //override
 {
 	Super::NativeOnInitialized();
 
@@ -13,7 +13,7 @@ void UJY_BannerWidget::NativeOnInitialized() //override
 }
 
 // [OwnClient]
-void UJY_BannerWidget::NativeDestruct() //override
+void UJY_NotificationWidget::NativeDestruct() //override
 {
 	FTSTicker::RemoveTicker(DisplayTimerHandle);
 	DisplayTimerHandle.Reset();
@@ -22,7 +22,7 @@ void UJY_BannerWidget::NativeDestruct() //override
 }
 
 // [OwnClient]
-void UJY_BannerWidget::EnqueueMessage(const FText& Message)
+void UJY_NotificationWidget::EnqueueMessage(const FText& Message)
 {
 	if (Message.IsEmpty() == true)
 		return;
@@ -42,11 +42,11 @@ void UJY_BannerWidget::EnqueueMessage(const FText& Message)
 }
 
 /*
- * 표시 시간은 코어 티커(FTSTicker)로 잰다 — 월드 타이머는 ESC 정지 중 멈춰서(LevelTick.cpp:1812) 배너가 안 사라진다.
+ * 표시 시간은 코어 티커(FTSTicker)로 잰다 — 월드 타이머는 정지 중 멈춰서(LevelTick.cpp:1812) 배너가 안 사라진다.
  * 매 프레임 검사하지 않고 "N초 뒤 1회" 예약만 한다.
  */
 // [OwnClient]
-void UJY_BannerWidget::ShowNextMessage()
+void UJY_NotificationWidget::ShowNextMessage()
 {
 	if (PendingMessages.Num() == 0)
 	{
@@ -60,11 +60,11 @@ void UJY_BannerWidget::ShowNextMessage()
 	/* 보이되 클릭은 통과 — 알림이 떠 있어도 뒤 화면·게임 입력을 막지 않는다 */
 	SetVisibility(ESlateVisibility::HitTestInvisible);
 
-	DisplayTimerHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateUObject(this, &UJY_BannerWidget::HandleDisplayFinished), DisplaySeconds);
+	DisplayTimerHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateUObject(this, &UJY_NotificationWidget::HandleDisplayFinished), DisplaySeconds);
 }
 
 // [OwnClient]
-bool UJY_BannerWidget::HandleDisplayFinished(float DeltaTime)
+bool UJY_NotificationWidget::HandleDisplayFinished(float DeltaTime)
 {
 	DisplayTimerHandle.Reset();
 	ShowNextMessage();

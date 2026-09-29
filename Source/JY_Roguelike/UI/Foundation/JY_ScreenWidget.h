@@ -10,6 +10,9 @@ class UJY_UIManagerSubsystem;
 UENUM(BlueprintType)
 enum class EJY_ScreenInputMode : uint8
 {
+	/* 바꾸지 않음 — 아래 화면의 입력 모드를 그대로 (화면 안의 하위 페이지·탭) */
+	Default,
+
 	/* 게임만 (HUD) */
 	Game,
 
@@ -33,7 +36,14 @@ protected:
 	virtual void NativeOnActivated() override;
 	virtual void NativeOnDeactivated() override;
 
+public:
+	/* 이 화면을 연 월드 물체 (예: 제단) — 여는 쪽이 PushScreen 초기화 함수에서 지정 */
+	void SetSourceActor(AActor* InSourceActor) { SourceActor = InSourceActor; }
+
 protected:
+	/* 이 화면을 연 월드 물체 (없거나 사라졌으면 nullptr) — 켜진 뒤(NativeOnActivated부터) 읽는다 */
+	AActor* GetSourceActor() const { return SourceActor.Get(); }
+
 	/* 이 화면 주인(로컬 플레이어)의 UI 관리자 */
 	UJY_UIManagerSubsystem* GetUIManager() const;
 
@@ -52,7 +62,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "JY|Input")
 	EMouseCaptureMode GameMouseCaptureMode = EMouseCaptureMode::CaptureDuringMouseDown;
 
-	/* 켜져 있는 동안 게임(월드)을 멈춤 (ESC 메뉴·확인 팝업) */
+	/* 켜져 있는 동안 게임(월드)을 멈춤 (정지 메뉴·확인 팝업) */
 	UPROPERTY(EditDefaultsOnly, Category = "JY|Pause")
 	bool bPauseGame = false;
+
+private:
+	TWeakObjectPtr<AActor> SourceActor;
 };

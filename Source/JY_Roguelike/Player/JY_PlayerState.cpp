@@ -70,6 +70,8 @@ void AJY_PlayerState::RefreshMetaEffects(const UJY_MetaUpgradeData* MetaUpgradeD
 	if (HasAuthority() == false)
 		return;
 
+	const float OldMaxHealth = AbilitySystemComponent->GetNumericAttribute(UJY_HealthSet::GetMaxHealthAttribute());
+
 	TSet<FGameplayTag> ActiveTags;
 	if (MetaUpgradeData != nullptr)
 	{
@@ -106,5 +108,17 @@ void AJY_PlayerState::RefreshMetaEffects(const UJY_MetaUpgradeData* MetaUpgradeD
 
 		AbilitySystemComponent->RemoveActiveGameplayEffect(It->Value);
 		It.RemoveCurrent();
+	}
+
+	/*
+	 * 메타로 최대 체력이 늘면 늘어난 만큼 현재 체력도 채운다 — 예: 140/140 → 강인함 +20 → 160/160, 맵 이동 뒤 재적용 100/100 → 160/160.
+	 * 게임 전체 규칙(HealthSet)이 아니라 여기서만 하는 이유: 전역으로 두면 임시 버프가 켜졌다 꺼질 때마다 회복돼 무한 회복이 된다.
+	 * 줄어드는 쪽(환불)은 HealthSet이 현재 체력을 새 최대치로 자른다.
+	 * 주의: 저장된 체력을 복원하는 기능이 생기면 이 함수 뒤에 복원해야 한다 (먼저 복원하면 여기서 증가분이 더해진다).
+	 */
+	const float NewMaxHealth = AbilitySystemComponent->GetNumericAttribute(UJY_HealthSet::GetMaxHealthAttribute());
+	if (NewMaxHealth > OldMaxHealth)
+	{
+		AbilitySystemComponent->ApplyModToAttribute(UJY_HealthSet::GetHealthAttribute(), EGameplayModOp::AddBase, NewMaxHealth - OldMaxHealth);
 	}
 }

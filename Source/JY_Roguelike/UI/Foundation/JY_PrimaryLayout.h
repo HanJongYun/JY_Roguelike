@@ -8,7 +8,7 @@
 
 class UCommonActivatableWidgetContainerBase;
 class UCommonActivatableWidgetStack;
-class UJY_BannerWidget;
+class UJY_NotificationWidget;
 
 /* 화면 전체 틀 — 층 태그마다 화면 스택을 하나씩 가진다 */
 UCLASS(Abstract, meta = (DisableNativeTick))
@@ -27,7 +27,7 @@ public:
 	UCommonActivatableWidgetContainerBase* GetLayer(FGameplayTag LayerTag) const;
 
 	/* 알림 종류에 맞는 알림 칸 */
-	UJY_BannerWidget* GetNotificationWidget(EJY_NotificationType Type) const;
+	UJY_NotificationWidget* GetNotificationWidget(EJY_NotificationType Type) const;
 
 protected:
 	/* WBP_JY_PrimaryLayout 안의 같은 이름 위젯과 연결 (BindWidget). 아래일수록 화면 위에 그려짐 */
@@ -44,13 +44,13 @@ protected:
 
 	/* 위쪽 큰 알림 */
 	UPROPERTY(meta = (BindWidget))
-	TObjectPtr<UJY_BannerWidget> BannerWidget;
+	TObjectPtr<UJY_NotificationWidget> BannerWidget;
 
 	/* 아래쪽 작은 알림 */
 	UPROPERTY(meta = (BindWidget))
-	TObjectPtr<UJY_BannerWidget> ToastWidget;
+	TObjectPtr<UJY_NotificationWidget> ToastWidget;
 
-	/* UI.Layer.Menu — ESC 메뉴·설정 */
+	/* UI.Layer.Menu — 정지 메뉴·설정 */
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UCommonActivatableWidgetStack> MenuLayer;
 

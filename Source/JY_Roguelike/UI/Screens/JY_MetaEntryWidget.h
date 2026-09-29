@@ -7,6 +7,7 @@
 class UJY_ButtonBase;
 class UImage;
 class UJY_MetaEntryViewModel;
+class AJY_InteractableActor;
 
 /* 제단 목록 항목 1개 — 글자는 WBP 바인딩이 ViewModel에서 가져오고, 구매 버튼만 C++이 처리 */
 UCLASS(Abstract, Blueprintable, meta = (DisableNativeTick))
@@ -18,8 +19,8 @@ protected:
 	virtual void NativeOnInitialized() override;
 
 public:
-	/* 이 항목이 보여 줄 ViewModel 지정 (WBP의 ViewModel "MetaEntry", Creation Type = Manual) */
-	void SetEntryViewModel(UJY_MetaEntryViewModel* InViewModel);
+	/* 이 항목이 보여 줄 ViewModel(WBP의 ViewModel "MetaEntry", Creation Type = Manual)과 구매 요청에 실을 판매 대상 지정 */
+	void SetEntry(UJY_MetaEntryViewModel* InViewModel, AJY_InteractableActor* InSeller);
 
 private:
 	/* 구매 클릭 → 서버에 요청 */
@@ -38,4 +39,6 @@ protected:
 
 private:
 	TWeakObjectPtr<UJY_MetaEntryViewModel> EntryViewModel;
+
+	TWeakObjectPtr<AJY_InteractableActor> Seller;
 };

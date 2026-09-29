@@ -34,7 +34,7 @@ struct FJY_MetaUpgradeDefinition
 	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0"))
 	TArray<int32> RankCosts;
 
-	/* 서버가 적용할 효과 (없으면 데이터만 — 던전 조각에서 연결) */
+	/* 서버가 적용할 효과. 비우면 단계만 저장되고 효과 없음 (지금 효과가 있는 건 강인함 1종, 나머지는 쓰는 곳이 생길 때 연결) */
 	UPROPERTY(EditDefaultsOnly)
 	TSubclassOf<UGameplayEffect> Effect;
 

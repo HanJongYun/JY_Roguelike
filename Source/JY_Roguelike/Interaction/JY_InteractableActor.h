@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "GameplayTagContainer.h"
 #include "JY_InteractableActor.generated.h"
 
 class APlayerController;
@@ -34,6 +35,7 @@ public:
 	const FText& GetDisplayName() const { return DisplayName; }
 	const TSoftClassPtr<UJY_ScreenWidget>& GetScreenClass() const { return ScreenClass; }
 	const FText& GetConfirmText() const { return ConfirmText; }
+	const FGameplayTag& GetServiceTag() const { return ServiceTag; }
 
 private:
 	UFUNCTION()
@@ -65,6 +67,10 @@ protected:
 	/* 서버 동작형에서 먼저 물어볼 문구 (비우면 바로 실행). 예: 던전으로 출발할까요? */
 	UPROPERTY(EditAnywhere, Category = "JY|Interaction")
 	FText ConfirmText;
+
+	/* 이 물체가 제공하는 서비스 (제단 = Service.MetaAltar). 서버가 구매·환불 요청의 판매 대상인지 이것으로 확인 */
+	UPROPERTY(EditAnywhere, Category = "JY|Interaction", meta = (Categories = "Service"))
+	FGameplayTag ServiceTag;
 
 	/* 서버 거리 검증 여유 (cm) */
 	UPROPERTY(EditAnywhere, Category = "JY|Interaction", meta = (ClampMin = "0.0"))

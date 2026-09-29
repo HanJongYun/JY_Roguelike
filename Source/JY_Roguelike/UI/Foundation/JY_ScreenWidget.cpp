@@ -25,9 +25,12 @@ TOptional<FUIInputConfig> UJY_ScreenWidget::GetDesiredInputConfig() const //over
 	case EJY_ScreenInputMode::Game:
 		return FUIInputConfig(ECommonInputMode::Game, GameMouseCaptureMode, false);
 	case EJY_ScreenInputMode::Menu:
-	default:
 		/* 메뉴는 게임이 마우스를 잡을 일이 없음 */
 		return FUIInputConfig(ECommonInputMode::Menu, EMouseCaptureMode::NoCapture, false);
+	case EJY_ScreenInputMode::Default:
+	default:
+		/* 빈 값 = 라우터가 바로 아래 화면의 설정을 그대로 쓴다 (Lyra ELyraWidgetInputMode::Default와 같음) */
+		return TOptional<FUIInputConfig>();
 	}
 }
 
@@ -39,10 +42,15 @@ void UJY_ScreenWidget::NativeOnActivated() //override
 	NotifyPauseScreen(true);
 }
 
+/*
+ * 꺼지는 경우 = 닫힘, 또는 같은 층에 다른 화면이 올라와 가려짐(스택은 맨 위만 켠다).
+ * 여는 물체는 여기서 잊는다 — 초기화 함수 없이 다시 열려도 지난번 물체가 남지 않게. 여는 쪽이 매번 다시 지정한다.
+ */
 // [OwnClient]
 void UJY_ScreenWidget::NativeOnDeactivated() //override
 {
 	NotifyPauseScreen(false);
+	SourceActor.Reset();
 
 	Super::NativeOnDeactivated();
 }

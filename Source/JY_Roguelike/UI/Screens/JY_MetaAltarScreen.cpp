@@ -5,6 +5,7 @@
 #include "UI/ViewModels/JY_ProgressViewModel.h"
 #include "UI/ViewModels/JY_MetaEntryViewModel.h"
 #include "Player/JY_PlayerController.h"
+#include "Interaction/JY_InteractableActor.h"
 #include "Components/DynamicEntryBox.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(JY_MetaAltarScreen)
@@ -25,9 +26,10 @@ void UJY_MetaAltarScreen::HandleCloseClicked()
 }
 
 /*
- * 화면은 층 스택의 위젯 풀에 남아 다시 열 때 같은 인스턴스를 쓴다(CommonActivatableWidgetContainer.cpp:193 GetOrCreateInstance).
- * 항목 위젯은 모자란 만큼만 만든다 → 두 번째부터는 아무것도 만들지 않고, 값은 항목 ViewModel이 바뀔 때만 갱신된다.
- * 열 때마다 확인하는 이유: PlayerState가 아직 연결되기 전에 처음 열렸다면 항목 ViewModel이 아직 없다.
+ * 열 때마다 항목을 다시 채운다: Reset(false)는 항목 위젯을 지우지 않고 박스 풀에 돌려놓고(DynamicEntryBoxBase.cpp:36),
+ * CreateEntry가 그 풀에서 다시 꺼낸다 → 두 번째부터는 위젯을 새로 만들지 않는다. 강화 수가 줄어도 남는 줄이 없다.
+ * 열 때마다 하는 이유: PlayerState가 아직 연결되기 전에 처음 열렸다면 항목 ViewModel이 아직 없고, 판매 대상(이 화면을 연 제단)도 매번 다르다.
+ * 상점·축복 목록도 이 모양을 그대로 쓴다.
  */
 // [OwnClient]
 void UJY_MetaAltarScreen::NativeOnActivated() //override
@@ -38,13 +40,15 @@ void UJY_MetaAltarScreen::NativeOnActivated() //override
 	if (UIManager == nullptr)
 		return;
 
-	const TArray<TObjectPtr<UJY_MetaEntryViewModel>>& EntryViewModels = UIManager->GetOrCreateViewModel<UJY_ProgressViewModel>()->GetMetaEntries();
-	for (int32 Index = EntryBox->GetNumEntries(); Index < EntryViewModels.Num(); ++Index)
+	AJY_InteractableActor* Seller = Cast<AJY_InteractableActor>(GetSourceActor());
+
+	EntryBox->Reset(false);
+	for (UJY_MetaEntryViewModel* EntryViewModel : UIManager->GetOrCreateViewModel<UJY_ProgressViewModel>()->GetMetaEntries())
 	{
 		UJY_MetaEntryWidget* EntryWidget = EntryBox->CreateEntry<UJY_MetaEntryWidget>();
 		if (EntryWidget != nullptr)
 		{
-			EntryWidget->SetEntryViewModel(EntryViewModels[Index]);
+			EntryWidget->SetEntry(EntryViewModel, Seller);
 		}
 	}
 }
@@ -65,9 +69,11 @@ void UJY_MetaAltarScreen::HandleRefundConfirmResult(bool bConfirmed)
 	if (bConfirmed == false)
 		return;
 
+	/* 판매 대상(제단)이 없으면 서버가 어차피 거절한다 — 보내지 않는다 */
+	AJY_InteractableActor* Seller = Cast<AJY_InteractableActor>(GetSourceActor());
 	AJY_PlayerController* PC = GetOwningPlayer<AJY_PlayerController>();
-	if (PC == nullptr)
+	if (PC == nullptr || Seller == nullptr)
 		return;
 
-	PC->Server_RefundAllMetaUpgrades();
+	PC->Server_RefundAllMetaUpgrades(Seller);
 }

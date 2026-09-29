@@ -3,7 +3,7 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(JY_ButtonBase)
 
-/* 디자이너 미리보기에서도 라벨이 보이도록 PreConstruct에서 적용 (ESC 메뉴 WBP에서 버튼마다 다른 글자 확인) */
+/* 디자이너 미리보기에서도 라벨이 보이도록 PreConstruct에서 적용 (정지 메뉴 WBP에서 버튼마다 다른 글자 확인) */
 // [OwnClient]
 void UJY_ButtonBase::NativePreConstruct() //override
 {

@@ -29,7 +29,7 @@ void UJY_EscapeMenu::HandleContinueClicked()
 	DeactivateWidget();
 }
 
-/* ESC 메뉴는 열어 둔 채 Modal 층에 팝업 — 취소하면 메뉴로 돌아온다 */
+/* 정지 메뉴는 열어 둔 채 Modal 층에 팝업 — 취소하면 메뉴로 돌아온다 */
 // [OwnClient]
 void UJY_EscapeMenu::HandleQuitClicked()
 {

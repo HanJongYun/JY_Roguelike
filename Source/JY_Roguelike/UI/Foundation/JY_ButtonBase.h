@@ -28,7 +28,7 @@ protected:
 	TObjectPtr<UCommonTextBlock> ButtonTextBlock;
 
 private:
-	/* 설정값 — 이 버튼을 배치한 WBP(ESC 메뉴 등)의 Details에서 버튼마다 지정 */
+	/* 설정값 — 이 버튼을 배치한 WBP(정지 메뉴 등)의 Details에서 버튼마다 지정 */
 
 	/* 버튼에 표시할 글자 (예: 계속하기) */
 	UPROPERTY(EditAnywhere, Category = "JY|Button")

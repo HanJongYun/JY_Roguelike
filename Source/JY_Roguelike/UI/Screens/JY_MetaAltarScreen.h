@@ -7,7 +7,7 @@
 class UDynamicEntryBox;
 class UJY_ButtonBase;
 
-/* 메타 제단 화면 — 강화 목록 + 전액 환불 */
+/* 메타 제단 화면 — 강화 목록 + 전액 환불. 연 제단(SourceActor)을 판매 대상으로 서버에 보낸다 */
 UCLASS(Abstract, Blueprintable)
 class UJY_MetaAltarScreen : public UJY_ScreenWidget
 {

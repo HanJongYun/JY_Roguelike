@@ -6,7 +6,7 @@
 
 class UJY_ButtonBase;
 
-/* ESC 메뉴 — 계속하기·설정·종료. 열려 있는 동안 게임 정지 */
+/* 정지 메뉴 — 계속하기·설정·종료. HUD에서 뒤로가기 키(지금 Tab)로 열리고, 열려 있는 동안 게임 정지 */
 UCLASS(Abstract, Blueprintable)
 class UJY_EscapeMenu : public UJY_ScreenWidget
 {

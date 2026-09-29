@@ -18,6 +18,21 @@ UJY_InteractionComponent::UJY_InteractionComponent()
 }
 
 /*
+ * 안내 ViewModel은 로컬 플레이어에 남아 맵을 넘어간다 — 컴포넌트가 사라질 때 지우지 않으면
+ * 포털 범위 안에서 이동했을 때 던전 HUD에 "[E] 포털"이 남는다 (맵 이동 EndPlay는 겹침 종료를 보내지 않음, Actor.cpp:3233).
+ * 사망·폰 교체로 사라질 때도 같은 이유로 지운다.
+ */
+// [OwnClient]
+void UJY_InteractionComponent::EndPlay(const EEndPlayReason::Type EndPlayReason) //override
+{
+	SetPromptName(PromptUIManager.Get(), FText::GetEmpty());
+	Candidates.Reset();
+	FocusedInteractable.Reset();
+
+	Super::EndPlay(EndPlayReason);
+}
+
+/*
  * 가장 가까운 대상을 매 프레임 계산하지 않고 "마지막으로 들어온 대상"을 초점으로 둔다.
  * 허브 대상은 3개이고 범위가 겹치지 않게 배치 — 거리 폴링(Tick)은 비용만 든다. 겹치게 늘어나면 그때 거리 비교를 추가.
  */
@@ -47,11 +62,25 @@ void UJY_InteractionComponent::RefreshFocus()
 
 	FocusedInteractable = NewFocus;
 
+	/* 빙의가 풀린 뒤(사망) 나가도 안내를 지울 수 있게, 컨트롤러가 없으면 안내를 띄운 관리자를 쓴다 */
 	UJY_UIManagerSubsystem* UIManager = GetUIManager();
+	if (UIManager == nullptr)
+	{
+		UIManager = PromptUIManager.Get();
+	}
+
+	SetPromptName(UIManager, NewFocus != nullptr ? NewFocus->GetDisplayName() : FText::GetEmpty());
+}
+
+/* 로컬 전용 상태라 ViewModel에 직접 값을 넣는다 (UIManager 헤더의 ViewModel 규칙 2) */
+// [OwnClient]
+void UJY_InteractionComponent::SetPromptName(UJY_UIManagerSubsystem* UIManager, const FText& Name)
+{
 	if (UIManager == nullptr)
 		return;
 
-	UIManager->GetOrCreateViewModel<UJY_InteractionViewModel>()->SetFocusedName(NewFocus != nullptr ? NewFocus->GetDisplayName() : FText::GetEmpty());
+	UIManager->GetOrCreateViewModel<UJY_InteractionViewModel>()->SetFocusedName(Name);
+	PromptUIManager = Name.IsEmpty() == false ? UIManager : nullptr;
 }
 
 // [OwnClient]
@@ -77,9 +106,13 @@ void UJY_InteractionComponent::Interact()
 	if (UIManager == nullptr)
 		return;
 
+	/* 화면에 "누가 열었나"를 넘긴다 — 제단 화면은 이 물체를 판매 대상으로 서버에 보낸다 */
 	if (Target->OpensScreen() == true)
 	{
-		UIManager->PushScreen(JYGameplayTags::UI_Layer_GameMenu, Target->GetScreenClass().LoadSynchronous());
+		UIManager->PushScreen(JYGameplayTags::UI_Layer_GameMenu, Target->GetScreenClass().LoadSynchronous(), [Target](UJY_ScreenWidget& Screen)
+		{
+			Screen.SetSourceActor(Target);
+		});
 		return;
 	}
 

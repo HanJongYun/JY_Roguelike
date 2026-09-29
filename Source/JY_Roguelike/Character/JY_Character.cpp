@@ -113,8 +113,6 @@ void AJY_Character::InitializeAbilitySystem()
 
 	JYASC->InitAbilityActorInfo(JYPlayerState, this);
 	HealthComponent->InitializeWithAbilitySystem(JYASC);
-
-	UE_LOG(LogJY, Log, TEXT("[%s] JYHealth InitAbilityActorInfo %s"), JY_GetNetRoleTag(this), *GetNameSafe(this));
 }
 
 void AJY_Character::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) //override

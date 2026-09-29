@@ -1,7 +1,7 @@
 #include "UI/Foundation/JY_PrimaryLayout.h"
 #include "System/JY_GameplayTags.h"
 #include "Widgets/CommonActivatableWidgetContainer.h"
-#include "UI/Common/JY_BannerWidget.h"
+#include "UI/Common/JY_NotificationWidget.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(JY_PrimaryLayout)
 
@@ -44,7 +44,7 @@ UCommonActivatableWidgetContainerBase* UJY_PrimaryLayout::GetLayer(FGameplayTag 
 }
 
 // [OwnClient]
-UJY_BannerWidget* UJY_PrimaryLayout::GetNotificationWidget(EJY_NotificationType Type) const
+UJY_NotificationWidget* UJY_PrimaryLayout::GetNotificationWidget(EJY_NotificationType Type) const
 {
 	switch (Type)
 	{

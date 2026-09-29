@@ -1,6 +1,5 @@
 #include "AbilitySystem/Attributes/JY_HealthSet.h"
 #include "AbilitySystem/JY_AbilitySystemComponent.h"
-#include "System/JY_LogChannels.h"
 #include "GameplayEffectExtension.h"
 #include "Net/UnrealNetwork.h"
 
@@ -33,8 +32,6 @@ void UJY_HealthSet::OnRep_Health(const FGameplayAttributeData& OldValue)
 
 	const float CurrentHealth = GetHealth();
 	const float EstimatedMagnitude = CurrentHealth - OldValue.GetCurrentValue();
-
-	UE_LOG(LogJY, Log, TEXT("[%s] JYHealth OnRep %.1f -> %.1f"), JY_GetNetRoleTag(GetOwningActor()), OldValue.GetCurrentValue(), CurrentHealth);
 
 	/* 클라에선 가해자를 모름 → nullptr */
 	OnHealthChanged.Broadcast(nullptr, nullptr, nullptr, EstimatedMagnitude, OldValue.GetCurrentValue(), CurrentHealth);
@@ -104,7 +101,6 @@ void UJY_HealthSet::PostGameplayEffectExecute(const FGameplayEffectModCallbackDa
 
 	if (GetHealth() != HealthBeforeAttributeChange)
 	{
-		UE_LOG(LogJY, Log, TEXT("[%s] JYHealth %.1f -> %.1f"), JY_GetNetRoleTag(GetOwningActor()), HealthBeforeAttributeChange, GetHealth());
 		OnHealthChanged.Broadcast(Instigator, Causer, &Data.EffectSpec, Data.EvaluatedData.Magnitude, HealthBeforeAttributeChange, GetHealth());
 	}
 
@@ -136,19 +132,10 @@ void UJY_HealthSet::PostAttributeChange(const FGameplayAttribute& Attribute, flo
 	Super::PostAttributeChange(Attribute, OldValue, NewValue);
 
 	/*
-	 * 게임 전체 규칙: 최대 체력이 늘면 늘어난 만큼 현재 체력도 채운다 (메타 강인함, 앞으로의 최대 체력 버프 모두).
-	 * 예: 140/140 → 강인함 +20 → 160/160, 맵 이동 뒤 효과 재적용 100/100 → 160/160.
-	 * 서버에서만: 클라는 서버가 바꾼 Health를 복제로 받는다.
+	 * 최대 체력이 줄어 현재 체력이 넘치면 현재 체력을 새 최대치로 덮어쓴다 (Lyra LyraHealthSet::PostAttributeChange와 같음).
+	 * 늘 때 현재 체력을 채우는 건 전역 규칙이 아니다 — 메타 강화는 AJY_PlayerState::RefreshMetaEffects, 축복은 축복 쪽에서 정한다.
+	 * 속성 값은 서버 GE로만 바뀌고 클라는 복제로 받는다 (예측 GE가 생기면 클라에서도 불릴 수 있어 그때 권한 검사를 넣는다).
 	 */
-	if (Attribute == GetMaxHealthAttribute() && NewValue > OldValue && GetOwningActor() != nullptr && GetOwningActor()->HasAuthority() == true)
-	{
-		UJY_AbilitySystemComponent* JYASC = GetJYAbilitySystemComponent();
-		check(JYASC);
-
-		JYASC->ApplyModToAttribute(GetHealthAttribute(), EGameplayModOp::AddBase, NewValue - OldValue);
-	}
-
-	/* 최대 체력이 줄어 현재 체력이 넘치면 현재 체력을 새 최대치로 덮어쓴다 */
 	if (Attribute == GetMaxHealthAttribute() && GetHealth() > NewValue)
 	{
 		UJY_AbilitySystemComponent* JYASC = GetJYAbilitySystemComponent();

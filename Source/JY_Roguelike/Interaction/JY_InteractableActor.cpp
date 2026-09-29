@@ -10,12 +10,21 @@
 
 /*
  * 쿼터뷰라 라인트레이스(Lyra 1인칭 방식) 대신 범위 겹침으로 대상을 잡는다.
- * 레벨에 배치된 액터라 복제하지 않아도 서버·클라가 같은 이름으로 가리킬 수 있다 → Server RPC 인자로 그대로 넘긴다.
  * 안내는 하데스처럼 화면 아래 가운데 HUD가 보여 준다 — 액터는 이름만 제공 (월드 위젯 없음 → 틱·서버 로드 비용 없음).
+ * 복제 + 처음부터 휴면(DORM_Initial):
+ *   - Server RPC 인자로 넘기려면 서버·클라가 같은 액터를 가리켜야 한다. 레벨 배치 액터는 이름으로 맞춰지지만,
+ *     방을 깬 뒤 서버가 스폰하는 문·보상 상자는 복제돼야 클라에 생기고 RPC 인자로 쓸 수 있다.
+ *   - 휴면이라 배치 액터는 복제 비용이 0 (DORM_Initial은 배치 액터에만 적용, NetDriver.cpp:8559).
+ *     스폰하는 쪽은 한 번 보낸 뒤 SetNetDormancy(DORM_DormantAll)로 재운다. 복제 상태를 추가하면 바꿀 때 FlushNetDormancy.
+ * 주의: 레벨 스트리밍으로 들어온 방의 액터는 시작 시 겹침 이벤트가 없다(bGenerateOverlapEventsDuringLevelStreaming 기본 false)
+ *   → 방 흐름을 만들 때 폰 위치에 스폰되는 대상의 첫 겹침을 처리해야 한다.
  */
 AJY_InteractableActor::AJY_InteractableActor()
 {
 	PrimaryActorTick.bCanEverTick = false;
+
+	bReplicates = true;
+	NetDormancy = DORM_Initial;
 
 	Mesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Mesh"));
 	SetRootComponent(Mesh);

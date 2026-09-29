@@ -36,8 +36,12 @@ void UJY_UIManagerSubsystem::PlayerControllerChanged(APlayerController* NewPlaye
 {
 	Super::PlayerControllerChanged(NewPlayerController);
 
-	/* 같은 PC로 두 번 알림이 와도(SetPlayer·ReceivedPlayer 둘 다 호출, Player.cpp:174 / PlayerController.cpp:954) 다시 만들지 않는다 */
-	if (PrimaryLayout != nullptr && PrimaryLayout->GetOwningPlayer() == NewPlayerController)
+	/*
+	 * 같은 PC로 두 번 알림이 와도(SetPlayer·ReceivedPlayer 둘 다 호출, Player.cpp:174 / PlayerController.cpp:954) 다시 만들지 않는다.
+	 * 위젯의 GetOwningPlayer와 비교하면 안 된다 — 맵 이동으로 옛 월드가 사라지면 로컬 플레이어의 새 PC를 돌려줘(LocalPlayer.cpp:151)
+	 * 새 맵에서 틀을 다시 만들지 않는다 (예: 포털로 던전에 가면 HUD·배너가 없음)
+	 */
+	if (PrimaryLayout != nullptr && LayoutOwner.Get() == NewPlayerController)
 		return;
 
 	DestroyPrimaryLayout();
@@ -199,6 +203,7 @@ void UJY_UIManagerSubsystem::CreatePrimaryLayout(APlayerController* PC)
 		return;
 
 	PrimaryLayout->AddToPlayerScreen(1000);
+	LayoutOwner = PC;
 
 	/* 틀이 생겼으니 모아 둔 알림 표시 (HUD 설정이 빠져도 알림은 나가게 HUD보다 먼저) */
 	TArray<TPair<EJY_NotificationType, FText>> NotificationsToShow = MoveTemp(PendingNotifications);
@@ -229,6 +234,7 @@ void UJY_UIManagerSubsystem::DestroyPrimaryLayout()
 
 	PrimaryLayout->RemoveFromParent();
 	PrimaryLayout = nullptr;
+	LayoutOwner.Reset();
 
 	/* 맵 이동 시 새 월드는 정지 상태로 시작하지 않는다 → 목록도 비운다 */
 	PauseScreens.Reset();

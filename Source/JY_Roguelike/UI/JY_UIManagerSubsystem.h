@@ -55,6 +55,9 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UJY_PrimaryLayout> PrimaryLayout;
 
+	/* 틀을 만든 PC — 맵 이동 후엔 위젯의 GetOwningPlayer가 새 PC를 돌려줘 비교에 못 쓴다 */
+	TWeakObjectPtr<APlayerController> LayoutOwner;
+
 	/* 지금 켜져 있는 정지 화면들 — 개수 대신 목록: 켜짐·꺼짐 알림이 두 번 오거나 빠져도 어긋나지 않음 */
 	TSet<TWeakObjectPtr<UJY_ScreenWidget>> PauseScreens;
 

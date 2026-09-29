@@ -23,7 +23,7 @@ protected:
 	virtual void BeginDestroy() override;
 
 public:
-	/* ASC 체력 변화 구독 + 현재 값으로 한 번 갱신 */
+	/* ASC 능력치 변화 구독 + 현재 값으로 한 번 갱신 */
 	void BindAbilitySystem(UJY_AbilitySystemComponent* InASC);
 
 	/* 구독 해제 */
@@ -41,7 +41,7 @@ private:
 	void HandleMaxHealthChanged(const FOnAttributeChangeData& ChangeData);
 
 	/* 체력·최대 체력으로 나머지 표시 값 다시 계산 */
-	void RefreshDisplayValues(float NewCurrentHealth, float NewMaxHealth);
+	void RefreshHealthValues(float NewCurrentHealth, float NewMaxHealth);
 
 private:
 	/* 델리게이트 */
@@ -53,7 +53,7 @@ private:
 private:
 	/*
 	 * 위젯이 바인딩하는 값 (FieldNotify — 값이 바뀌면 위젯이 자동 갱신)
-	 * 지금 바인딩한 위젯 없음 — 체력바는 L11에서 연결 (HealthPercent → ProgressBar.Percent 등)
+	 * 지금은 임시 테스트 메뉴(WBP_JY_TestMenu)가 HealthText만 사용 — 체력바는 L11에서 연결
 	 */
 
 	/* 현재 체력 */
@@ -83,7 +83,7 @@ private:
 private:
 	/*
 	 * 설정값 — JY_StatsViewModel을 부모로 한 BP 자식의 Class Defaults에서 수정
-	 * 그 BP를 프로젝트 설정 > Game > JY UI > StatsViewModelClass에 지정해야 적용된다 (비어 있으면 아래 C++ 기본값)
+	 * 그 BP를 DA_JY_GameData > ViewModelClassOverrides에 (JY_StatsViewModel → 그 BP)로 지정해야 적용된다 (없으면 아래 C++ 기본값)
 	 */
 
 	/* 낮은 체력 기준 비율 */

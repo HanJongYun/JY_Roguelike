@@ -3,11 +3,11 @@
 #include "CoreMinimal.h"
 #include "Subsystems/LocalPlayerSubsystem.h"
 #include "GameplayTagContainer.h"
+#include "MVVMViewModelBase.h"
 #include "JY_UIManagerSubsystem.generated.h"
 
 class APlayerController;
 class UJY_AbilitySystemComponent;
-class UJY_StatsViewModel;
 class UJY_PrimaryLayout;
 class UJY_ScreenWidget;
 
@@ -25,9 +25,11 @@ public:
 	/* 화면을 해당 층 스택 맨 위에 올림 (예: UI.Layer.Menu) */
 	UJY_ScreenWidget* PushScreen(FGameplayTag LayerTag, TSubclassOf<UJY_ScreenWidget> ScreenClass);
 
-	/* 능력치 ViewModel (없으면 생성) */
-	UFUNCTION(BlueprintCallable, Category = "JY|UI")
-	UJY_StatsViewModel* GetStatsViewModel();
+	/* 요청한 ViewModel을 플레이어당 하나로 꺼냄 (없으면 생성) — Resolver와 C++이 같은 인스턴스를 받는다 */
+	UMVVMViewModelBase* GetOrCreateViewModel(TSubclassOf<UMVVMViewModelBase> ViewModelClass);
+
+	template <typename T>
+	T* GetOrCreateViewModel() { return Cast<T>(GetOrCreateViewModel(T::StaticClass())); }
 
 	/* ASC를 ViewModel에 연결 */
 	void BindAbilitySystem(UJY_AbilitySystemComponent* InASC);
@@ -46,6 +48,7 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UJY_PrimaryLayout> PrimaryLayout;
 
+	/* 키 = 요청한 C++ ViewModel 클래스 (값은 GameData 교체 표의 BP 자식일 수 있음) */
 	UPROPERTY(Transient)
-	TObjectPtr<UJY_StatsViewModel> StatsViewModel;
+	TMap<TObjectPtr<UClass>, TObjectPtr<UMVVMViewModelBase>> ViewModels;
 };

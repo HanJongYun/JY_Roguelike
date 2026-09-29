@@ -39,7 +39,7 @@ void UJY_StatsViewModel::BindAbilitySystem(UJY_AbilitySystemComponent* InASC)
 	}
 
 	/* 구독 전에 이미 복제된 값이 있으므로 현재 값으로 한 번 채운다 (접속 직후 0으로 뜨는 문제 방지) */
-	RefreshDisplayValues(InASC->GetNumericAttribute(UJY_HealthSet::GetHealthAttribute()), InASC->GetNumericAttribute(UJY_HealthSet::GetMaxHealthAttribute()));
+	RefreshHealthValues(InASC->GetNumericAttribute(UJY_HealthSet::GetHealthAttribute()), InASC->GetNumericAttribute(UJY_HealthSet::GetMaxHealthAttribute()));
 }
 
 void UJY_StatsViewModel::UnbindAbilitySystem()
@@ -65,16 +65,16 @@ void UJY_StatsViewModel::BeginDestroy() //override
 
 void UJY_StatsViewModel::HandleHealthChanged(const FOnAttributeChangeData& ChangeData)
 {
-	RefreshDisplayValues(ChangeData.NewValue, MaxHealth);
+	RefreshHealthValues(ChangeData.NewValue, MaxHealth);
 }
 
 void UJY_StatsViewModel::HandleMaxHealthChanged(const FOnAttributeChangeData& ChangeData)
 {
-	RefreshDisplayValues(CurrentHealth, ChangeData.NewValue);
+	RefreshHealthValues(CurrentHealth, ChangeData.NewValue);
 }
 
 /* 값이 실제로 바뀐 필드만 알림이 나간다 (SetPropertyValue가 비교) */
-void UJY_StatsViewModel::RefreshDisplayValues(float NewCurrentHealth, float NewMaxHealth)
+void UJY_StatsViewModel::RefreshHealthValues(float NewCurrentHealth, float NewMaxHealth)
 {
 	UE_MVVM_SET_PROPERTY_VALUE(CurrentHealth, NewCurrentHealth);
 	UE_MVVM_SET_PROPERTY_VALUE(MaxHealth, NewMaxHealth);

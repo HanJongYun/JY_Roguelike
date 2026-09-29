@@ -8,7 +8,6 @@
 #include "Engine/LocalPlayer.h"
 #include "System/JY_AssetManager.h"
 #include "System/JY_GameData.h"
-#include "UI/JY_UISettings.h"
 #include "UI/ViewModels/JY_StatsViewModel.h"
 #include "System/JY_LogChannels.h"
 #include "GameFramework/PlayerController.h"
@@ -70,29 +69,40 @@ UJY_ScreenWidget* UJY_UIManagerSubsystem::PushScreen(FGameplayTag LayerTag, TSub
 
 /*
  * ViewModel을 LocalPlayer 단위로 두는 이유 — 위젯·레벨이 바뀌어도 값이 유지되고, 여러 화면이 같은 ViewModel을 공유.
- * 클래스는 프로젝트 설정(JY UI)에서 고른다. BP 자식으로 색·기준값을 바꿔 끼울 수 있게 (비어 있으면 C++ 기본 클래스).
+ * 새 ViewModel 추가 = 클래스만 만들면 된다(여기 수정 없음). 색·기준값을 BP 자식으로 바꾸려면 DA_JY_GameData 교체 표에 지정.
  */
-UJY_StatsViewModel* UJY_UIManagerSubsystem::GetStatsViewModel()
+// [OwnClient]
+UMVVMViewModelBase* UJY_UIManagerSubsystem::GetOrCreateViewModel(TSubclassOf<UMVVMViewModelBase> ViewModelClass)
 {
-	if (StatsViewModel == nullptr)
-	{
-		/* 한 번만 생성되고 계속 보관되므로 동기 로드 1회 비용은 무시할 수준 */
-		TSubclassOf<UJY_StatsViewModel> ViewModelClass = GetDefault<UJY_UISettings>()->StatsViewModelClass.LoadSynchronous();
-		if (ViewModelClass == nullptr)
-		{
-			ViewModelClass = UJY_StatsViewModel::StaticClass();
-		}
+	if (ViewModelClass == nullptr)
+		return nullptr;
 
-		StatsViewModel = NewObject<UJY_StatsViewModel>(this, ViewModelClass);
+	const TObjectPtr<UMVVMViewModelBase>* FoundViewModel = ViewModels.Find(ViewModelClass);
+	if (FoundViewModel != nullptr)
+		return *FoundViewModel;
+
+	/* 한 번만 생성되고 계속 보관되므로 동기 로드 1회 비용은 무시할 수준 */
+	TSubclassOf<UMVVMViewModelBase> InstanceClass = ViewModelClass;
+	const UJY_GameData* GameData = UJY_AssetManager::Get().GetGameData();
+	const TSoftClassPtr<UMVVMViewModelBase>* OverrideClass = GameData != nullptr ? GameData->ViewModelClassOverrides.Find(ViewModelClass) : nullptr;
+	if (OverrideClass != nullptr)
+	{
+		const TSubclassOf<UMVVMViewModelBase> LoadedClass = OverrideClass->LoadSynchronous();
+		if (LoadedClass != nullptr && LoadedClass->IsChildOf(ViewModelClass))
+		{
+			InstanceClass = LoadedClass;
+		}
 	}
 
-	return StatsViewModel;
+	UMVVMViewModelBase* NewViewModel = NewObject<UMVVMViewModelBase>(this, InstanceClass);
+	ViewModels.Add(ViewModelClass, NewViewModel);
+	return NewViewModel;
 }
 
 // [OwnClient] 로컬 플레이어만
 void UJY_UIManagerSubsystem::BindAbilitySystem(UJY_AbilitySystemComponent* InASC)
 {
-	GetStatsViewModel()->BindAbilitySystem(InASC);
+	GetOrCreateViewModel<UJY_StatsViewModel>()->BindAbilitySystem(InASC);
 }
 
 /*

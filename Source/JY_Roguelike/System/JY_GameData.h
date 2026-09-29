@@ -5,6 +5,7 @@
 #include "JY_GameData.generated.h"
 
 class UJY_PrimaryLayout;
+class UMVVMViewModelBase;
 
 /* 게임 전체가 같이 쓰는 데이터 한 벌 (에셋 DA_JY_GameData) */
 UCLASS(BlueprintType, Const)
@@ -18,4 +19,8 @@ public:
 	/* 화면 전체 틀 위젯 (WBP_JY_PrimaryLayout) */
 	UPROPERTY(EditDefaultsOnly, Category = "UI")
 	TSoftClassPtr<UJY_PrimaryLayout> PrimaryLayoutClass;
+
+	/* ViewModel 교체 표 — 키: C++ ViewModel 클래스, 값: 대신 만들 BP 자식(색·기준값 조정). 없는 키는 C++ 클래스 그대로 */
+	UPROPERTY(EditDefaultsOnly, Category = "UI")
+	TMap<TSubclassOf<UMVVMViewModelBase>, TSoftClassPtr<UMVVMViewModelBase>> ViewModelClassOverrides;
 };

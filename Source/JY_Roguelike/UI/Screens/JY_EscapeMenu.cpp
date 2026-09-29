@@ -6,13 +6,11 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(JY_EscapeMenu)
 
-/* ESC로 닫힘(bIsBackHandler) · 열려 있는 동안 정지 · 메뉴 입력만 */
+/* 열려 있는 동안 정지 (뒤로가기로 닫힘·메뉴 입력은 부모 기본값) */
 UJY_EscapeMenu::UJY_EscapeMenu(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	bIsBackHandler = true;
 	bPauseGame = true;
-	InputMode = EJY_ScreenInputMode::Menu;
 }
 
 // [OwnClient]
@@ -35,7 +33,7 @@ void UJY_EscapeMenu::HandleContinueClicked()
 // [OwnClient]
 void UJY_EscapeMenu::HandleQuitClicked()
 {
-	UJY_UIManagerSubsystem* UIManager = ULocalPlayer::GetSubsystem<UJY_UIManagerSubsystem>(GetOwningLocalPlayer());
+	UJY_UIManagerSubsystem* UIManager = GetUIManager();
 	if (UIManager == nullptr)
 		return;
 

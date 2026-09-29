@@ -59,22 +59,21 @@ void AJY_PlayerState::OnRep_Progress()
 }
 
 /*
- * 단계가 바뀔 때만 불린다(접속·구매·환불). 효과는 PlayerState의 ASC에 걸려 폰이 죽고 다시 생겨도 유지된다.
+ * 단계가 바뀔 때만 불린다(접속·구매·환불 — 영혼석만 바뀔 때는 안 부름). 효과는 PlayerState의 ASC에 걸려 폰이 죽고 다시 생겨도 유지된다.
  * 크기 = 단계 × 단계당 값 → SetByCaller.MetaValue.
+ * 새 효과를 먼저 걸고 옛 효과를 나중에 지운다 — 반대로 하면 최대 체력이 잠깐 기본값으로 내려가
+ * 현재 체력이 깎인다(UJY_HealthSet::PostAttributeChange가 최대치에 맞춰 자름). 예: 체력 140/140 → 구매 → 100/160이 되는 버그.
  */
 // [Server]
 void AJY_PlayerState::RefreshMetaEffects(const UJY_MetaUpgradeData* MetaUpgradeData)
 {
-	if (HasAuthority() == false || MetaUpgradeData == nullptr)
+	if (HasAuthority() == false)
 		return;
 
-	for (const FActiveGameplayEffectHandle& Handle : MetaEffectHandles)
-	{
-		AbilitySystemComponent->RemoveActiveGameplayEffect(Handle);
-	}
-	MetaEffectHandles.Reset();
-
-	for (const FJY_MetaUpgradeDefinition& Definition : MetaUpgradeData->GetUpgrades())
+	/* 표가 없으면 새로 걸 것은 없지만 옛 효과는 지운다 (환불 뒤 효과가 남지 않게) */
+	TArray<FActiveGameplayEffectHandle> NewEffectHandles;
+	const TArray<FJY_MetaUpgradeDefinition> NoDefinitions;
+	for (const FJY_MetaUpgradeDefinition& Definition : MetaUpgradeData != nullptr ? MetaUpgradeData->GetUpgrades() : NoDefinitions)
 	{
 		const int32 Rank = Progress.GetMetaRank(Definition.UpgradeTag);
 		if (Rank <= 0 || Definition.Effect == nullptr)
@@ -85,6 +84,13 @@ void AJY_PlayerState::RefreshMetaEffects(const UJY_MetaUpgradeData* MetaUpgradeD
 			continue;
 
 		SpecHandle.Data->SetSetByCallerMagnitude(JYGameplayTags::SetByCaller_MetaValue, Rank * Definition.ValuePerRank);
-		MetaEffectHandles.Add(AbilitySystemComponent->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get()));
+		NewEffectHandles.Add(AbilitySystemComponent->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get()));
 	}
+
+	for (const FActiveGameplayEffectHandle& Handle : MetaEffectHandles)
+	{
+		AbilitySystemComponent->RemoveActiveGameplayEffect(Handle);
+	}
+
+	MetaEffectHandles = MoveTemp(NewEffectHandles);
 }

@@ -18,7 +18,7 @@ public:
 	AJY_GameMode();
 
 public:
-	virtual void PostLogin(APlayerController* NewPlayer) override;
+	virtual void HandleStartingNewPlayer_Implementation(APlayerController* NewPlayer) override;
 
 public:
 	/* 메타 강화 1단계 구매 — 가격·최대 단계·보유 영혼석 검증 */
@@ -31,8 +31,8 @@ public:
 	void AddSoulStones(APlayerController* Receiver, int32 Amount);
 
 private:
-	/* 진행을 바꾸고 → 복제 → 즉시 저장 → 메타 효과 갱신 */
-	void CommitProgress(AJY_PlayerState* PlayerState, const FJY_PlayerProgress& NewProgress);
+	/* 진행을 바꾸고 → 복제 → 즉시 저장 (단계가 바뀌었으면 메타 효과도 갱신) */
+	void CommitProgress(AJY_PlayerState* PlayerState, const FJY_PlayerProgress& NewProgress, bool bMetaRanksChanged);
 
 	/* 세이브 파일 → PlayerState */
 	void LoadProgress(AJY_PlayerState* PlayerState);
@@ -43,6 +43,10 @@ private:
 	/* 세이브 슬롯 이름 (솔로 게임이라 1개) */
 	UPROPERTY(EditDefaultsOnly, Category = "JY|Progress")
 	FString SaveSlotName = TEXT("JY_Progress");
+
+	/* 이 맵에서 메타 강화 구매·환불 허용 (허브 GameMode만 true — 던전 GameMode는 false) */
+	UPROPERTY(EditDefaultsOnly, Category = "JY|Progress")
+	bool bAllowMetaUpgrades = false;
 
 	/* 접속 때 띄울 배너 (예: 허브). 비우면 안 띄움 */
 	UPROPERTY(EditDefaultsOnly, Category = "JY|UI")

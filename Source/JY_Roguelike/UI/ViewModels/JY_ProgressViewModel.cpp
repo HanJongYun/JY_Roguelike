@@ -56,9 +56,24 @@ void UJY_ProgressViewModel::RefreshProgress()
 
 	const FJY_PlayerProgress& Progress = PlayerState->GetProgress();
 
-	UE_MVVM_SET_PROPERTY_VALUE(SoulStonesText, FText::AsNumber(Progress.SoulStones));
-	UE_MVVM_SET_PROPERTY_VALUE(RunCountText, FText::AsNumber(Progress.RunCount));
-	UE_MVVM_SET_PROPERTY_VALUE(ClearCountText, FText::AsNumber(Progress.ClearCount));
+	/* FText는 새로 만들면 항상 "다른 값"이라 숫자로 먼저 비교 (UJY_MetaEntryViewModel::Refresh 참고) */
+	if (Progress.SoulStones != DisplayedSoulStones)
+	{
+		DisplayedSoulStones = Progress.SoulStones;
+		UE_MVVM_SET_PROPERTY_VALUE(SoulStonesText, FText::AsNumber(Progress.SoulStones));
+	}
+
+	if (Progress.RunCount != DisplayedRunCount)
+	{
+		DisplayedRunCount = Progress.RunCount;
+		UE_MVVM_SET_PROPERTY_VALUE(RunCountText, FText::AsNumber(Progress.RunCount));
+	}
+
+	if (Progress.ClearCount != DisplayedClearCount)
+	{
+		DisplayedClearCount = Progress.ClearCount;
+		UE_MVVM_SET_PROPERTY_VALUE(ClearCountText, FText::AsNumber(Progress.ClearCount));
+	}
 
 	const UJY_GameData* GameData = UJY_AssetManager::Get().GetGameData();
 	const UJY_MetaUpgradeData* MetaData = GameData != nullptr ? GameData->MetaUpgradeData.Get() : nullptr;
@@ -74,6 +89,6 @@ void UJY_ProgressViewModel::RefreshProgress()
 	for (int32 Index = 0; Index < Definitions.Num(); ++Index)
 	{
 		const FJY_MetaUpgradeDefinition& Definition = Definitions[Index];
-		MetaEntries[Index]->Refresh(Definition, Progress.GetMetaRank(Definition.UpgradeTag), Progress.SoulStones);
+		MetaEntries[Index]->Refresh(*MetaData, Definition, Progress.GetMetaRank(Definition.UpgradeTag), Progress.SoulStones);
 	}
 }

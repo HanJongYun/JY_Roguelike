@@ -20,14 +20,16 @@ AJY_GameMode::AJY_GameMode()
 
 /*
  * 세이브는 서버만 만진다 — 클라가 파일을 고쳐도 영향 없음. GameMode는 서버에만 있어 별도 서브시스템이 필요 없다.
- * 맵이 바뀌면 GameMode·PlayerState가 새로 생기므로 접속할 때마다 파일에서 다시 읽는다.
+ * 맵이 바뀌면 GameMode·PlayerState가 새로 생기므로 들어올 때마다 파일에서 다시 읽는다.
+ * PostLogin 대신 여기: 일반 접속(PostLogin)과 Seamless 이동(HandleSeamlessTravelPlayer) 모두 이 함수를 거친다(GameModeBase.cpp:607).
+ * 폰을 만들기(Super) 전에 읽어야 메타 효과가 첫 폰부터 적용된다.
  */
 // [Server]
-void AJY_GameMode::PostLogin(APlayerController* NewPlayer) //override
+void AJY_GameMode::HandleStartingNewPlayer_Implementation(APlayerController* NewPlayer) //override
 {
-	Super::PostLogin(NewPlayer);
-
 	LoadProgress(NewPlayer->GetPlayerState<AJY_PlayerState>());
+
+	Super::HandleStartingNewPlayer_Implementation(NewPlayer);
 
 	AJY_PlayerController* JYPlayerController = Cast<AJY_PlayerController>(NewPlayer);
 	if (JYPlayerController != nullptr && WelcomeBannerText.IsEmpty() == false)
@@ -54,6 +56,10 @@ void AJY_GameMode::LoadProgress(AJY_PlayerState* PlayerState)
 // [Server]
 void AJY_GameMode::TryBuyMetaUpgrade(APlayerController* Buyer, FGameplayTag UpgradeTag)
 {
+	/* 제단 화면은 클라에서만 열려 서버가 모른다 → "이 맵에서 허용?"을 서버 규칙으로 막는다 */
+	if (bAllowMetaUpgrades == false)
+		return;
+
 	AJY_PlayerState* PlayerState = Buyer != nullptr ? Buyer->GetPlayerState<AJY_PlayerState>() : nullptr;
 	const UJY_GameData* GameData = UJY_AssetManager::Get().GetGameData();
 	const UJY_MetaUpgradeData* MetaData = GameData != nullptr ? GameData->MetaUpgradeData.Get() : nullptr;
@@ -66,7 +72,7 @@ void AJY_GameMode::TryBuyMetaUpgrade(APlayerController* Buyer, FGameplayTag Upgr
 
 	FJY_PlayerProgress NewProgress = PlayerState->GetProgress();
 	const int32 CurrentRank = NewProgress.GetMetaRank(UpgradeTag);
-	if (CurrentRank >= Definition->GetMaxRank())
+	if (CurrentRank < 0 || CurrentRank >= Definition->GetMaxRank())
 		return;
 
 	const int32 Cost = Definition->RankCosts[CurrentRank];
@@ -75,18 +81,21 @@ void AJY_GameMode::TryBuyMetaUpgrade(APlayerController* Buyer, FGameplayTag Upgr
 
 	NewProgress.SoulStones -= Cost;
 	NewProgress.SetMetaRank(UpgradeTag, CurrentRank + 1);
-	CommitProgress(PlayerState, NewProgress);
+	CommitProgress(PlayerState, NewProgress, true);
 
 	AJY_PlayerController* JYPlayerController = Cast<AJY_PlayerController>(Buyer);
 	if (JYPlayerController != nullptr)
 	{
-		JYPlayerController->Client_ShowNotification(EJY_NotificationType::Toast, FText::Format(FText::FromString(TEXT("{0} {1}단계")), Definition->DisplayName, CurrentRank + 1));
+		JYPlayerController->Client_ShowNotification(EJY_NotificationType::Toast, FText::Format(MetaData->GetPurchaseToastFormat(), Definition->DisplayName, CurrentRank + 1));
 	}
 }
 
 // [Server]
 void AJY_GameMode::RefundAllMetaUpgrades(APlayerController* Requester)
 {
+	if (bAllowMetaUpgrades == false)
+		return;
+
 	AJY_PlayerState* PlayerState = Requester != nullptr ? Requester->GetPlayerState<AJY_PlayerState>() : nullptr;
 	const UJY_GameData* GameData = UJY_AssetManager::Get().GetGameData();
 	const UJY_MetaUpgradeData* MetaData = GameData != nullptr ? GameData->MetaUpgradeData.Get() : nullptr;
@@ -94,6 +103,11 @@ void AJY_GameMode::RefundAllMetaUpgrades(APlayerController* Requester)
 		return;
 
 	FJY_PlayerProgress NewProgress = PlayerState->GetProgress();
+	if (NewProgress.MetaRanks.Num() == 0)
+		return;
+
+	/* 합계는 int64로 — 영혼석이 int32 끝에 가까워도 넘치지 않게 */
+	int64 RefundedSoulStones = NewProgress.SoulStones;
 	for (const FJY_MetaRank& MetaRank : NewProgress.MetaRanks)
 	{
 		const FJY_MetaUpgradeDefinition* Definition = MetaData->FindUpgrade(MetaRank.UpgradeTag);
@@ -104,12 +118,13 @@ void AJY_GameMode::RefundAllMetaUpgrades(APlayerController* Requester)
 		const int32 PaidRanks = FMath::Min(MetaRank.Rank, Definition->GetMaxRank());
 		for (int32 RankIndex = 0; RankIndex < PaidRanks; ++RankIndex)
 		{
-			NewProgress.SoulStones += Definition->RankCosts[RankIndex];
+			RefundedSoulStones += Definition->RankCosts[RankIndex];
 		}
 	}
 
+	NewProgress.SoulStones = static_cast<int32>(FMath::Min<int64>(RefundedSoulStones, MAX_int32));
 	NewProgress.MetaRanks.Reset();
-	CommitProgress(PlayerState, NewProgress);
+	CommitProgress(PlayerState, NewProgress, true);
 }
 
 // [Server]
@@ -120,19 +135,25 @@ void AJY_GameMode::AddSoulStones(APlayerController* Receiver, int32 Amount)
 		return;
 
 	FJY_PlayerProgress NewProgress = PlayerState->GetProgress();
-	NewProgress.SoulStones += Amount;
-	CommitProgress(PlayerState, NewProgress);
+	NewProgress.SoulStones = static_cast<int32>(FMath::Min<int64>(static_cast<int64>(NewProgress.SoulStones) + Amount, MAX_int32));
+	CommitProgress(PlayerState, NewProgress, false);
 }
 
-/* 값이 바뀔 때마다 바로 저장 — 맵 이동·종료 시점 저장에 기대지 않는다 (작은 파일 1개라 비용 무시) */
+/*
+ * 값이 바뀔 때마다 바로 저장 — 맵 이동·종료 시점 저장에 기대지 않는다 (작은 파일 1개라 비용 무시).
+ * 메타 효과는 단계가 바뀔 때만 다시 건다 — 영혼석만 바뀔 때 다시 걸면 최대 체력 복제만 늘어난다.
+ */
 // [Server]
-void AJY_GameMode::CommitProgress(AJY_PlayerState* PlayerState, const FJY_PlayerProgress& NewProgress)
+void AJY_GameMode::CommitProgress(AJY_PlayerState* PlayerState, const FJY_PlayerProgress& NewProgress, bool bMetaRanksChanged)
 {
 	PlayerState->SetProgress(NewProgress);
 
 	UJY_ProgressSaveGame* SaveGame = Cast<UJY_ProgressSaveGame>(UGameplayStatics::CreateSaveGameObject(UJY_ProgressSaveGame::StaticClass()));
 	SaveGame->Progress = NewProgress;
 	UGameplayStatics::SaveGameToSlot(SaveGame, SaveSlotName, 0);
+
+	if (bMetaRanksChanged == false)
+		return;
 
 	const UJY_GameData* GameData = UJY_AssetManager::Get().GetGameData();
 	PlayerState->RefreshMetaEffects(GameData != nullptr ? GameData->MetaUpgradeData.Get() : nullptr);

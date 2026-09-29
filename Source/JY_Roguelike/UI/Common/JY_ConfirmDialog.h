@@ -2,13 +2,11 @@
 
 #include "CoreMinimal.h"
 #include "UI/Foundation/JY_ScreenWidget.h"
+#include "UI/JY_UITypes.h"
 #include "JY_ConfirmDialog.generated.h"
 
 class UCommonTextBlock;
 class UJY_ButtonBase;
-
-/* 확인 팝업 결과 — true = 확인, false = 취소·ESC */
-DECLARE_DELEGATE_OneParam(FJY_OnConfirmResult, bool /*bConfirmed*/);
 
 /* 제목·본문·확인/취소 팝업 — 결과를 연 쪽에 돌려준다 (Modal 층) */
 UCLASS(Abstract, Blueprintable)

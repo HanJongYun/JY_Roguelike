@@ -3,13 +3,12 @@
 #include "CoreMinimal.h"
 #include "CommonUserWidget.h"
 #include "GameplayTagContainer.h"
+#include "UI/JY_UITypes.h"
 #include "JY_PrimaryLayout.generated.h"
 
 class UCommonActivatableWidgetContainerBase;
 class UCommonActivatableWidgetStack;
-class UOverlay;
 class UJY_BannerWidget;
-enum class EJY_NotificationType : uint8;
 
 /* 화면 전체 틀 — 층 태그마다 화면 스택을 하나씩 가진다 */
 UCLASS(Abstract, meta = (DisableNativeTick))
@@ -41,15 +40,13 @@ protected:
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UCommonActivatableWidgetStack> GameMenuLayer;
 
-	/* 배너·토스트 (스택 아님 — 여러 개 동시 표시, 입력 안 받음) */
-	UPROPERTY(meta = (BindWidget))
-	TObjectPtr<UOverlay> NotificationOverlay;
+	/* 배너·토스트는 스택이 아닌 WBP의 NotificationOverlay 안에 둔다 (여러 개 동시 표시, 입력 안 받음) */
 
-	/* NotificationOverlay 안 위쪽 큰 알림 */
+	/* 위쪽 큰 알림 */
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UJY_BannerWidget> BannerWidget;
 
-	/* NotificationOverlay 안 아래쪽 작은 알림 */
+	/* 아래쪽 작은 알림 */
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UJY_BannerWidget> ToastWidget;
 

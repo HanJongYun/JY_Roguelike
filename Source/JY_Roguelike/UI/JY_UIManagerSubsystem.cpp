@@ -2,6 +2,9 @@
 #include "UI/Foundation/JY_PrimaryLayout.h"
 #include "UI/Foundation/JY_ScreenWidget.h"
 #include "UI/Foundation/JY_HUDLayout.h"
+#include "UI/Common/JY_ConfirmDialog.h"
+#include "UI/Common/JY_BannerWidget.h"
+#include "Engine/AssetManager.h"
 #include "System/JY_GameplayTags.h"
 #include "Widgets/CommonActivatableWidgetContainer.h"
 #include "Input/CommonUIActionRouterBase.h"
@@ -10,8 +13,6 @@
 #include "Engine/LocalPlayer.h"
 #include "System/JY_AssetManager.h"
 #include "System/JY_GameData.h"
-#include "UI/ViewModels/JY_StatsViewModel.h"
-#include "UI/ViewModels/JY_ProgressViewModel.h"
 #include "GameFramework/PlayerController.h"
 #include "Player/JY_PlayerController.h"
 
@@ -89,9 +90,13 @@ void UJY_UIManagerSubsystem::ShowConfirm(const FText& Title, const FText& Body, 
 // [OwnClient]
 void UJY_UIManagerSubsystem::ShowNotification(EJY_NotificationType Type, const FText& Message)
 {
+	/* 틀이 계속 안 생기는 설정 오류에서도 쌓이지 않게 상한 */
 	if (PrimaryLayout == nullptr)
 	{
-		PendingNotifications.Emplace(Type, Message);
+		if (PendingNotifications.Num() < 8)
+		{
+			PendingNotifications.Emplace(Type, Message);
+		}
 		return;
 	}
 
@@ -133,8 +138,9 @@ void UJY_UIManagerSubsystem::SetPauseScreenActive(UJY_ScreenWidget* Screen, bool
 	if (bWasPaused == bIsPaused)
 		return;
 
+	/* 맵 이동으로 옛 레이아웃이 정리되며 화면이 꺼질 때는 보내지 않는다 — 옛 PC는 곧 사라지고 새 월드는 정지 없이 시작 */
 	AJY_PlayerController* PC = Cast<AJY_PlayerController>(GetLocalPlayer()->PlayerController);
-	if (PC == nullptr)
+	if (PC == nullptr || PC->IsActorBeingDestroyed() == true || PC->GetWorld()->bIsTearingDown == true)
 		return;
 
 	PC->Server_SetUIPaused(bIsPaused);
@@ -172,18 +178,6 @@ UMVVMViewModelBase* UJY_UIManagerSubsystem::GetOrCreateViewModel(TSubclassOf<UMV
 	return NewViewModel;
 }
 
-// [OwnClient] 로컬 플레이어만
-void UJY_UIManagerSubsystem::BindAbilitySystem(UJY_AbilitySystemComponent* InASC)
-{
-	GetOrCreateViewModel<UJY_StatsViewModel>()->BindAbilitySystem(InASC);
-}
-
-// [OwnClient] 로컬 플레이어만
-void UJY_UIManagerSubsystem::BindPlayerState(AJY_PlayerState* InPlayerState)
-{
-	GetOrCreateViewModel<UJY_ProgressViewModel>()->BindPlayerState(InPlayerState);
-}
-
 /*
  * ZOrder 1000 — 옛 경로로 붙는 위젯(ZOrder 0)보다 위. 틀 자체는 투명하고 클릭을 통과시킨다(UserWidget 기본 SelfHitTestInvisible).
  * 클래스는 Soft 참조라 여기서 처음 로드된다. 틀은 플레이어당 1개·맵당 1회라 동기 로드로 충분.
@@ -205,18 +199,25 @@ void UJY_UIManagerSubsystem::CreatePrimaryLayout(APlayerController* PC)
 
 	PrimaryLayout->AddToPlayerScreen(1000);
 
+	/* 틀이 생겼으니 모아 둔 알림 표시 (HUD 설정이 빠져도 알림은 나가게 HUD보다 먼저) */
+	TArray<TPair<EJY_NotificationType, FText>> NotificationsToShow = MoveTemp(PendingNotifications);
+	for (const TPair<EJY_NotificationType, FText>& Pending : NotificationsToShow)
+	{
+		ShowNotification(Pending.Key, Pending.Value);
+	}
+
+	/* 확인 팝업은 첫 사용 때 끊기지 않게 지금 비동기로 미리 올려 둔다 (맵 로딩 직후라 체감 없음) */
+	if (GameData->ConfirmDialogClass.IsNull() == false)
+	{
+		PreloadHandle = UAssetManager::GetStreamableManager().RequestAsyncLoad(GameData->ConfirmDialogClass.ToSoftObjectPath());
+	}
+
 	/* 층은 CreateWidget 안의 NativeOnInitialized에서 이미 등록됨 → 바로 Push 가능. 맵마다 레이아웃과 함께 새로 생긴다 */
 	const TSubclassOf<UJY_HUDLayout> HUDClass = GameData->HUDLayoutClass.LoadSynchronous();
 	if (HUDClass == nullptr)
 		return;
 
 	PushScreen(JYGameplayTags::UI_Layer_Game, HUDClass);
-
-	for (const TPair<EJY_NotificationType, FText>& Pending : PendingNotifications)
-	{
-		ShowNotification(Pending.Key, Pending.Value);
-	}
-	PendingNotifications.Reset();
 }
 
 // [OwnClient]

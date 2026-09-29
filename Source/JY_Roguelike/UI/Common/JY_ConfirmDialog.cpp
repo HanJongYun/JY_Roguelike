@@ -11,9 +11,7 @@
 UJY_ConfirmDialog::UJY_ConfirmDialog(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	bIsBackHandler = true;
 	bPauseGame = true;
-	InputMode = EJY_ScreenInputMode::Menu;
 }
 
 // [OwnClient]

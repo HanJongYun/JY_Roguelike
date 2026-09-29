@@ -8,7 +8,7 @@ class UJY_ButtonBase;
 class UJY_MetaEntryViewModel;
 
 /* 제단 목록 항목 1개 — 글자는 WBP 바인딩이 ViewModel에서 가져오고, 구매 버튼만 C++이 처리 */
-UCLASS(Abstract, Blueprintable)
+UCLASS(Abstract, Blueprintable, meta = (DisableNativeTick))
 class UJY_MetaEntryWidget : public UCommonUserWidget
 {
 	GENERATED_BODY()

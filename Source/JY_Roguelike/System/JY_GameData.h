@@ -31,7 +31,7 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "UI")
 	TSoftClassPtr<UJY_ConfirmDialog> ConfirmDialogClass;
 
-	/* 메타 강화 표 (DA_JY_MetaUpgrades) — 서버 검증에도 쓰여 하드 참조. 글자·숫자뿐이라 서버 메모리 부담 없음 */
+	/* 메타 강화 표 (DA_JY_MetaUpgrades) — 서버 검증과 제단 화면이 함께 씀 */
 	UPROPERTY(EditDefaultsOnly, Category = "Progress")
 	TObjectPtr<const UJY_MetaUpgradeData> MetaUpgradeData;
 

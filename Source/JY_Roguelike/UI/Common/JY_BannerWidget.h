@@ -3,20 +3,13 @@
 #include "CoreMinimal.h"
 #include "CommonUserWidget.h"
 #include "Containers/Ticker.h"
+#include "UI/JY_UITypes.h"
 #include "JY_BannerWidget.generated.h"
 
 class UCommonTextBlock;
 
-/* 알림 종류 — 어느 알림 위젯에 띄울지 */
-UENUM(BlueprintType)
-enum class EJY_NotificationType : uint8
-{
-	Banner,		// 화면 위쪽 큰 글자 (지역 이름 등)
-	Toast		// 화면 아래쪽 작은 글자 (구매 완료 등)
-};
-
 /* 글자를 잠깐 보여 주고 사라지는 알림 칸 — 여러 개가 오면 차례대로 표시 */
-UCLASS(Abstract, Blueprintable)
+UCLASS(Abstract, Blueprintable, meta = (DisableNativeTick))
 class UJY_BannerWidget : public UCommonUserWidget
 {
 	GENERATED_BODY()

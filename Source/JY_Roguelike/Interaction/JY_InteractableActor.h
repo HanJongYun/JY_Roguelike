@@ -10,14 +10,6 @@ class UStaticMeshComponent;
 class UWidgetComponent;
 class UJY_ScreenWidget;
 
-/* E를 눌렀을 때 무엇을 하나 */
-UENUM(BlueprintType)
-enum class EJY_InteractionType : uint8
-{
-	OpenScreen,		// 내 화면에 창을 연다 (로컬) — 제단·기록판
-	ServerAction	// 서버에 요청한다 — 포털
-};
-
 /* 다가가면 "[E] 이름"이 뜨고 E로 쓰는 월드 물체 — 제단·기록판·포털의 부모 */
 UCLASS()
 class AJY_InteractableActor : public AActor
@@ -37,11 +29,13 @@ public:
 	/* 이 거리 안이면 사용 가능 — 서버가 요청을 믿기 전에 다시 확인 */
 	bool IsWithinInteractRange(const AActor* User) const;
 
+	/* 화면을 여는 대상인가 (아니면 서버에 요청하는 대상) */
+	bool OpensScreen() const { return ScreenClass.IsNull() == false; }
+
 	/* 서버 동작형: 서버가 검증을 통과시킨 뒤 호출 (자식이 재정의) */
 	virtual void OnServerInteract(APlayerController* User) {}
 
 	const FText& GetDisplayName() const { return DisplayName; }
-	EJY_InteractionType GetInteractionType() const { return InteractionType; }
 	const TSoftClassPtr<UJY_ScreenWidget>& GetScreenClass() const { return ScreenClass; }
 	const FText& GetConfirmText() const { return ConfirmText; }
 
@@ -66,25 +60,24 @@ private:
 	TObjectPtr<UWidgetComponent> PromptWidget;
 
 protected:
-	/* 설정값 — BP_JY_Interactable_* 의 Class Defaults에서 수정 */
+	/* 설정값 — BP_JY_Interactable_* · BP_JY_Portal의 Class Defaults에서 수정 */
 
 	/* 안내·팝업에 보일 이름 (예: 제단) */
 	UPROPERTY(EditAnywhere, Category = "JY|Interaction")
 	FText DisplayName;
 
-	/* E를 눌렀을 때 동작 종류 */
+	/* 지정하면 E로 GameMenu 층에 이 화면을 연다 (제단·기록판). 비우면 서버 동작형 (포털) */
 	UPROPERTY(EditAnywhere, Category = "JY|Interaction")
-	EJY_InteractionType InteractionType = EJY_InteractionType::OpenScreen;
-
-	/* OpenScreen일 때 GameMenu 층에 올릴 화면 (Soft — 서버는 로드 안 함) */
-	UPROPERTY(EditAnywhere, Category = "JY|Interaction", meta = (EditCondition = "InteractionType == EJY_InteractionType::OpenScreen"))
 	TSoftClassPtr<UJY_ScreenWidget> ScreenClass;
 
-	/* ServerAction일 때 먼저 물어볼 문구 (비우면 바로 실행). 예: 던전으로 출발할까요? */
-	UPROPERTY(EditAnywhere, Category = "JY|Interaction", meta = (EditCondition = "InteractionType == EJY_InteractionType::ServerAction"))
+	/* 서버 동작형에서 먼저 물어볼 문구 (비우면 바로 실행). 예: 던전으로 출발할까요? */
+	UPROPERTY(EditAnywhere, Category = "JY|Interaction")
 	FText ConfirmText;
 
-	/* 서버 거리 검증 여유 (cm) — 이동 보정·지연으로 클라가 살짝 앞서도 거절하지 않게 */
+	/* 서버 거리 검증 여유 (cm) */
 	UPROPERTY(EditAnywhere, Category = "JY|Interaction", meta = (ClampMin = "0.0"))
 	float ServerRangeTolerance = 100.0f;
+
+private:
+	TSharedPtr<struct FStreamableHandle> ScreenPreloadHandle;
 };

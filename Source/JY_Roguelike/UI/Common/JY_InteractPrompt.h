@@ -7,7 +7,7 @@
 class UCommonTextBlock;
 
 /* 상호작용 대상 머리 위 "[E] 이름" 안내 */
-UCLASS(Abstract, Blueprintable)
+UCLASS(Abstract, Blueprintable, meta = (DisableNativeTick))
 class UJY_InteractPrompt : public UCommonUserWidget
 {
 	GENERATED_BODY()

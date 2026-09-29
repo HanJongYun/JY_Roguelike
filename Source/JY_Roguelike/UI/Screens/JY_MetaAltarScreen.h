@@ -13,11 +13,9 @@ class UJY_MetaAltarScreen : public UJY_ScreenWidget
 {
 	GENERATED_BODY()
 
-public:
-	UJY_MetaAltarScreen(const FObjectInitializer& ObjectInitializer);
-
 protected:
 	virtual void NativeOnInitialized() override;
+	virtual void NativeOnActivated() override;
 
 private:
 	/* 환불 클릭 → 확인 팝업 */

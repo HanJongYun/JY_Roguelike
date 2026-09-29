@@ -46,5 +46,14 @@ UCommonActivatableWidgetContainerBase* UJY_PrimaryLayout::GetLayer(FGameplayTag 
 // [OwnClient]
 UJY_BannerWidget* UJY_PrimaryLayout::GetNotificationWidget(EJY_NotificationType Type) const
 {
-	return Type == EJY_NotificationType::Banner ? BannerWidget : ToastWidget;
+	switch (Type)
+	{
+	case EJY_NotificationType::Banner:
+		return BannerWidget;
+	case EJY_NotificationType::Toast:
+		return ToastWidget;
+	default:
+		ensureMsgf(false, TEXT("알림 종류에 맞는 칸이 없음 — BindWidget과 case 추가"));
+		return nullptr;
+	}
 }

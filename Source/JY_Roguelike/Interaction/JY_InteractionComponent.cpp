@@ -74,7 +74,7 @@ void UJY_InteractionComponent::Interact()
 	if (UIManager == nullptr)
 		return;
 
-	if (Target->GetInteractionType() == EJY_InteractionType::OpenScreen)
+	if (Target->OpensScreen() == true)
 	{
 		UIManager->PushScreen(JYGameplayTags::UI_Layer_GameMenu, Target->GetScreenClass().LoadSynchronous());
 		return;
@@ -102,7 +102,7 @@ void UJY_InteractionComponent::HandleConfirmResult(bool bConfirmed, TWeakObjectP
 // [Server]
 void UJY_InteractionComponent::Server_Interact_Implementation(AJY_InteractableActor* Target)
 {
-	if (Target == nullptr || Target->GetInteractionType() != EJY_InteractionType::ServerAction)
+	if (Target == nullptr || Target->OpensScreen() == true)
 		return;
 
 	APawn* Pawn = GetOwner<APawn>();

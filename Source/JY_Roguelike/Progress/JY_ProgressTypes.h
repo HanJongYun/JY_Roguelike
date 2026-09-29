@@ -37,7 +37,7 @@ struct FJY_PlayerProgress
 	UPROPERTY(BlueprintReadOnly, SaveGame)
 	int32 ClearCount = 0;
 
-	/* 산 메타 강화 목록 (단계 0은 넣지 않음). TMap은 복제가 안 돼 배열 */
+	/* 산 메타 강화 목록 (단계 0은 넣지 않음) */
 	UPROPERTY(BlueprintReadOnly, SaveGame)
 	TArray<FJY_MetaRank> MetaRanks;
 

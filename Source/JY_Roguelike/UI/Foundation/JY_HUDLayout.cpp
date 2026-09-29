@@ -5,6 +5,7 @@
 #include "ICommonInputModule.h"
 #include "CommonInputSettings.h"
 #include "Input/CommonUIInputTypes.h"
+#include "Engine/AssetManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(JY_HUDLayout)
 
@@ -16,6 +17,7 @@ UJY_HUDLayout::UJY_HUDLayout(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	InputMode = EJY_ScreenInputMode::Game;
+	bIsBackHandler = false;
 }
 
 /*
@@ -36,16 +38,22 @@ void UJY_HUDLayout::NativeOnInitialized() //override
 	FBindUIActionArgs BindArgs(BackAction, false, FSimpleDelegate::CreateUObject(this, &UJY_HUDLayout::HandleEscapeAction));
 	BindArgs.InputMode = ECommonInputMode::Game;
 	RegisterUIActionBinding(BindArgs);
+
+	/* ESC 메뉴를 처음 열 때 끊기지 않게 지금 비동기로 미리 올려 둔다 */
+	if (EscapeMenuClass.IsNull() == false)
+	{
+		EscapeMenuPreloadHandle = UAssetManager::GetStreamableManager().RequestAsyncLoad(EscapeMenuClass.ToSoftObjectPath());
+	}
 }
 
 // [OwnClient]
 void UJY_HUDLayout::HandleEscapeAction()
 {
-	UJY_UIManagerSubsystem* UIManager = ULocalPlayer::GetSubsystem<UJY_UIManagerSubsystem>(GetOwningLocalPlayer());
+	UJY_UIManagerSubsystem* UIManager = GetUIManager();
 	if (UIManager == nullptr)
 		return;
 
-	/* 한 번 로드되면 메모리에 남아 두 번째부터는 즉시 반환 */
+	/* 미리 로드가 끝났으면 즉시 반환, 아직이면 그 자리에서 마저 로드 */
 	const TSubclassOf<UJY_ScreenWidget> MenuClass = EscapeMenuClass.LoadSynchronous();
 	if (MenuClass == nullptr)
 		return;

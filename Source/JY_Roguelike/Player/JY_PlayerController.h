@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
 #include "GameplayTagContainer.h"
-#include "UI/Common/JY_BannerWidget.h"
+#include "UI/JY_UITypes.h"
 #include "JY_PlayerController.generated.h"
 
 class UInputMappingContext;

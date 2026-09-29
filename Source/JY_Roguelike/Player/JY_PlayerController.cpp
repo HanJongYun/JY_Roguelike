@@ -4,6 +4,8 @@
 #include "AbilitySystem/Effects/JY_DebugGameplayEffects.h"
 #include "System/JY_GameplayTags.h"
 #include "UI/JY_UIManagerSubsystem.h"
+#include "UI/ViewModels/JY_StatsViewModel.h"
+#include "UI/ViewModels/JY_ProgressViewModel.h"
 #include "System/JY_GameMode.h"
 #include "GameFramework/CheatManagerDefines.h"
 #include "EnhancedInputSubsystems.h"
@@ -53,8 +55,8 @@ void AJY_PlayerController::InitializeLocalUI()
 	if (JYPlayerState == nullptr)
 		return;
 
-	UIManager->BindAbilitySystem(JYPlayerState->GetJYAbilitySystemComponent());
-	UIManager->BindPlayerState(JYPlayerState);
+	UIManager->GetOrCreateViewModel<UJY_StatsViewModel>()->BindAbilitySystem(JYPlayerState->GetJYAbilitySystemComponent());
+	UIManager->GetOrCreateViewModel<UJY_ProgressViewModel>()->BindPlayerState(JYPlayerState);
 }
 
 // [OwnClient] 로컬 컨트롤러만
@@ -98,7 +100,6 @@ void AJY_PlayerController::JYHeal(float Amount)
 	Server_DebugApplyHealthDelta(Amount);
 }
 
-// [Server]
 /*
  * 체력은 서버에서 GE로만 바꾼다. 클라가 직접 속성을 바꾸지 않는다.
  * UFUNCTION은 #if 블록 안에 둘 수 없어 선언은 두고, 본문만 치트 매니저가 없는 빌드에서 막는다.
@@ -106,6 +107,7 @@ void AJY_PlayerController::JYHeal(float Amount)
  *   서버 PC의 AddCheats는 GameMode AllowCheats일 때만 CheatManager를 만든다 (PIE는 항상 허용, 배포 서버는 막힘).
  *   이게 없으면 개발 빌드 전용 서버에서 개조 클라가 이 RPC로 무한 회복할 수 있다.
  */
+// [Server]
 void AJY_PlayerController::Server_DebugApplyHealthDelta_Implementation(float Delta)
 {
 #if UE_WITH_CHEAT_MANAGER
@@ -148,7 +150,8 @@ void AJY_PlayerController::Server_DebugApplyHealthDelta_Implementation(float Del
 // [Server]
 void AJY_PlayerController::Server_SetUIPaused_Implementation(bool bPaused)
 {
-	SetPause(bPaused);
+	/* 정지를 건 PC에 해제 조건을 묶어 둔다 — 이 PC가 나가면 엔진이 그 정지를 지운다(GameModeBase.cpp:284 ForceClearUnpauseDelegates) */
+	SetPause(bPaused, FCanUnpause::CreateUObject(this, &APlayerController::DefaultCanUnpause));
 }
 
 /* 값 검증은 전부 GameMode — PC는 요청을 전달만 한다 */

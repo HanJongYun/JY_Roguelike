@@ -26,4 +26,7 @@ private:
 	/* 다른 화면이 없을 때 뒤로가기 키로 Menu 층에 올릴 화면 (WBP_JY_EscapeMenu) */
 	UPROPERTY(EditDefaultsOnly, Category = "JY|HUD")
 	TSoftClassPtr<UJY_ScreenWidget> EscapeMenuClass;
+
+private:
+	TSharedPtr<struct FStreamableHandle> EscapeMenuPreloadHandle;
 };

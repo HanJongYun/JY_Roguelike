@@ -56,4 +56,9 @@ private:
 	TWeakObjectPtr<AJY_PlayerState> PlayerState;
 
 	FDelegateHandle ProgressChangedHandle;
+
+	/* 마지막으로 글자를 만든 값 (-1 = 아직 없음) — 숫자가 바뀔 때만 글자를 새로 만든다 */
+	int32 DisplayedSoulStones = INDEX_NONE;
+	int32 DisplayedRunCount = INDEX_NONE;
+	int32 DisplayedClearCount = INDEX_NONE;
 };

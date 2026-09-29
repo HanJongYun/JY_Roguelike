@@ -3,41 +3,41 @@
 #include "UI/Foundation/JY_ButtonBase.h"
 #include "UI/JY_UIManagerSubsystem.h"
 #include "UI/ViewModels/JY_ProgressViewModel.h"
+#include "UI/ViewModels/JY_MetaEntryViewModel.h"
 #include "Player/JY_PlayerController.h"
 #include "Components/DynamicEntryBox.h"
-#include "Engine/LocalPlayer.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(JY_MetaAltarScreen)
 
-/* 메뉴 입력 · 뒤로가기로 닫힘 · 정지 안 함(허브에서 구경하는 화면) */
-UJY_MetaAltarScreen::UJY_MetaAltarScreen(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
-{
-	bIsBackHandler = true;
-	InputMode = EJY_ScreenInputMode::Menu;
-}
-
-/*
- * 항목 위젯은 화면이 처음 만들어질 때 1번만 채운다. 화면은 층 스택의 위젯 풀에 남아 다시 열 때 같은 인스턴스를 쓰고
- * (CommonActivatableWidgetContainer.cpp:193 GetOrCreateInstance), 값은 항목 ViewModel이 바뀔 때만 갱신된다.
- */
 // [OwnClient]
 void UJY_MetaAltarScreen::NativeOnInitialized() //override
 {
 	Super::NativeOnInitialized();
 
 	RefundButton->OnClicked().AddUObject(this, &UJY_MetaAltarScreen::HandleRefundClicked);
+}
 
-	UJY_UIManagerSubsystem* UIManager = ULocalPlayer::GetSubsystem<UJY_UIManagerSubsystem>(GetOwningLocalPlayer());
+/*
+ * 화면은 층 스택의 위젯 풀에 남아 다시 열 때 같은 인스턴스를 쓴다(CommonActivatableWidgetContainer.cpp:193 GetOrCreateInstance).
+ * 항목 위젯은 모자란 만큼만 만든다 → 두 번째부터는 아무것도 만들지 않고, 값은 항목 ViewModel이 바뀔 때만 갱신된다.
+ * 열 때마다 확인하는 이유: 처음 열었을 때 아직 진행 값이 도착 전이면 항목 ViewModel이 비어 있을 수 있다.
+ */
+// [OwnClient]
+void UJY_MetaAltarScreen::NativeOnActivated() //override
+{
+	Super::NativeOnActivated();
+
+	UJY_UIManagerSubsystem* UIManager = GetUIManager();
 	if (UIManager == nullptr)
 		return;
 
-	for (UJY_MetaEntryViewModel* EntryViewModel : UIManager->GetOrCreateViewModel<UJY_ProgressViewModel>()->GetMetaEntries())
+	const TArray<TObjectPtr<UJY_MetaEntryViewModel>>& EntryViewModels = UIManager->GetOrCreateViewModel<UJY_ProgressViewModel>()->GetMetaEntries();
+	for (int32 Index = EntryBox->GetNumEntries(); Index < EntryViewModels.Num(); ++Index)
 	{
 		UJY_MetaEntryWidget* EntryWidget = EntryBox->CreateEntry<UJY_MetaEntryWidget>();
 		if (EntryWidget != nullptr)
 		{
-			EntryWidget->SetEntryViewModel(EntryViewModel);
+			EntryWidget->SetEntryViewModel(EntryViewModels[Index]);
 		}
 	}
 }
@@ -45,7 +45,7 @@ void UJY_MetaAltarScreen::NativeOnInitialized() //override
 // [OwnClient]
 void UJY_MetaAltarScreen::HandleRefundClicked()
 {
-	UJY_UIManagerSubsystem* UIManager = ULocalPlayer::GetSubsystem<UJY_UIManagerSubsystem>(GetOwningLocalPlayer());
+	UJY_UIManagerSubsystem* UIManager = GetUIManager();
 	if (UIManager == nullptr)
 		return;
 

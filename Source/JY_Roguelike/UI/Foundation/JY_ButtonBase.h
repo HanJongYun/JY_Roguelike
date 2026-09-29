@@ -7,7 +7,7 @@
 class UCommonTextBlock;
 
 /* 모든 버튼의 부모 — 라벨 글자를 갖고, 모양·소리는 버튼 스타일 에셋이 정한다 */
-UCLASS(Abstract, Blueprintable)
+UCLASS(Abstract, Blueprintable, meta = (DisableNativeTick))
 class UJY_ButtonBase : public UCommonButtonBase
 {
 	GENERATED_BODY()
@@ -16,7 +16,7 @@ protected:
 	virtual void NativePreConstruct() override;
 	virtual void NativeOnCurrentTextStyleChanged() override;
 
-public:
+private:
 	/* 라벨 글자를 바꿈 */
 	void SetButtonText(const FText& InText);
 

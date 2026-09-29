@@ -6,6 +6,7 @@
 #include "JY_MetaEntryViewModel.generated.h"
 
 class UJY_MetaUpgradeData;
+class UTexture2D;
 struct FJY_MetaUpgradeDefinition;
 
 /* 제단 목록의 항목 1개(메타 강화 1종) 표시 값 — 항목마다 인스턴스 1개 */
@@ -19,6 +20,7 @@ public:
 	void Refresh(const UJY_MetaUpgradeData& MetaUpgradeData, const FJY_MetaUpgradeDefinition& Definition, int32 CurrentRank, int32 SoulStones);
 
 	const FGameplayTag& GetUpgradeTag() const { return UpgradeTag; }
+	const TSoftObjectPtr<UTexture2D>& GetIcon() const { return Icon; }
 	FText GetDisplayName() const { return DisplayName; }
 	FText GetDescription() const { return Description; }
 	FText GetRankText() const { return RankText; }
@@ -51,6 +53,9 @@ private:
 private:
 	/* 구매 요청에 실어 보낼 강화 종류 */
 	FGameplayTag UpgradeTag;
+
+	/* 항목 위젯이 처음 한 번 그리는 아이콘 (바뀌지 않아 알림 없음) */
+	TSoftObjectPtr<UTexture2D> Icon;
 
 	/* 마지막으로 글자를 만든 단계 (-1 = 아직 없음) */
 	int32 DisplayedRank = INDEX_NONE;

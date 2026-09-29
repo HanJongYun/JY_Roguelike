@@ -6,6 +6,7 @@
 #include "JY_MetaUpgradeData.generated.h"
 
 class UGameplayEffect;
+class UTexture2D;
 
 /* 메타 강화 한 종류의 규칙 */
 USTRUCT(BlueprintType)
@@ -24,6 +25,10 @@ struct FJY_MetaUpgradeDefinition
 	/* 제단에 보일 설명 (예: 최대 체력 +20 / 단계) */
 	UPROPERTY(EditDefaultsOnly)
 	FText Description;
+
+	/* 제단 줄 앞 아이콘 (Soft — 서버는 텍스처를 로드하지 않는다) */
+	UPROPERTY(EditDefaultsOnly)
+	TSoftObjectPtr<UTexture2D> Icon;
 
 	/* 단계별 가격 — 개수 = 최대 단계 (예: 30, 60, 100 → 최대 3단계) */
 	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0"))

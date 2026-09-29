@@ -2,6 +2,7 @@
 #include "Interaction/JY_InteractableActor.h"
 #include "UI/JY_UIManagerSubsystem.h"
 #include "UI/Foundation/JY_ScreenWidget.h"
+#include "UI/ViewModels/JY_InteractionViewModel.h"
 #include "System/JY_GameplayTags.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
@@ -44,17 +45,21 @@ void UJY_InteractionComponent::RefreshFocus()
 	if (NewFocus == FocusedInteractable.Get())
 		return;
 
-	if (FocusedInteractable.IsValid() == true)
-	{
-		FocusedInteractable->SetPromptVisible(false);
-	}
-
 	FocusedInteractable = NewFocus;
 
-	if (NewFocus != nullptr)
-	{
-		NewFocus->SetPromptVisible(true);
-	}
+	UJY_UIManagerSubsystem* UIManager = GetUIManager();
+	if (UIManager == nullptr)
+		return;
+
+	UIManager->GetOrCreateViewModel<UJY_InteractionViewModel>()->SetFocusedName(NewFocus != nullptr ? NewFocus->GetDisplayName() : FText::GetEmpty());
+}
+
+// [OwnClient]
+UJY_UIManagerSubsystem* UJY_InteractionComponent::GetUIManager() const
+{
+	const APawn* Pawn = GetOwner<APawn>();
+	const APlayerController* PC = Pawn != nullptr ? Pawn->GetController<APlayerController>() : nullptr;
+	return PC != nullptr ? ULocalPlayer::GetSubsystem<UJY_UIManagerSubsystem>(PC->GetLocalPlayer()) : nullptr;
 }
 
 /*
@@ -68,9 +73,7 @@ void UJY_InteractionComponent::Interact()
 	if (Target == nullptr)
 		return;
 
-	const APawn* Pawn = GetOwner<APawn>();
-	const APlayerController* PC = Pawn != nullptr ? Pawn->GetController<APlayerController>() : nullptr;
-	UJY_UIManagerSubsystem* UIManager = PC != nullptr ? ULocalPlayer::GetSubsystem<UJY_UIManagerSubsystem>(PC->GetLocalPlayer()) : nullptr;
+	UJY_UIManagerSubsystem* UIManager = GetUIManager();
 	if (UIManager == nullptr)
 		return;
 

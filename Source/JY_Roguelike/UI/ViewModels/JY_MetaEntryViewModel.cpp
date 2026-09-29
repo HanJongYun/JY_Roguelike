@@ -12,6 +12,7 @@
 void UJY_MetaEntryViewModel::Refresh(const UJY_MetaUpgradeData& MetaUpgradeData, const FJY_MetaUpgradeDefinition& Definition, int32 CurrentRank, int32 SoulStones)
 {
 	UpgradeTag = Definition.UpgradeTag;
+	Icon = Definition.Icon;
 	UE_MVVM_SET_PROPERTY_VALUE(DisplayName, Definition.DisplayName);
 	UE_MVVM_SET_PROPERTY_VALUE(Description, Definition.Description);
 

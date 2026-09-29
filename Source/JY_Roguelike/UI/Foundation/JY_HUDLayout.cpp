@@ -6,6 +6,9 @@
 #include "CommonInputSettings.h"
 #include "Input/CommonUIInputTypes.h"
 #include "Engine/AssetManager.h"
+#include "System/JY_GameMode.h"
+#include "GameFramework/GameStateBase.h"
+#include "Engine/World.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(JY_HUDLayout)
 
@@ -44,6 +47,26 @@ void UJY_HUDLayout::NativeOnInitialized() //override
 	{
 		EscapeMenuPreloadHandle = UAssetManager::GetStreamableManager().RequestAsyncLoad(EscapeMenuClass.ToSoftObjectPath());
 	}
+
+	/* 클라에는 GameMode가 없지만 GameState가 GameMode 클래스를 복제해 준다 → 그 기본값을 읽는다 */
+	AGameStateBase* GameState = GetWorld()->GetGameState();
+	if (GameState == nullptr)
+	{
+		GetWorld()->GameStateSetEvent.AddUObject(this, &UJY_HUDLayout::RefreshCombatPanel);
+		CombatPanel->SetVisibility(ESlateVisibility::Collapsed);
+		return;
+	}
+
+	RefreshCombatPanel(GameState);
+}
+
+/* 예: 허브 GameMode bShowCombatHUD=false → 체력바 숨김, 던전 GameMode true → 표시 (하데스 허브엔 체력바가 없다) */
+// [OwnClient]
+void UJY_HUDLayout::RefreshCombatPanel(AGameStateBase* GameState)
+{
+	const AJY_GameMode* GameModeDefaults = GameState != nullptr ? GameState->GetDefaultGameMode<AJY_GameMode>() : nullptr;
+	const bool bShowCombatHUD = GameModeDefaults == nullptr || GameModeDefaults->ShouldShowCombatHUD() == true;
+	CombatPanel->SetVisibility(bShowCombatHUD == true ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
 }
 
 // [OwnClient]

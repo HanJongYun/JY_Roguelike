@@ -15,6 +15,13 @@ void UJY_MetaAltarScreen::NativeOnInitialized() //override
 	Super::NativeOnInitialized();
 
 	RefundButton->OnClicked().AddUObject(this, &UJY_MetaAltarScreen::HandleRefundClicked);
+	CloseButton->OnClicked().AddUObject(this, &UJY_MetaAltarScreen::HandleCloseClicked);
+}
+
+// [OwnClient]
+void UJY_MetaAltarScreen::HandleCloseClicked()
+{
+	DeactivateWidget();
 }
 
 /*

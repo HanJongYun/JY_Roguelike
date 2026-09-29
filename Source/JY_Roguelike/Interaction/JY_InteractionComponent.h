@@ -26,8 +26,11 @@ public:
 	void Interact();
 
 private:
-	/* 초점이 바뀌었으면 안내 표시를 옮김 */
+	/* 초점이 바뀌었으면 화면 아래 안내를 바꿈 */
 	void RefreshFocus();
+
+	/* 이 폰 주인(로컬 플레이어)의 UI 관리자 */
+	class UJY_UIManagerSubsystem* GetUIManager() const;
 
 	/* 확인 팝업 결과 → 확인이면 서버에 요청 */
 	void HandleConfirmResult(bool bConfirmed, TWeakObjectPtr<AJY_InteractableActor> Target);

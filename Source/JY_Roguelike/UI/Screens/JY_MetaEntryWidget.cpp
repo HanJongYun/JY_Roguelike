@@ -3,6 +3,7 @@
 #include "UI/ViewModels/JY_MetaEntryViewModel.h"
 #include "Player/JY_PlayerController.h"
 #include "View/MVVMView.h"
+#include "Components/Image.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(JY_MetaEntryWidget)
 
@@ -19,6 +20,12 @@ void UJY_MetaEntryWidget::NativeOnInitialized() //override
 void UJY_MetaEntryWidget::SetEntryViewModel(UJY_MetaEntryViewModel* InViewModel)
 {
 	EntryViewModel = InViewModel;
+
+	/* 아이콘은 바뀌지 않아 바인딩 대신 1번 설정 — Soft라 필요할 때 비동기로 읽힌다 */
+	if (InViewModel != nullptr)
+	{
+		IconImage->SetBrushFromSoftTexture(InViewModel->GetIcon());
+	}
 
 	UMVVMView* View = GetExtension<UMVVMView>();
 	if (View == nullptr)

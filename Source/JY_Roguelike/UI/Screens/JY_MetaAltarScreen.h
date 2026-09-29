@@ -24,6 +24,9 @@ private:
 	/* 확인 팝업 결과 → 서버에 환불 요청 */
 	void HandleRefundConfirmResult(bool bConfirmed);
 
+	/* 닫기 버튼 (마우스로 닫기 — Tab과 같음) */
+	void HandleCloseClicked();
+
 protected:
 	/* WBP_JY_MetaAltar 안의 같은 이름 위젯과 연결 (BindWidget) */
 
@@ -33,6 +36,9 @@ protected:
 
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UJY_ButtonBase> RefundButton;
+
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UJY_ButtonBase> CloseButton;
 
 private:
 	/* 설정값 — WBP_JY_MetaAltar의 Class Defaults에서 수정 */

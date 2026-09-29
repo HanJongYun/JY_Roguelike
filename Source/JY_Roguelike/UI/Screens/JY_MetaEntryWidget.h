@@ -5,6 +5,7 @@
 #include "JY_MetaEntryWidget.generated.h"
 
 class UJY_ButtonBase;
+class UImage;
 class UJY_MetaEntryViewModel;
 
 /* 제단 목록 항목 1개 — 글자는 WBP 바인딩이 ViewModel에서 가져오고, 구매 버튼만 C++이 처리 */
@@ -30,6 +31,10 @@ protected:
 	/* 활성 여부는 WBP 바인딩(MetaEntry.bCanBuy → bIsEnabled) — 바인딩 대상이라 BlueprintReadOnly */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	TObjectPtr<UJY_ButtonBase> BuyButton;
+
+	/* 강화 아이콘 — 항목이 정해질 때 1번 그림 */
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UImage> IconImage;
 
 private:
 	TWeakObjectPtr<UJY_MetaEntryViewModel> EntryViewModel;

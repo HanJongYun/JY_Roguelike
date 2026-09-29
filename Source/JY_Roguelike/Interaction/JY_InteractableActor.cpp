@@ -1,10 +1,8 @@
 #include "Interaction/JY_InteractableActor.h"
 #include "Interaction/JY_InteractionComponent.h"
-#include "UI/Common/JY_InteractPrompt.h"
 #include "UI/Foundation/JY_ScreenWidget.h"
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
-#include "Components/WidgetComponent.h"
 #include "Engine/AssetManager.h"
 #include "GameFramework/Pawn.h"
 
@@ -13,7 +11,7 @@
 /*
  * 쿼터뷰라 라인트레이스(Lyra 1인칭 방식) 대신 범위 겹침으로 대상을 잡는다.
  * 레벨에 배치된 액터라 복제하지 않아도 서버·클라가 같은 이름으로 가리킬 수 있다 → Server RPC 인자로 그대로 넘긴다.
- * 안내 위젯 TickMode Automatic — 위젯이 숨어 있으면 컴포넌트가 스스로 틱을 끈다(WidgetComponent.cpp:1263).
+ * 안내는 하데스처럼 화면 아래 가운데 HUD가 보여 준다 — 액터는 이름만 제공 (월드 위젯 없음 → 틱·서버 로드 비용 없음).
  */
 AJY_InteractableActor::AJY_InteractableActor()
 {
@@ -26,13 +24,6 @@ AJY_InteractableActor::AJY_InteractableActor()
 	InteractionRange->SetupAttachment(Mesh);
 	InteractionRange->SetSphereRadius(250.0f);
 	InteractionRange->SetCollisionProfileName(TEXT("OverlapAllDynamic"));
-
-	PromptWidget = CreateDefaultSubobject<UWidgetComponent>(TEXT("PromptWidget"));
-	PromptWidget->SetupAttachment(Mesh);
-	PromptWidget->SetRelativeLocation(FVector(0.0f, 0.0f, 150.0f));
-	PromptWidget->SetWidgetSpace(EWidgetSpace::Screen);
-	PromptWidget->SetDrawAtDesiredSize(true);
-	PromptWidget->SetTickMode(ETickMode::Automatic);
 }
 
 /* 화면형이면 클라에서 그 화면을 미리 비동기 로드 — 첫 E 때 끊기지 않게. 데디 서버는 UI를 올리지 않는다 */
@@ -44,28 +35,10 @@ void AJY_InteractableActor::BeginPlay() //override
 	InteractionRange->OnComponentBeginOverlap.AddDynamic(this, &AJY_InteractableActor::HandleRangeBeginOverlap);
 	InteractionRange->OnComponentEndOverlap.AddDynamic(this, &AJY_InteractableActor::HandleRangeEndOverlap);
 
-	SetPromptVisible(false);
-
 	if (OpensScreen() == true && IsNetMode(NM_DedicatedServer) == false)
 	{
 		ScreenPreloadHandle = UAssetManager::GetStreamableManager().RequestAsyncLoad(ScreenClass.ToSoftObjectPath());
 	}
-}
-
-/* 글자는 보일 때 넣고, 켜고 끄기는 위젯 자체 가시성으로 — 숨으면 컴포넌트 틱도 멈춘다 */
-// [OwnClient]
-void AJY_InteractableActor::SetPromptVisible(bool bVisible)
-{
-	UJY_InteractPrompt* Prompt = Cast<UJY_InteractPrompt>(PromptWidget->GetUserWidgetObject());
-	if (Prompt == nullptr)
-		return;
-
-	if (bVisible == true)
-	{
-		Prompt->SetPromptText(DisplayName);
-	}
-
-	Prompt->SetVisibility(bVisible == true ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
 }
 
 // [Server]

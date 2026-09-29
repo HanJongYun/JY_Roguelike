@@ -7,10 +7,9 @@
 class APlayerController;
 class USphereComponent;
 class UStaticMeshComponent;
-class UWidgetComponent;
 class UJY_ScreenWidget;
 
-/* 다가가면 "[E] 이름"이 뜨고 E로 쓰는 월드 물체 — 제단·기록판·포털의 부모 */
+/* 다가가면 화면 아래에 "[E] 이름"이 뜨고 E로 쓰는 월드 물체 — 제단·기록판·포털의 부모 */
 UCLASS()
 class AJY_InteractableActor : public AActor
 {
@@ -23,9 +22,6 @@ protected:
 	virtual void BeginPlay() override;
 
 public:
-	/* 안내 표시 켜기·끄기 (로컬 플레이어가 초점을 맞췄을 때) */
-	void SetPromptVisible(bool bVisible);
-
 	/* 이 거리 안이면 사용 가능 — 서버가 요청을 믿기 전에 다시 확인 */
 	bool IsWithinInteractRange(const AActor* User) const;
 
@@ -55,14 +51,10 @@ private:
 	UPROPERTY(VisibleAnywhere, Category = "JY|Interaction")
 	TObjectPtr<USphereComponent> InteractionRange;
 
-	/* 머리 위 "[E] 이름" (화면 공간 — 줌과 무관하게 같은 크기). 데디 서버에선 위젯을 만들지 않는다 */
-	UPROPERTY(VisibleAnywhere, Category = "JY|Interaction")
-	TObjectPtr<UWidgetComponent> PromptWidget;
-
 protected:
 	/* 설정값 — BP_JY_Interactable_* · BP_JY_Portal의 Class Defaults에서 수정 */
 
-	/* 안내·팝업에 보일 이름 (예: 제단) */
+	/* 안내·팝업에 보일 이름 (예: 제단) — 화면 아래 "[E] 제단" */
 	UPROPERTY(EditAnywhere, Category = "JY|Interaction")
 	FText DisplayName;
 

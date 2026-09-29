@@ -30,6 +30,9 @@ public:
 	/* 영혼석 더하기 (치트·보상) */
 	void AddSoulStones(APlayerController* Receiver, int32 Amount);
 
+	/* 이 맵에서 체력바 등 전투 표시를 보이나 — 클라 HUD가 GameMode 기본값으로 읽는다 */
+	bool ShouldShowCombatHUD() const { return bShowCombatHUD; }
+
 private:
 	/* 진행을 바꾸고 → 복제 → 즉시 저장 (단계가 바뀌었으면 메타 효과도 갱신) */
 	void CommitProgress(AJY_PlayerState* PlayerState, const FJY_PlayerProgress& NewProgress, bool bMetaRanksChanged);
@@ -47,6 +50,10 @@ private:
 	/* 이 맵에서 메타 강화 구매·환불 허용 (허브 GameMode만 true — 던전 GameMode는 false) */
 	UPROPERTY(EditDefaultsOnly, Category = "JY|Progress")
 	bool bAllowMetaUpgrades = false;
+
+	/* 이 맵에서 체력바를 보임 (허브 false — 싸우지 않는 곳, 던전 true) */
+	UPROPERTY(EditDefaultsOnly, Category = "JY|UI")
+	bool bShowCombatHUD = true;
 
 	/* 접속 때 띄울 배너 (예: 허브). 비우면 안 띄움 */
 	UPROPERTY(EditDefaultsOnly, Category = "JY|UI")

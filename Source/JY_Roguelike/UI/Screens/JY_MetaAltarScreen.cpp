@@ -20,7 +20,7 @@ void UJY_MetaAltarScreen::NativeOnInitialized() //override
 /*
  * 화면은 층 스택의 위젯 풀에 남아 다시 열 때 같은 인스턴스를 쓴다(CommonActivatableWidgetContainer.cpp:193 GetOrCreateInstance).
  * 항목 위젯은 모자란 만큼만 만든다 → 두 번째부터는 아무것도 만들지 않고, 값은 항목 ViewModel이 바뀔 때만 갱신된다.
- * 열 때마다 확인하는 이유: 처음 열었을 때 아직 진행 값이 도착 전이면 항목 ViewModel이 비어 있을 수 있다.
+ * 열 때마다 확인하는 이유: PlayerState가 아직 연결되기 전에 처음 열렸다면 항목 ViewModel이 아직 없다.
  */
 // [OwnClient]
 void UJY_MetaAltarScreen::NativeOnActivated() //override

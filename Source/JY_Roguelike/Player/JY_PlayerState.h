@@ -40,7 +40,7 @@ public:
 	/* 진행 값 교체 (서버가 로드·구매·환불 뒤 호출) → 소유 클라에 복제 */
 	void SetProgress(const FJY_PlayerProgress& NewProgress);
 
-	/* 메타 강화 단계에 맞게 효과를 다시 건다 (이전 것 제거 후 적용) */
+	/* 메타 강화 단계에 맞게 효과를 맞춘다 (새로 산 것 적용 · 단계 바뀐 것 크기만 갱신 · 0단계 제거) */
 	void RefreshMetaEffects(const UJY_MetaUpgradeData* MetaUpgradeData);
 
 private:
@@ -69,6 +69,6 @@ private:
 	UPROPERTY()
 	TObjectPtr<const UJY_HealthSet> HealthSet;
 
-	/* 지금 걸려 있는 메타 효과들 — 다시 걸기 전에 지우려고 보관 (서버만) */
-	TArray<FActiveGameplayEffectHandle> MetaEffectHandles;
+	/* 강화 종류별로 걸려 있는 메타 효과 (서버만) */
+	TMap<FGameplayTag, FActiveGameplayEffectHandle> MetaEffectHandles;
 };

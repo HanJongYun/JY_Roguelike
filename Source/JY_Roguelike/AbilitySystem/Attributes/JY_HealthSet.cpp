@@ -136,15 +136,16 @@ void UJY_HealthSet::PostAttributeChange(const FGameplayAttribute& Attribute, flo
 	Super::PostAttributeChange(Attribute, OldValue, NewValue);
 
 	/*
-	 * 최대 체력이 늘면 늘어난 만큼 현재 체력도 채운다 — 강인함 구매·맵 이동 뒤 효과 재적용 시 100/160이 아니라 160/160.
+	 * 게임 전체 규칙: 최대 체력이 늘면 늘어난 만큼 현재 체력도 채운다 (메타 강인함, 앞으로의 최대 체력 버프 모두).
+	 * 예: 140/140 → 강인함 +20 → 160/160, 맵 이동 뒤 효과 재적용 100/100 → 160/160.
 	 * 서버에서만: 클라는 서버가 바꾼 Health를 복제로 받는다.
 	 */
-	if (Attribute == GetMaxHealthAttribute() && NewValue > OldValue && OldValue > 0.0f && GetOwningActor() != nullptr && GetOwningActor()->HasAuthority() == true)
+	if (Attribute == GetMaxHealthAttribute() && NewValue > OldValue && GetOwningActor() != nullptr && GetOwningActor()->HasAuthority() == true)
 	{
 		UJY_AbilitySystemComponent* JYASC = GetJYAbilitySystemComponent();
 		check(JYASC);
 
-		JYASC->ApplyModToAttribute(GetHealthAttribute(), EGameplayModOp::Additive, NewValue - OldValue);
+		JYASC->ApplyModToAttribute(GetHealthAttribute(), EGameplayModOp::AddBase, NewValue - OldValue);
 	}
 
 	/* 최대 체력이 줄어 현재 체력이 넘치면 현재 체력을 새 최대치로 덮어쓴다 */

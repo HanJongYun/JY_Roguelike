@@ -29,11 +29,11 @@ struct FJY_PlayerProgress
 	UPROPERTY(BlueprintReadOnly, SaveGame)
 	int32 SoulStones = 0;
 
-	/* 던전 도전 횟수 */
+	/* 던전 도전 횟수 (증가는 던전 조각에서 — 지금은 기록판 표시만) */
 	UPROPERTY(BlueprintReadOnly, SaveGame)
 	int32 RunCount = 0;
 
-	/* 던전 클리어 횟수 */
+	/* 던전 클리어 횟수 (증가는 던전 조각에서) */
 	UPROPERTY(BlueprintReadOnly, SaveGame)
 	int32 ClearCount = 0;
 

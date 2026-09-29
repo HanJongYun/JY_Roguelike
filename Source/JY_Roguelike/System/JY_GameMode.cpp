@@ -22,7 +22,7 @@ AJY_GameMode::AJY_GameMode()
  * 세이브는 서버만 만진다 — 클라가 파일을 고쳐도 영향 없음. GameMode는 서버에만 있어 별도 서브시스템이 필요 없다.
  * 맵이 바뀌면 GameMode·PlayerState가 새로 생기므로 들어올 때마다 파일에서 다시 읽는다.
  * PostLogin 대신 여기: 일반 접속(PostLogin)과 Seamless 이동(HandleSeamlessTravelPlayer) 모두 이 함수를 거친다(GameModeBase.cpp:607).
- * 폰을 만들기(Super) 전에 읽어야 메타 효과가 첫 폰부터 적용된다.
+ * 효과는 PlayerState의 ASC에 걸려 순서와 무관하지만, 먼저 읽으면 폰이 생길 때 최대 체력이 이미 정해져 있다.
  */
 // [Server]
 void AJY_GameMode::HandleStartingNewPlayer_Implementation(APlayerController* NewPlayer) //override

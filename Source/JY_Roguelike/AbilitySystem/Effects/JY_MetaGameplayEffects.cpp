@@ -6,7 +6,7 @@
 
 /*
  * Infinite — 제거할 때까지 유지. ASC가 PlayerState에 있어 폰이 죽고 다시 생겨도 효과가 남는다.
- * 단계가 바뀌면 서버가 이전 효과를 지우고 새 크기로 다시 건다 (AJY_PlayerState::RefreshMetaEffects).
+ * 단계가 바뀌면 서버가 걸려 있는 효과의 크기만 바꾼다 (AJY_PlayerState::RefreshMetaEffects).
  */
 UJY_GameplayEffect_MetaMaxHealth::UJY_GameplayEffect_MetaMaxHealth()
 {

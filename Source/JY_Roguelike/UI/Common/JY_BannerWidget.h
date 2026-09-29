@@ -3,7 +3,6 @@
 #include "CoreMinimal.h"
 #include "CommonUserWidget.h"
 #include "Containers/Ticker.h"
-#include "UI/JY_UITypes.h"
 #include "JY_BannerWidget.generated.h"
 
 class UCommonTextBlock;

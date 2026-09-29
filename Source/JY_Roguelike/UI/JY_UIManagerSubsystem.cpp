@@ -85,7 +85,7 @@ void UJY_UIManagerSubsystem::ShowConfirm(const FText& Title, const FText& Body, 
 
 /*
  * 알림 칸은 레이아웃에 미리 배치된 위젯 2개(배너·토스트)를 재사용 — 알림마다 위젯을 만들지 않는다.
- * 서버 Client RPC가 레이아웃보다 먼저 도착할 수 있어(접속 직후) 그때는 모아 뒀다가 틀을 만들 때 표시.
+ * 틀이 없을 때 온 알림(틀 생성 실패·맵 이동 중)은 버리지 않고 모아 뒀다가 틀을 만들 때 표시.
  */
 // [OwnClient]
 void UJY_UIManagerSubsystem::ShowNotification(EJY_NotificationType Type, const FText& Message)
@@ -93,7 +93,8 @@ void UJY_UIManagerSubsystem::ShowNotification(EJY_NotificationType Type, const F
 	/* 틀이 계속 안 생기는 설정 오류에서도 쌓이지 않게 상한 */
 	if (PrimaryLayout == nullptr)
 	{
-		if (PendingNotifications.Num() < 8)
+		constexpr int32 MaxPendingNotifications = 8;
+		if (PendingNotifications.Num() < MaxPendingNotifications)
 		{
 			PendingNotifications.Emplace(Type, Message);
 		}

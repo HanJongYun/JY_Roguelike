@@ -61,7 +61,7 @@ private:
 	/* 틀이 생기기 전에 온 알림 (접속 직후 서버 배너 등) — 틀 생성 직후 표시 */
 	TArray<TPair<EJY_NotificationType, FText>> PendingNotifications;
 
-	/* 처음 열 때 끊기지 않게 미리 비동기로 올려 둔 화면 클래스들 (핸들이 살아 있는 동안 메모리 유지) */
+	/* 처음 열 때 끊기지 않게 미리 비동기로 올려 둔 확인 팝업 클래스 (핸들이 살아 있는 동안 메모리 유지) */
 	TSharedPtr<struct FStreamableHandle> PreloadHandle;
 
 	/* 키 = 요청한 C++ ViewModel 클래스 (값은 GameData 교체 표의 BP 자식일 수 있음) */

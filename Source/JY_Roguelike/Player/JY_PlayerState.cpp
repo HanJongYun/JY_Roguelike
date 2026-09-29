@@ -59,10 +59,10 @@ void AJY_PlayerState::OnRep_Progress()
 }
 
 /*
- * 단계가 바뀔 때만 불린다(접속·구매·환불 — 영혼석만 바뀔 때는 안 부름). 효과는 PlayerState의 ASC에 걸려 폰이 죽고 다시 생겨도 유지된다.
+ * 단계가 바뀔 때만 불린다(접속·구매·환불 — 영혼석만 바뀔 때는 안 부름). 효과는 PlayerState의 ASC에 걸려 폰이 바뀌어도 유지된다.
  * 크기 = 단계 × 단계당 값 → SetByCaller.MetaValue.
- * 새 효과를 먼저 걸고 옛 효과를 나중에 지운다 — 반대로 하면 최대 체력이 잠깐 기본값으로 내려가
- * 현재 체력이 깎인다(UJY_HealthSet::PostAttributeChange가 최대치에 맞춰 자름). 예: 체력 140/140 → 구매 → 100/160이 되는 버그.
+ * 이미 걸린 종류는 지웠다 다시 걸지 않고 크기만 바꾼다(UpdateActiveGameplayEffectSetByCallerMagnitude) —
+ * 최대 체력이 140 → 160으로 한 번만 바뀌어 증가분(+20)만큼 정확히 반영된다.
  */
 // [Server]
 void AJY_PlayerState::RefreshMetaEffects(const UJY_MetaUpgradeData* MetaUpgradeData)
@@ -70,27 +70,41 @@ void AJY_PlayerState::RefreshMetaEffects(const UJY_MetaUpgradeData* MetaUpgradeD
 	if (HasAuthority() == false)
 		return;
 
-	/* 표가 없으면 새로 걸 것은 없지만 옛 효과는 지운다 (환불 뒤 효과가 남지 않게) */
-	TArray<FActiveGameplayEffectHandle> NewEffectHandles;
-	const TArray<FJY_MetaUpgradeDefinition> NoDefinitions;
-	for (const FJY_MetaUpgradeDefinition& Definition : MetaUpgradeData != nullptr ? MetaUpgradeData->GetUpgrades() : NoDefinitions)
+	TSet<FGameplayTag> ActiveTags;
+	if (MetaUpgradeData != nullptr)
 	{
-		const int32 Rank = Progress.GetMetaRank(Definition.UpgradeTag);
-		if (Rank <= 0 || Definition.Effect == nullptr)
-			continue;
+		for (const FJY_MetaUpgradeDefinition& Definition : MetaUpgradeData->GetUpgrades())
+		{
+			const int32 Rank = Progress.GetMetaRank(Definition.UpgradeTag);
+			if (Rank <= 0 || Definition.Effect == nullptr)
+				continue;
 
-		const FGameplayEffectSpecHandle SpecHandle = AbilitySystemComponent->MakeOutgoingSpec(Definition.Effect, 1.0f, AbilitySystemComponent->MakeEffectContext());
-		if (SpecHandle.IsValid() == false)
-			continue;
+			ActiveTags.Add(Definition.UpgradeTag);
+			const float Magnitude = Rank * Definition.ValuePerRank;
 
-		SpecHandle.Data->SetSetByCallerMagnitude(JYGameplayTags::SetByCaller_MetaValue, Rank * Definition.ValuePerRank);
-		NewEffectHandles.Add(AbilitySystemComponent->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get()));
+			const FActiveGameplayEffectHandle* ExistingHandle = MetaEffectHandles.Find(Definition.UpgradeTag);
+			if (ExistingHandle != nullptr && AbilitySystemComponent->GetActiveGameplayEffect(*ExistingHandle) != nullptr)
+			{
+				AbilitySystemComponent->UpdateActiveGameplayEffectSetByCallerMagnitude(*ExistingHandle, JYGameplayTags::SetByCaller_MetaValue, Magnitude);
+				continue;
+			}
+
+			const FGameplayEffectSpecHandle SpecHandle = AbilitySystemComponent->MakeOutgoingSpec(Definition.Effect, 1.0f, AbilitySystemComponent->MakeEffectContext());
+			if (SpecHandle.IsValid() == false)
+				continue;
+
+			SpecHandle.Data->SetSetByCallerMagnitude(JYGameplayTags::SetByCaller_MetaValue, Magnitude);
+			MetaEffectHandles.Add(Definition.UpgradeTag, AbilitySystemComponent->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get()));
+		}
 	}
 
-	for (const FActiveGameplayEffectHandle& Handle : MetaEffectHandles)
+	/* 0단계가 됐거나(환불) 표에서 빠진 종류는 제거 */
+	for (auto It = MetaEffectHandles.CreateIterator(); It; ++It)
 	{
-		AbilitySystemComponent->RemoveActiveGameplayEffect(Handle);
-	}
+		if (ActiveTags.Contains(It->Key) == true)
+			continue;
 
-	MetaEffectHandles = MoveTemp(NewEffectHandles);
+		AbilitySystemComponent->RemoveActiveGameplayEffect(It->Value);
+		It.RemoveCurrent();
+	}
 }

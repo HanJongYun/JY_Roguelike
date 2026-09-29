@@ -5,10 +5,12 @@
 #include "GameplayTagContainer.h"
 #include "MVVMViewModelBase.h"
 #include "UI/Common/JY_ConfirmDialog.h"
+#include "UI/Common/JY_BannerWidget.h"
 #include "JY_UIManagerSubsystem.generated.h"
 
 class APlayerController;
 class UJY_AbilitySystemComponent;
+class AJY_PlayerState;
 class UJY_PrimaryLayout;
 class UJY_ScreenWidget;
 
@@ -29,6 +31,9 @@ public:
 	/* 확인 팝업을 Modal 층에 띄우고 결과를 콜백으로 돌려줌 */
 	void ShowConfirm(const FText& Title, const FText& Body, FJY_OnConfirmResult OnResult);
 
+	/* 배너·토스트 알림 (틀이 아직 없으면 생긴 뒤 표시) */
+	void ShowNotification(EJY_NotificationType Type, const FText& Message);
+
 	/* 정지 화면이 켜지거나 꺼질 때 호출 — 목록이 비었다↔안 비었다 바뀔 때만 서버에 정지 요청 */
 	void SetPauseScreenActive(UJY_ScreenWidget* Screen, bool bActive);
 
@@ -40,6 +45,9 @@ public:
 
 	/* ASC를 ViewModel에 연결 */
 	void BindAbilitySystem(UJY_AbilitySystemComponent* InASC);
+
+	/* PlayerState 진행(영혼석·메타)을 ViewModel에 연결 */
+	void BindPlayerState(AJY_PlayerState* InPlayerState);
 
 private:
 	/* 화면 틀을 만들어 이 플레이어 화면에 붙임 */
@@ -57,6 +65,9 @@ private:
 
 	/* 지금 켜져 있는 정지 화면들 — 개수 대신 목록: 켜짐·꺼짐 알림이 두 번 오거나 빠져도 어긋나지 않음 */
 	TSet<TWeakObjectPtr<UJY_ScreenWidget>> PauseScreens;
+
+	/* 틀이 생기기 전에 온 알림 (접속 직후 서버 배너 등) — 틀 생성 직후 표시 */
+	TArray<TPair<EJY_NotificationType, FText>> PendingNotifications;
 
 	/* 키 = 요청한 C++ ViewModel 클래스 (값은 GameData 교체 표의 BP 자식일 수 있음) */
 	UPROPERTY(Transient)

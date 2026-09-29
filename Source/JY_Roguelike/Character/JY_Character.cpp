@@ -1,5 +1,6 @@
 #include "Character/JY_Character.h"
 #include "Character/JY_HealthComponent.h"
+#include "Interaction/JY_InteractionComponent.h"
 #include "Player/JY_PlayerState.h"
 #include "AbilitySystem/JY_AbilitySystemComponent.h"
 #include "System/JY_LogChannels.h"
@@ -49,6 +50,7 @@ AJY_Character::AJY_Character()
 
 	/* Lyra LyraCharacter.cpp:68~69와 같이 생성자에서 죽음 이벤트 연결 */
 	HealthComponent = CreateDefaultSubobject<UJY_HealthComponent>(TEXT("HealthComponent"));
+	InteractionComponent = CreateDefaultSubobject<UJY_InteractionComponent>(TEXT("InteractionComponent"));
 	HealthComponent->OnDeathStarted.AddDynamic(this, &ThisClass::OnDeathStarted);
 
 	/* 외형 전용 — 판정은 나중에 전투에서 따로 한다 */
@@ -127,6 +129,7 @@ void AJY_Character::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 	}
 
 	EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &AJY_Character::Move);
+	EnhancedInputComponent->BindAction(InteractAction, ETriggerEvent::Started, this, &AJY_Character::Interact);
 }
 
 // [OwnClient] 로컬 입력 → CMC가 예측 이동, 서버가 검증
@@ -141,6 +144,12 @@ void AJY_Character::Move(const FInputActionValue& Value)
 
 	AddMovementInput(ForwardDir, MovementVector.Y);
 	AddMovementInput(RightDir, MovementVector.X);
+}
+
+// [OwnClient] 로컬 입력 → 초점 대상 사용 (메뉴가 열려 있으면 게임 입력이 막혀 오지 않음)
+void AJY_Character::Interact()
+{
+	InteractionComponent->Interact();
 }
 
 // [Server] [OwnClient] [SimulatedProxy] — HealthComponent가 모두에서 방송

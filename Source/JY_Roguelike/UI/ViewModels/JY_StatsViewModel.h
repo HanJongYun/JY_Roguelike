@@ -53,7 +53,7 @@ private:
 private:
 	/*
 	 * 위젯이 바인딩하는 값 (FieldNotify — 값이 바뀌면 위젯이 자동 갱신)
-	 * 지금은 임시 테스트 메뉴(WBP_JY_TestMenu)가 HealthText만 사용 — 체력바는 L11에서 연결
+	 * WBP_JY_HUD 체력바가 HealthPercent·HealthBarColor·HealthText 사용
 	 */
 
 	/* 현재 체력 */

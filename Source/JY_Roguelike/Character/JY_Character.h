@@ -10,6 +10,7 @@ class UStaticMeshComponent;
 class UPointLightComponent;
 class UInputAction;
 class UJY_HealthComponent;
+class UJY_InteractionComponent;
 struct FInputActionValue;
 
 /* 쿼터뷰 카메라로 움직이는 플레이어 캐릭터 */
@@ -40,6 +41,9 @@ protected:
 	/* 이동 입력 처리 */
 	void Move(const FInputActionValue& Value);
 
+	/* 상호작용 입력 처리 */
+	void Interact();
+
 	/* PlayerState의 ASC에 이 캐릭터를 아바타로 연결 */
 	void InitializeAbilitySystem();
 
@@ -60,6 +64,10 @@ private:
 	/* 체력 0 → 죽음 상태 복제 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "JY|Health", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UJY_HealthComponent> HealthComponent;
+
+	/* 가까운 상호작용 대상 고르기 + E 처리 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "JY|Interaction", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UJY_InteractionComponent> InteractionComponent;
 
 	/* 손에 든 무기 외형. 메시 에셋은 BP_JY_Character에서 지정 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "JY|Weapon", meta = (AllowPrivateAccess = "true"))
@@ -87,4 +95,8 @@ private:
 	/* 이동 입력 (Vector2D: X=오른쪽, Y=앞) */
 	UPROPERTY(EditAnywhere, Category = "JY|Input")
 	TObjectPtr<UInputAction> MoveAction;
+
+	/* 상호작용 입력 (E) */
+	UPROPERTY(EditAnywhere, Category = "JY|Input")
+	TObjectPtr<UInputAction> InteractAction;
 };

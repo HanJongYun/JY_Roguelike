@@ -4,6 +4,7 @@
 #include "AbilitySystem/Effects/JY_DebugGameplayEffects.h"
 #include "System/JY_GameplayTags.h"
 #include "UI/JY_UIManagerSubsystem.h"
+#include "System/JY_GameMode.h"
 #include "GameFramework/CheatManagerDefines.h"
 #include "EnhancedInputSubsystems.h"
 #include "Engine/LocalPlayer.h"
@@ -53,6 +54,7 @@ void AJY_PlayerController::InitializeLocalUI()
 		return;
 
 	UIManager->BindAbilitySystem(JYPlayerState->GetJYAbilitySystemComponent());
+	UIManager->BindPlayerState(JYPlayerState);
 }
 
 // [OwnClient] 로컬 컨트롤러만
@@ -147,4 +149,60 @@ void AJY_PlayerController::Server_DebugApplyHealthDelta_Implementation(float Del
 void AJY_PlayerController::Server_SetUIPaused_Implementation(bool bPaused)
 {
 	SetPause(bPaused);
+}
+
+/* 값 검증은 전부 GameMode — PC는 요청을 전달만 한다 */
+// [Server]
+void AJY_PlayerController::Server_BuyMetaUpgrade_Implementation(FGameplayTag UpgradeTag)
+{
+	AJY_GameMode* GameMode = GetWorld()->GetAuthGameMode<AJY_GameMode>();
+	if (GameMode == nullptr)
+		return;
+
+	GameMode->TryBuyMetaUpgrade(this, UpgradeTag);
+}
+
+// [Server]
+void AJY_PlayerController::Server_RefundAllMetaUpgrades_Implementation()
+{
+	AJY_GameMode* GameMode = GetWorld()->GetAuthGameMode<AJY_GameMode>();
+	if (GameMode == nullptr)
+		return;
+
+	GameMode->RefundAllMetaUpgrades(this);
+}
+
+// [OwnClient]
+void AJY_PlayerController::Client_ShowNotification_Implementation(EJY_NotificationType Type, const FText& Message)
+{
+	UJY_UIManagerSubsystem* UIManager = ULocalPlayer::GetSubsystem<UJY_UIManagerSubsystem>(GetLocalPlayer());
+	if (UIManager == nullptr)
+		return;
+
+	UIManager->ShowNotification(Type, Message);
+}
+
+// [OwnClient] 콘솔 입력을 받은 로컬 컨트롤러
+void AJY_PlayerController::JYAddSoul(int32 Amount)
+{
+	if (Amount <= 0)
+		return;
+
+	Server_DebugAddSoulStones(Amount);
+}
+
+/* 체력 치트와 같은 관문 — 치트가 허용된 서버(PIE)에서만 */
+// [Server]
+void AJY_PlayerController::Server_DebugAddSoulStones_Implementation(int32 Amount)
+{
+#if UE_WITH_CHEAT_MANAGER
+	if (CheatManager == nullptr || Amount <= 0)
+		return;
+
+	AJY_GameMode* GameMode = GetWorld()->GetAuthGameMode<AJY_GameMode>();
+	if (GameMode == nullptr)
+		return;
+
+	GameMode->AddSoulStones(this, Amount);
+#endif
 }

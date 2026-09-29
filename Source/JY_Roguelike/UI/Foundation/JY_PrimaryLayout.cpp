@@ -1,6 +1,7 @@
 #include "UI/Foundation/JY_PrimaryLayout.h"
 #include "System/JY_GameplayTags.h"
 #include "Widgets/CommonActivatableWidgetContainer.h"
+#include "UI/Common/JY_BannerWidget.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(JY_PrimaryLayout)
 
@@ -40,4 +41,10 @@ void UJY_PrimaryLayout::RegisterLayer(FGameplayTag LayerTag, UCommonActivatableW
 UCommonActivatableWidgetContainerBase* UJY_PrimaryLayout::GetLayer(FGameplayTag LayerTag) const
 {
 	return Layers.FindRef(LayerTag);
+}
+
+// [OwnClient]
+UJY_BannerWidget* UJY_PrimaryLayout::GetNotificationWidget(EJY_NotificationType Type) const
+{
+	return Type == EJY_NotificationType::Banner ? BannerWidget : ToastWidget;
 }

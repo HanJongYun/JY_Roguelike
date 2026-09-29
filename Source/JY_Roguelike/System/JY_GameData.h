@@ -7,6 +7,7 @@
 class UJY_PrimaryLayout;
 class UJY_HUDLayout;
 class UJY_ConfirmDialog;
+class UJY_MetaUpgradeData;
 class UMVVMViewModelBase;
 
 /* 게임 전체가 같이 쓰는 데이터 한 벌 (에셋 DA_JY_GameData) */
@@ -29,6 +30,10 @@ public:
 	/* 확인 팝업 (WBP_JY_ConfirmDialog) — ShowConfirm이 Modal 층에 올림 */
 	UPROPERTY(EditDefaultsOnly, Category = "UI")
 	TSoftClassPtr<UJY_ConfirmDialog> ConfirmDialogClass;
+
+	/* 메타 강화 표 (DA_JY_MetaUpgrades) — 서버 검증에도 쓰여 하드 참조. 글자·숫자뿐이라 서버 메모리 부담 없음 */
+	UPROPERTY(EditDefaultsOnly, Category = "Progress")
+	TObjectPtr<const UJY_MetaUpgradeData> MetaUpgradeData;
 
 	/* ViewModel 교체 표 — 키: C++ ViewModel 클래스, 값: 대신 만들 BP 자식(색·기준값 조정). 없는 키는 C++ 클래스 그대로 */
 	UPROPERTY(EditDefaultsOnly, Category = "UI")

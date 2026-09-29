@@ -11,6 +11,7 @@
 #include "System/JY_AssetManager.h"
 #include "System/JY_GameData.h"
 #include "UI/ViewModels/JY_StatsViewModel.h"
+#include "UI/ViewModels/JY_ProgressViewModel.h"
 #include "GameFramework/PlayerController.h"
 #include "Player/JY_PlayerController.h"
 
@@ -79,6 +80,26 @@ void UJY_UIManagerSubsystem::ShowConfirm(const FText& Title, const FText& Body, 
 		return;
 
 	Dialog->SetupDialog(Title, Body, MoveTemp(OnResult));
+}
+
+/*
+ * 알림 칸은 레이아웃에 미리 배치된 위젯 2개(배너·토스트)를 재사용 — 알림마다 위젯을 만들지 않는다.
+ * 서버 Client RPC가 레이아웃보다 먼저 도착할 수 있어(접속 직후) 그때는 모아 뒀다가 틀을 만들 때 표시.
+ */
+// [OwnClient]
+void UJY_UIManagerSubsystem::ShowNotification(EJY_NotificationType Type, const FText& Message)
+{
+	if (PrimaryLayout == nullptr)
+	{
+		PendingNotifications.Emplace(Type, Message);
+		return;
+	}
+
+	UJY_BannerWidget* NotificationWidget = PrimaryLayout->GetNotificationWidget(Type);
+	if (NotificationWidget == nullptr)
+		return;
+
+	NotificationWidget->EnqueueMessage(Message);
 }
 
 /*
@@ -157,6 +178,12 @@ void UJY_UIManagerSubsystem::BindAbilitySystem(UJY_AbilitySystemComponent* InASC
 	GetOrCreateViewModel<UJY_StatsViewModel>()->BindAbilitySystem(InASC);
 }
 
+// [OwnClient] 로컬 플레이어만
+void UJY_UIManagerSubsystem::BindPlayerState(AJY_PlayerState* InPlayerState)
+{
+	GetOrCreateViewModel<UJY_ProgressViewModel>()->BindPlayerState(InPlayerState);
+}
+
 /*
  * ZOrder 1000 — 옛 경로로 붙는 위젯(ZOrder 0)보다 위. 틀 자체는 투명하고 클릭을 통과시킨다(UserWidget 기본 SelfHitTestInvisible).
  * 클래스는 Soft 참조라 여기서 처음 로드된다. 틀은 플레이어당 1개·맵당 1회라 동기 로드로 충분.
@@ -184,6 +211,12 @@ void UJY_UIManagerSubsystem::CreatePrimaryLayout(APlayerController* PC)
 		return;
 
 	PushScreen(JYGameplayTags::UI_Layer_Game, HUDClass);
+
+	for (const TPair<EJY_NotificationType, FText>& Pending : PendingNotifications)
+	{
+		ShowNotification(Pending.Key, Pending.Value);
+	}
+	PendingNotifications.Reset();
 }
 
 // [OwnClient]

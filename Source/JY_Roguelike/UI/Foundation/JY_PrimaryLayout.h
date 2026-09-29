@@ -8,6 +8,8 @@
 class UCommonActivatableWidgetContainerBase;
 class UCommonActivatableWidgetStack;
 class UOverlay;
+class UJY_BannerWidget;
+enum class EJY_NotificationType : uint8;
 
 /* 화면 전체 틀 — 층 태그마다 화면 스택을 하나씩 가진다 */
 UCLASS(Abstract, meta = (DisableNativeTick))
@@ -25,6 +27,9 @@ public:
 	/* 층 태그로 스택을 찾음 (없으면 nullptr) */
 	UCommonActivatableWidgetContainerBase* GetLayer(FGameplayTag LayerTag) const;
 
+	/* 알림 종류에 맞는 알림 칸 */
+	UJY_BannerWidget* GetNotificationWidget(EJY_NotificationType Type) const;
+
 protected:
 	/* WBP_JY_PrimaryLayout 안의 같은 이름 위젯과 연결 (BindWidget). 아래일수록 화면 위에 그려짐 */
 
@@ -39,6 +44,14 @@ protected:
 	/* 배너·토스트 (스택 아님 — 여러 개 동시 표시, 입력 안 받음) */
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UOverlay> NotificationOverlay;
+
+	/* NotificationOverlay 안 위쪽 큰 알림 */
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UJY_BannerWidget> BannerWidget;
+
+	/* NotificationOverlay 안 아래쪽 작은 알림 */
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UJY_BannerWidget> ToastWidget;
 
 	/* UI.Layer.Menu — ESC 메뉴·설정 */
 	UPROPERTY(meta = (BindWidget))

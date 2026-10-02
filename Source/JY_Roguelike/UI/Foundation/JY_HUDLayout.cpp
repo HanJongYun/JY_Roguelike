@@ -7,6 +7,14 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(JY_HUDLayout)
 
+/* HUD는 켜져 있는 동안 캐릭터 이동·공격이 돼야 하고(Game), Tab으로 닫히면 안 된다 */
+UJY_HUDLayout::UJY_HUDLayout(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	InputMode = EJY_ScreenInputMode::Game;
+	bIsBackHandler = false;
+}
+
 // [OwnClient]
 void UJY_HUDLayout::NativeDestruct() //override
 {

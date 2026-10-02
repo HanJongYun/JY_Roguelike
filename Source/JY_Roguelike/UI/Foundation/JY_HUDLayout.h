@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "CommonUserWidget.h"
+#include "UI/Foundation/JY_ScreenWidget.h"
 #include "JY_HUDLayout.generated.h"
 
 class UProgressBar;
@@ -10,11 +10,14 @@ class UJY_AbilitySystemComponent;
 class AJY_PlayerState;
 struct FOnAttributeChangeData;
 
-/* 게임 중 항상 떠 있는 HUD 화면 (부모는 2장에서 화면 공용 부모로 교체) */
+/* 게임 중 항상 떠 있는 HUD 화면 — 틀의 Game 층에 올라간다 */
 UCLASS(Abstract, Blueprintable)
-class UJY_HUDLayout : public UCommonUserWidget
+class UJY_HUDLayout : public UJY_ScreenWidget
 {
 	GENERATED_BODY()
+
+public:
+	UJY_HUDLayout(const FObjectInitializer& ObjectInitializer);
 
 protected:
 	virtual void NativeDestruct() override;

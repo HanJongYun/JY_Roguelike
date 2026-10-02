@@ -12,4 +12,10 @@ namespace JYGameplayTags
 
 	/* Service — 상호작용 대상이 제공하는 서비스 (서버가 구매·환불 요청의 판매 대상을 검증) */
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Service_MetaAltar);
+
+	/* UI.Layer — 화면 틀의 층 (아래일수록 위에 그려짐) */
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(UI_Layer_Game);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(UI_Layer_GameMenu);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(UI_Layer_Menu);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(UI_Layer_Modal);
 }

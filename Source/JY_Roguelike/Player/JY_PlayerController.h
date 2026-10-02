@@ -7,7 +7,6 @@
 
 class UInputMappingContext;
 class AJY_InteractableActor;
-class UJY_HUDLayout;
 
 /* 클라 → 서버 요청 창구(구매·디버그) + 입력 매핑 등록. 키 입력 처리 자체는 폰(AJY_Character)이 한다 */
 UCLASS()
@@ -19,7 +18,6 @@ public:
 	AJY_PlayerController();
 
 protected:
-	virtual void BeginPlay() override;
 	virtual void SetupInputComponent() override;
 	virtual void OnRep_PlayerState() override;
 
@@ -44,10 +42,6 @@ public:
 	UFUNCTION(Server, Reliable)
 	void Server_RefundAllMetaUpgrades(AJY_InteractableActor* Seller);
 
-private:
-	/* [UI 과외 임시] HUD에 내 PlayerState의 ASC를 연결 — PlayerState가 아직 없으면 아무것도 안 함 */
-	void BindHUDToPlayerState();
-
 protected:
 	/* 디버그 체력 변경 요청 (음수=데미지, 양수=회복) */
 	UFUNCTION(Server, Reliable)
@@ -63,13 +57,4 @@ private:
 	/* 로컬 플레이어에 등록할 입력 매핑 */
 	UPROPERTY(EditAnywhere, Category = "JY|Input")
 	TArray<TObjectPtr<UInputMappingContext>> DefaultMappingContexts;
-
-	/* [UI 과외 임시] 시작할 때 화면에 띄울 HUD (WBP_JY_HUD) — 2장에서 UI 틀로 이동 */
-	UPROPERTY(EditDefaultsOnly, Category = "JY|UI")
-	TSubclassOf<UJY_HUDLayout> HUDClass;
-
-private:
-	/* [UI 과외 임시] BeginPlay에서 만든 HUD — PlayerState가 늦게 오면 OnRep_PlayerState에서 다시 연결 */
-	UPROPERTY(Transient)
-	TObjectPtr<UJY_HUDLayout> HUDWidget;
 };

@@ -8,11 +8,54 @@
 #include "EnhancedInputSubsystems.h"
 #include "Engine/LocalPlayer.h"
 #include "InputMappingContext.h"
+#include "UI/Foundation/JY_HUDLayout.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(JY_PlayerController)
 
 AJY_PlayerController::AJY_PlayerController()
 {
+}
+
+// [OwnClient] 로컬 컨트롤러만
+/* [UI 과외 임시] 0-3 방식 — 위젯을 만들어 뷰포트에 바로 올린다 */
+void AJY_PlayerController::BeginPlay() //override
+{
+	Super::BeginPlay();
+
+	if (IsLocalPlayerController() == false || HUDClass == nullptr)
+		return;
+
+	HUDWidget = CreateWidget<UJY_HUDLayout>(this, HUDClass);
+	if (HUDWidget == nullptr)
+		return;
+
+	HUDWidget->AddToViewport();
+
+	/* 클라는 이 시점에 PlayerState가 아직 없을 수 있다 — 없으면 OnRep_PlayerState에서 연결 */
+	BindHUDToPlayerState();
+}
+
+// [OwnClient] 복제로 PlayerState가 도착(또는 교체)했을 때. 서버에서는 불리지 않음
+void AJY_PlayerController::OnRep_PlayerState() //override
+{
+	Super::OnRep_PlayerState();
+
+	BindHUDToPlayerState();
+}
+
+// [OwnClient]
+void AJY_PlayerController::BindHUDToPlayerState()
+{
+	if (HUDWidget == nullptr)
+		return;
+
+	/* 체력(ASC)과 영혼석(진행 값)은 PlayerState가 가진다. BeginPlay·OnRep 두 번 불려도 Bind 함수들이 먼저 끊고 다시 건다 */
+	AJY_PlayerState* JYPlayerState = GetPlayerState<AJY_PlayerState>();
+	if (JYPlayerState == nullptr)
+		return;
+
+	HUDWidget->BindAbilitySystem(JYPlayerState->GetJYAbilitySystemComponent());
+	HUDWidget->BindProgress(JYPlayerState);
 }
 
 // [OwnClient] 로컬 컨트롤러만

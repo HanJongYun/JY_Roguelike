@@ -4,7 +4,6 @@
 #include "UI/Foundation/JY_HUDLayout.h"
 #include "UI/Common/JY_ConfirmDialog.h"
 #include "Widgets/CommonActivatableWidgetContainer.h"
-#include "Player/JY_PlayerState.h"
 #include "System/JY_GameplayTags.h"
 #include "System/JY_AssetManager.h"
 #include "System/JY_GameData.h"
@@ -70,7 +69,7 @@ void UJY_UIManagerSubsystem::CreatePrimaryLayout(APlayerController* PC)
 	LayoutOwner = PC;
 
 	/* 층은 CreateWidget 안의 NativeOnInitialized에서 이미 등록됨 → 만든 직후 바로 Push 가능 */
-	PushHUD(PC, *GameData);
+	PushHUD(*GameData);
 }
 
 /*
@@ -114,31 +113,38 @@ void UJY_UIManagerSubsystem::ShowConfirm(const FText& Title, const FText& Body, 
 }
 
 /*
- * 틀(PC가 붙을 때)과 PlayerState(클라는 복제로 늦게 올 수 있음) 중 무엇이 먼저 올지 정해져 있지 않다.
- * → HUD를 올릴 때 PlayerState가 있으면 여기서 연결, 없으면 AJY_PlayerController::OnRep_PlayerState가 BindHUDToPlayerState로 연결.
+ * LocalPlayer 단위로 보관하는 이유 — 이 서브시스템은 맵을 넘어 살아 있어(LocalPlayer 소유) 위젯·맵이 바뀌어도 값이 남고,
+ * 여러 화면이 같은 ViewModel을 공유한다 (예: 허브 HUD와 던전 HUD가 같은 StatsViewModel).
+ * 새 ViewModel 추가 = 클래스만 만들면 된다 (여기 수정 없음).
  */
 // [OwnClient]
-void UJY_UIManagerSubsystem::PushHUD(APlayerController* PC, const UJY_GameData& GameData)
+UMVVMViewModelBase* UJY_UIManagerSubsystem::GetOrCreateViewModel(TSubclassOf<UMVVMViewModelBase> ViewModelClass)
+{
+	if (ViewModelClass == nullptr)
+		return nullptr;
+
+	const TObjectPtr<UMVVMViewModelBase>* FoundViewModel = ViewModels.Find(ViewModelClass);
+	if (FoundViewModel != nullptr)
+		return *FoundViewModel;
+
+	/* Outer = 이 서브시스템 — UPROPERTY 표가 붙잡고 있어 GC되지 않는다 */
+	UMVVMViewModelBase* NewViewModel = NewObject<UMVVMViewModelBase>(this, ViewModelClass);
+	ViewModels.Add(ViewModelClass, NewViewModel);
+	return NewViewModel;
+}
+
+/*
+ * HUD는 올리기만 한다 — 체력·영혼석 값은 WBP 바인딩이 ViewModel에서 받는다.
+ * ViewModel에 원본을 연결하는 건 AJY_PlayerController::InitializeLocalUI라서, 틀과 PlayerState 중 무엇이 먼저 오든 상관없다.
+ */
+// [OwnClient]
+void UJY_UIManagerSubsystem::PushHUD(const UJY_GameData& GameData)
 {
 	const TSubclassOf<UJY_HUDLayout> HUDClass = GameData.HUDLayoutClass.LoadSynchronous();
 	if (HUDClass == nullptr)
 		return;
 
-	HUDLayout = Cast<UJY_HUDLayout>(PushScreen(JYGameplayTags::UI_Layer_Game, HUDClass));
-
-	BindHUDToPlayerState(PC->GetPlayerState<AJY_PlayerState>());
-}
-
-// [OwnClient]
-void UJY_UIManagerSubsystem::BindHUDToPlayerState(AJY_PlayerState* PlayerState)
-{
-	UJY_HUDLayout* HUD = HUDLayout.Get();
-	if (HUD == nullptr || PlayerState == nullptr)
-		return;
-
-	/* 두 번 불려도 Bind 함수들이 먼저 끊고 다시 건다 */
-	HUD->BindAbilitySystem(PlayerState->GetJYAbilitySystemComponent());
-	HUD->BindProgress(PlayerState);
+	PushScreen(JYGameplayTags::UI_Layer_Game, HUDClass);
 }
 
 // [OwnClient]
@@ -150,7 +156,6 @@ void UJY_UIManagerSubsystem::DestroyPrimaryLayout()
 	PrimaryLayout->RemoveFromParent();
 	PrimaryLayout = nullptr;
 	LayoutOwner.Reset();
-	HUDLayout.Reset();
 }
 
 /*

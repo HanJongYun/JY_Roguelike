@@ -9,6 +9,8 @@
 #include "Engine/LocalPlayer.h"
 #include "InputMappingContext.h"
 #include "UI/JY_UIManagerSubsystem.h"
+#include "UI/ViewModels/JY_StatsViewModel.h"
+#include "UI/ViewModels/JY_ProgressViewModel.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(JY_PlayerController)
 
@@ -16,20 +18,44 @@ AJY_PlayerController::AJY_PlayerController()
 {
 }
 
-/*
- * [UI 과외 임시] 클라는 PlayerState가 틀(HUD)보다 늦게 올 수 있어 도착 시점에 HUD에 연결 — 먼저 오면 UIManager::PushHUD가 연결.
- * 서버는 PlayerState가 PC 생성 때 이미 있어 OnRep이 안 온다.
- */
+/* 서버·혼자 플레이는 BeginPlay 때 PlayerState가 이미 있어 OnRep이 안 온다 → 여기서 연결 */
+// [OwnClient] 로컬 컨트롤러만
+void AJY_PlayerController::BeginPlay() //override
+{
+	Super::BeginPlay();
+
+	InitializeLocalUI();
+}
+
+/* 클라는 PlayerState가 BeginPlay보다 늦게 복제돼 올 수 있어 도착 시점에 다시 연결 */
 // [OwnClient]
 void AJY_PlayerController::OnRep_PlayerState() //override
 {
 	Super::OnRep_PlayerState();
 
+	InitializeLocalUI();
+}
+
+/*
+ * 복제 상태 → ViewModel 연결은 여기 한 곳. 새 복제 ViewModel도 여기 1줄 추가.
+ * BeginPlay·OnRep 둘 다 불러도 안전 — PlayerState가 없으면 그냥 돌아가고, Bind 함수들은 먼저 끊고 다시 건다.
+ */
+// [OwnClient] 로컬 컨트롤러만
+void AJY_PlayerController::InitializeLocalUI()
+{
+	if (IsLocalPlayerController() == false)
+		return;
+
 	UJY_UIManagerSubsystem* UIManager = ULocalPlayer::GetSubsystem<UJY_UIManagerSubsystem>(GetLocalPlayer());
 	if (UIManager == nullptr)
 		return;
 
-	UIManager->BindHUDToPlayerState(GetPlayerState<AJY_PlayerState>());
+	AJY_PlayerState* JYPlayerState = GetPlayerState<AJY_PlayerState>();
+	if (JYPlayerState == nullptr)
+		return;
+
+	UIManager->GetOrCreateViewModel<UJY_StatsViewModel>()->BindAbilitySystem(JYPlayerState->GetJYAbilitySystemComponent());
+	UIManager->GetOrCreateViewModel<UJY_ProgressViewModel>()->BindPlayerState(JYPlayerState);
 }
 
 // [OwnClient] 로컬 컨트롤러만

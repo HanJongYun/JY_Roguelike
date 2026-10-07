@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Subsystems/LocalPlayerSubsystem.h"
 #include "GameplayTagContainer.h"
+#include "UI/JY_UITypes.h"
 #include "JY_UIManagerSubsystem.generated.h"
 
 class APlayerController;
@@ -23,8 +24,11 @@ public:
 	virtual void PlayerControllerChanged(APlayerController* NewPlayerController) override;
 
 public:
-	/* 화면을 해당 층 스택 맨 위에 올림 (예: UI.Layer.Menu) */
-	UJY_ScreenWidget* PushScreen(FGameplayTag LayerTag, TSubclassOf<UJY_ScreenWidget> ScreenClass);
+	/* 화면을 해당 층 스택 맨 위에 올림 (예: UI.Layer.Menu). InitFunc는 화면이 켜지기 전에 한 번 불린다 */
+	UJY_ScreenWidget* PushScreen(FGameplayTag LayerTag, TSubclassOf<UJY_ScreenWidget> ScreenClass, TFunctionRef<void(UJY_ScreenWidget&)> InitFunc = [](UJY_ScreenWidget&) {});
+
+	/* 확인 팝업을 Modal 층에 띄우고 결과를 OnResult로 돌려줌 */
+	void ShowConfirm(const FText& Title, const FText& Body, FJY_OnConfirmResult OnResult);
 
 	/* 정지 화면이 켜지거나 꺼질 때 호출 — 목록이 비었다↔안 비었다 바뀔 때만 서버에 정지 요청 */
 	void SetPauseScreenActive(UJY_ScreenWidget* Screen, bool bActive);

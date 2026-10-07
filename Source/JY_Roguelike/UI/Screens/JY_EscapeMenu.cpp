@@ -1,5 +1,7 @@
 #include "UI/Screens/JY_EscapeMenu.h"
 #include "UI/Foundation/JY_ButtonBase.h"
+#include "UI/JY_UIManagerSubsystem.h"
+#include "Engine/LocalPlayer.h"
 #include "Kismet/KismetSystemLibrary.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(JY_EscapeMenu)
@@ -31,9 +33,23 @@ void UJY_EscapeMenu::HandleContinueClicked()
 	DeactivateWidget();
 }
 
-/* [UI 과외 임시 3-12] 확인 없이 바로 종료 — 4장에서 확인 팝업을 거치도록 바꾼다. PIE에서는 PIE 세션이 끝난다 */
+/* 팝업은 누가 열었는지 모른다 — 결과를 받을 내 함수를 맡겨 두면 버튼을 누를 때 불러 준다 */
 // [OwnClient]
 void UJY_EscapeMenu::HandleQuitClicked()
 {
+	UJY_UIManagerSubsystem* UIManagerSubsystem = ULocalPlayer::GetSubsystem<UJY_UIManagerSubsystem>(GetOwningLocalPlayer());
+	if (UIManagerSubsystem == nullptr)
+		return;
+
+	UIManagerSubsystem->ShowConfirm(QuitConfirmTitle, QuitConfirmBody, FJY_OnConfirmResult::CreateUObject(this, &ThisClass::HandleQuitConfirmResult));
+}
+
+/* 취소면 아무것도 안 함 — 팝업만 닫히고 메뉴가 남는다. PIE에서 종료는 PIE 세션이 끝난다 */
+// [OwnClient]
+void UJY_EscapeMenu::HandleQuitConfirmResult(bool bConfirmed)
+{
+	if (bConfirmed == false)
+		return;
+
 	UKismetSystemLibrary::QuitGame(this, GetOwningPlayer(), EQuitPreference::Quit, false);
 }

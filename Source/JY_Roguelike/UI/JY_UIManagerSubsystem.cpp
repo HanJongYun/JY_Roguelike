@@ -2,6 +2,7 @@
 #include "UI/Foundation/JY_PrimaryLayout.h"
 #include "UI/Foundation/JY_ScreenWidget.h"
 #include "UI/Foundation/JY_HUDLayout.h"
+#include "UI/Common/JY_ConfirmDialog.h"
 #include "Widgets/CommonActivatableWidgetContainer.h"
 #include "Player/JY_PlayerState.h"
 #include "System/JY_GameplayTags.h"
@@ -73,11 +74,11 @@ void UJY_UIManagerSubsystem::CreatePrimaryLayout(APlayerController* PC)
 }
 
 /*
- * 층 스택에 넣으면 스택이 위젯을 만들고(또는 풀에서 꺼내고) 켠다(Activate).
+ * 층 스택에 넣으면 스택이 위젯을 만들고(또는 풀에서 꺼내고) → InitFunc → 켠다(Activate) (CommonActivatableWidgetContainer.cpp:191~196).
  * 켜질 때 화면의 GetDesiredInputConfig로 입력 모드가 바뀐다.
  */
 // [OwnClient]
-UJY_ScreenWidget* UJY_UIManagerSubsystem::PushScreen(FGameplayTag LayerTag, TSubclassOf<UJY_ScreenWidget> ScreenClass)
+UJY_ScreenWidget* UJY_UIManagerSubsystem::PushScreen(FGameplayTag LayerTag, TSubclassOf<UJY_ScreenWidget> ScreenClass, TFunctionRef<void(UJY_ScreenWidget&)> InitFunc)
 {
 	if (PrimaryLayout == nullptr || ScreenClass == nullptr)
 		return nullptr;
@@ -86,7 +87,30 @@ UJY_ScreenWidget* UJY_UIManagerSubsystem::PushScreen(FGameplayTag LayerTag, TSub
 	if (Layer == nullptr)
 		return nullptr;
 
-	return Layer->AddWidget<UJY_ScreenWidget>(ScreenClass);
+	return Layer->AddWidget<UJY_ScreenWidget>(ScreenClass, InitFunc);
+}
+
+/*
+ * 팝업 클래스는 GameData에서 — 팝업 모양을 바꿔도 부르는 쪽(종료·환불·포털 등)은 제목·본문·결과 함수만 넘긴다.
+ * 글자·결과 함수는 InitFunc로 켜지기 전에 채운다 — 풀에서 재사용한 팝업이 이전 글자·결과 함수를 가진 채 켜지지 않는다.
+ */
+// [OwnClient]
+void UJY_UIManagerSubsystem::ShowConfirm(const FText& Title, const FText& Body, FJY_OnConfirmResult OnResult)
+{
+	const UJY_GameData* GameData = UJY_AssetManager::Get().GetGameData();
+	if (GameData == nullptr)
+		return;
+
+	const TSubclassOf<UJY_ConfirmDialog> DialogClass = GameData->ConfirmDialogClass.LoadSynchronous();
+
+	/* 켜지기 전에 불릴 함수 — PushScreen 안에서 바로 불리고 끝나므로 지역 변수를 참조(&)로 잡아도 안전 */
+	auto SetupBeforeActivate = [&Title, &Body, &OnResult](UJY_ScreenWidget& Screen)
+	{
+		UJY_ConfirmDialog* Dialog = CastChecked<UJY_ConfirmDialog>(&Screen);
+		Dialog->SetupDialog(Title, Body, MoveTemp(OnResult));
+	};
+
+	PushScreen(JYGameplayTags::UI_Layer_Modal, DialogClass, SetupBeforeActivate);
 }
 
 /*

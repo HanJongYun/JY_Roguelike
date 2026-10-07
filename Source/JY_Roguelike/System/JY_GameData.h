@@ -6,6 +6,7 @@
 
 class UJY_PrimaryLayout;
 class UJY_HUDLayout;
+class UJY_ConfirmDialog;
 class UJY_MetaUpgradeData;
 
 /* 게임 전체가 같이 쓰는 데이터 한 벌 (에셋 DA_JY_GameData) */
@@ -24,6 +25,10 @@ public:
 	/* 틀이 생기면 Game 층에 올릴 HUD (WBP_JY_HUD) */
 	UPROPERTY(EditDefaultsOnly, Category = "UI")
 	TSoftClassPtr<UJY_HUDLayout> HUDLayoutClass;
+
+	/* 확인 팝업 (WBP_JY_ConfirmDialog) — Modal 층에 올림 */
+	UPROPERTY(EditDefaultsOnly, Category = "UI")
+	TSoftClassPtr<UJY_ConfirmDialog> ConfirmDialogClass;
 
 	/* 메타 강화 표 (DA_JY_MetaUpgrades) — 서버가 구매 가격·효과를 검증할 때 씀 */
 	UPROPERTY(EditDefaultsOnly, Category = "Progress")

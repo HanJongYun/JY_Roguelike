@@ -7,7 +7,7 @@
 #include "System/JY_GameplayTags.h"
 #include "System/JY_AssetManager.h"
 #include "System/JY_GameData.h"
-#include "GameFramework/PlayerController.h"
+#include "Player/JY_PlayerController.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(JY_UIManagerSubsystem)
 
@@ -129,3 +129,39 @@ void UJY_UIManagerSubsystem::DestroyPrimaryLayout()
 	HUDLayout.Reset();
 }
 
+/*
+ * 예: 정지 메뉴(정지) 위에 확인 팝업(정지) → 목록 2개. 팝업을 닫으면 1개 → 여전히 정지. 메뉴까지 닫아야 0개 → 해제.
+ * 개수(int) 대신 목록 — 같은 화면의 켜짐·꺼짐 알림이 두 번 와도 어긋나지 않는다 (개수면 1 → 0 → -1).
+ * 정지는 서버가 건다(SetPause는 서버 GameMode 권한, PlayerController.cpp:1931). 월드가 멈춰도 PC·네트워크는 돌아 해제 RPC가 도착한다.
+ * 1인 게임 전제 — 여러 클라가 각자 정지를 걸면 서로 막히므로, 협동을 넣을 때 정지 규칙을 다시 정한다.
+ * 주의: 같은 층에 정지 화면을 겹쳐 올리면 가려진 화면이 먼저 꺼져(CommonActivatableWidgetContainer.cpp:165) 목록이 잠깐 0개 → 해제·정지 요청이 연달아 나간다.
+ *       지금은 층마다 정지 화면이 하나라 생기지 않는다 — 생기면 판정을 다음 프레임으로 미룬다.
+ */
+// [OwnClient]
+void UJY_UIManagerSubsystem::SetPauseScreenActive(UJY_ScreenWidget* Screen, bool bActive)
+{
+	const bool bWasPaused = PauseScreens.Num() > 0;
+
+	if (bActive == true)
+	{
+		PauseScreens.Add(Screen);
+	}
+	else
+	{
+		PauseScreens.Remove(Screen);
+	}
+
+	const bool bIsPaused = PauseScreens.Num() > 0;
+	if (bWasPaused == bIsPaused)
+		return;
+
+	/*
+	 * 맵 이동으로 옛 틀이 정리되며 화면이 꺼질 때는 보내지 않는다 — 옛 PC는 곧 사라지고 새 월드는 정지 없이 시작.
+	 * LoadMap이 BeginTearingDown(UnrealEngine.cpp:16183)을 PC 파괴(:16249)보다 먼저 하므로 bIsTearingDown 하나로 걸러진다.
+	 */
+	AJY_PlayerController* PC = Cast<AJY_PlayerController>(GetLocalPlayer()->PlayerController);
+	if (PC == nullptr || PC->GetWorld()->bIsTearingDown == true)
+		return;
+
+	PC->Server_SetUIPaused(bIsPaused);
+}

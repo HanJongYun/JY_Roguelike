@@ -42,6 +42,10 @@ public:
 	UFUNCTION(Server, Reliable)
 	void Server_RefundAllMetaUpgrades(AJY_InteractableActor* Seller);
 
+	/* 정지 화면이 켜짐(true)·모두 꺼짐(false)을 서버에 알려 게임 정지·해제 요청 */
+	UFUNCTION(Server, Reliable)
+	void Server_SetUIPaused(bool bPaused);
+
 protected:
 	/* 디버그 체력 변경 요청 (음수=데미지, 양수=회복) */
 	UFUNCTION(Server, Reliable)

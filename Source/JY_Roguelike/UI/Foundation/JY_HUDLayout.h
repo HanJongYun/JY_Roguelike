@@ -20,6 +20,7 @@ public:
 	UJY_HUDLayout(const FObjectInitializer& ObjectInitializer);
 
 protected:
+	virtual void NativeOnInitialized() override;
 	virtual void NativeDestruct() override;
 
 public:
@@ -30,6 +31,9 @@ public:
 	void BindProgress(AJY_PlayerState* InPlayerState);
 
 private:
+	/* 뒤로가기 키(지금 Tab) → 정지 메뉴를 Menu 층에 올림 */
+	void HandleBackAction();
+
 	/* 연결했던 ASC의 체력 알림 구독을 끊음 */
 	void UnbindAbilitySystem();
 
@@ -65,6 +69,13 @@ protected:
 	TObjectPtr<UCommonTextBlock> SoulText;
 
 private:
+	/* 설정값 — WBP_JY_HUD의 Class Defaults에서 수정 */
+
+	/* 뒤로가기 키로 Menu 층에 올릴 정지 메뉴 (WBP_JY_EscapeMenu) */
+	UPROPERTY(EditDefaultsOnly, Category = "JY|HUD")
+	TSoftClassPtr<UJY_ScreenWidget> EscapeMenuClass;
+
+private:
 	/* 체력을 읽어 오는 ASC — PlayerState 소유라 약한 참조 */
 	TWeakObjectPtr<UJY_AbilitySystemComponent> AbilitySystemComponent;
 
@@ -77,4 +88,7 @@ private:
 	TWeakObjectPtr<AJY_PlayerState> ProgressPlayerState;
 
 	FDelegateHandle ProgressChangedHandle;
+
+	/* 정지 메뉴 미리 로드 핸들 */
+	TSharedPtr<struct FStreamableHandle> EscapeMenuPreloadHandle;
 };

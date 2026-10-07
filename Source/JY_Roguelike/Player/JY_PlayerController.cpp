@@ -161,3 +161,14 @@ void AJY_PlayerController::Server_DebugAddSoulStones_Implementation(int32 Amount
 	GameMode->AddSoulStones(this, Amount);
 #endif
 }
+
+/*
+ * 엔진 ServerPause는 토글이라(PlayerController.cpp:1980 SetPause(!IsPaused())) 요청이 두 번 오면 반대가 된다 → 원하는 상태를 bool로 받는다.
+ * 1인 게임이라 클라 요청을 그대로 받는다. SetPause → GameMode::SetPause → WorldSettings 정지 정보 복제 → 클라 월드도 멈춤.
+ */
+// [Server]
+void AJY_PlayerController::Server_SetUIPaused_Implementation(bool bPaused)
+{
+	/* 정지를 건 PC에 해제 조건을 묶어 둔다 — 이 PC가 나가면 엔진이 그 정지를 지운다 */
+	SetPause(bPaused, FCanUnpause::CreateUObject(this, &APlayerController::DefaultCanUnpause));
+}

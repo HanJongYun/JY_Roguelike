@@ -1,5 +1,7 @@
 #include "UI/Foundation/JY_ScreenWidget.h"
 #include "Input/UIActionBindingHandle.h"
+#include "UI/JY_UIManagerSubsystem.h"
+#include "Engine/LocalPlayer.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(JY_ScreenWidget)
 
@@ -30,4 +32,36 @@ TOptional<FUIInputConfig> UJY_ScreenWidget::GetDesiredInputConfig() const //over
 		/* 빈 값 = 라우터가 바로 위 부모 화면의 설정을 쓴다 (UIActionRouterTypes.cpp:1185 FindDesiredInputConfig, Lyra ELyraWidgetInputMode::Default와 같음) */
 		return TOptional<FUIInputConfig>();
 	}
+}
+
+/* 스택이 화면을 맨 위에 올려 켤 때 엔진이 부른다 (UCommonActivatableWidget::ActivateWidget) */
+// [OwnClient]
+void UJY_ScreenWidget::NativeOnActivated() //override
+{
+	Super::NativeOnActivated();
+
+	NotifyPauseScreen(true);
+}
+
+/* 꺼지는 경우 = 닫힘(DeactivateWidget), 또는 같은 층에 다른 화면이 올라와 가려짐(스택은 맨 위만 켠다) */
+// [OwnClient]
+void UJY_ScreenWidget::NativeOnDeactivated() //override
+{
+	NotifyPauseScreen(false);
+
+	Super::NativeOnDeactivated();
+}
+
+/* 화면은 "정지가 필요하다"만 알린다 — 정지 화면이 겹칠 때 실제 정지·해제 판단은 UI 관리자 서브시스템이 목록으로 한다 */
+// [OwnClient]
+void UJY_ScreenWidget::NotifyPauseScreen(bool bActive)
+{
+	if (bPauseGame == false)
+		return;
+
+	UJY_UIManagerSubsystem* UIManagerSubsystem = ULocalPlayer::GetSubsystem<UJY_UIManagerSubsystem>(GetOwningLocalPlayer());
+	if (UIManagerSubsystem == nullptr)
+		return;
+
+	UIManagerSubsystem->SetPauseScreenActive(this, bActive);
 }

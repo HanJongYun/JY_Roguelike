@@ -26,6 +26,9 @@ public:
 	/* 화면을 해당 층 스택 맨 위에 올림 (예: UI.Layer.Menu) */
 	UJY_ScreenWidget* PushScreen(FGameplayTag LayerTag, TSubclassOf<UJY_ScreenWidget> ScreenClass);
 
+	/* 정지 화면이 켜지거나 꺼질 때 호출 — 목록이 비었다↔안 비었다 바뀔 때만 서버에 정지 요청 */
+	void SetPauseScreenActive(UJY_ScreenWidget* Screen, bool bActive);
+
 	/* [UI 과외 임시] HUD에 체력·영혼석 원본을 연결 — 5장 ViewModel로 교체 */
 	void BindHUDToPlayerState(AJY_PlayerState* PlayerState);
 
@@ -48,4 +51,7 @@ private:
 
 	/* [UI 과외 임시] Game 층에 올린 HUD — 스택이 소유하므로 약한 참조 */
 	TWeakObjectPtr<UJY_HUDLayout> HUDLayout;
+
+	/* 지금 켜져 있는 정지 화면들 */
+	TSet<TWeakObjectPtr<UJY_ScreenWidget>> PauseScreens;
 };

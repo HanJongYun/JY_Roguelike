@@ -11,6 +11,9 @@ class AJY_PortalActor : public AJY_InteractableActor
 	GENERATED_BODY()
 
 public:
+	AJY_PortalActor();
+
+public:
 	virtual void OnServerInteract(APlayerController* User) override;
 
 private:

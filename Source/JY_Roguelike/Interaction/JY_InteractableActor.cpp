@@ -1,13 +1,14 @@
 #include "Interaction/JY_InteractableActor.h"
-#include "Interaction/JY_InteractionComponent.h"
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
-#include "GameFramework/Pawn.h"
+#include "Engine/AssetManager.h"
+#include "UI/Foundation/JY_ScreenWidget.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(JY_InteractableActor)
 
 /*
  * 쿼터뷰라 라인트레이스(Lyra 1인칭 방식) 대신 범위 겹침으로 대상을 잡는다.
+ * 범위(InteractionRange)는 물체마다 크기·모양이 달라 물체가 갖고, 겹침 이벤트는 플레이어의 UJY_InteractionComponent가 받는다.
  * 복제 + 처음부터 휴면(DORM_Initial):
  *   - Server RPC 인자로 넘기려면 서버·클라가 같은 액터를 가리켜야 한다. 레벨 배치 액터는 이름으로 맞춰지지만,
  *     방을 깬 뒤 서버가 스폰하는 문·보상 상자는 복제돼야 클라에 생기고 RPC 인자로 쓸 수 있다.
@@ -37,8 +38,14 @@ void AJY_InteractableActor::BeginPlay() //override
 {
 	Super::BeginPlay();
 
-	InteractionRange->OnComponentBeginOverlap.AddDynamic(this, &AJY_InteractableActor::HandleRangeBeginOverlap);
-	InteractionRange->OnComponentEndOverlap.AddDynamic(this, &AJY_InteractableActor::HandleRangeEndOverlap);
+	/*
+	 * E를 누를 때 처음 로드하면 그 프레임이 멈춘다 → 맵 시작 때 비동기로 미리 로드해 두고, E에서는 LoadSynchronous가 바로 돌려준다.
+	 * 데디 서버는 화면을 열지 않으므로 로드하지 않는다.
+	 */
+	if (InteractionType == EJY_InteractionType::OpenScreen && ScreenClass.IsNull() == false && IsNetMode(NM_DedicatedServer) == false)
+	{
+		ScreenPreloadHandle = UAssetManager::GetStreamableManager().RequestAsyncLoad(ScreenClass.ToSoftObjectPath());
+	}
 }
 
 // [Server]
@@ -49,30 +56,4 @@ bool AJY_InteractableActor::IsWithinInteractRange(const AActor* User) const
 
 	const float MaxDistance = InteractionRange->GetScaledSphereRadius() + ServerRangeTolerance;
 	return FVector::DistSquared(User->GetActorLocation(), InteractionRange->GetComponentLocation()) <= FMath::Square(MaxDistance);
-}
-
-/* 겹침은 서버·클라 모두에서 일어난다 — 내가 조종하는 폰일 때만 후보에 넣는다 (대상 고르기는 로컬 일) */
-// [Server] [OwnClient]
-void AJY_InteractableActor::HandleRangeBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
-{
-	const APawn* Pawn = Cast<APawn>(OtherActor);
-	if (Pawn == nullptr || Pawn->IsLocallyControlled() == false)
-		return;
-
-	UJY_InteractionComponent* InteractionComponent = Pawn->FindComponentByClass<UJY_InteractionComponent>();
-	if (InteractionComponent == nullptr)
-		return;
-
-	InteractionComponent->AddCandidate(this);
-}
-
-/* 나갈 때는 조종 여부를 묻지 않는다 — 폰이 죽거나 빙의가 풀린 뒤 나가도 후보가 남지 않게 (후보에 없으면 아무 일 없음) */
-// [Server] [OwnClient]
-void AJY_InteractableActor::HandleRangeEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
-{
-	UJY_InteractionComponent* InteractionComponent = OtherActor != nullptr ? OtherActor->FindComponentByClass<UJY_InteractionComponent>() : nullptr;
-	if (InteractionComponent == nullptr)
-		return;
-
-	InteractionComponent->RemoveCandidate(this);
 }

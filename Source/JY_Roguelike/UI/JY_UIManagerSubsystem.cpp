@@ -3,6 +3,7 @@
 #include "UI/Foundation/JY_ScreenWidget.h"
 #include "UI/Foundation/JY_HUDLayout.h"
 #include "UI/Common/JY_ConfirmDialog.h"
+#include "UI/Common/JY_NotificationWidget.h"
 #include "Widgets/CommonActivatableWidgetContainer.h"
 #include "System/JY_GameplayTags.h"
 #include "System/JY_AssetManager.h"
@@ -156,6 +157,17 @@ void UJY_UIManagerSubsystem::DestroyPrimaryLayout()
 	PrimaryLayout->RemoveFromParent();
 	PrimaryLayout = nullptr;
 	LayoutOwner.Reset();
+}
+
+/*
+ * 알림을 띄우는 쪽(PC의 서버 알림 RPC, 이후 제단·상점)은 틀을 모르고 종류만 넘긴다 — ShowConfirm과 같은 자리.
+ * 틀이 없는 순간은 없다: 클라 PC가 도착하면 SetPlayer → PlayerControllerChanged에서 틀을 먼저 만들고(NetConnection.cpp:5258),
+ * 그 PC로 온 RPC는 그 뒤에 실행된다. 그래서 "틀보다 먼저 온 알림" 보관은 두지 않는다 — RPC가 아닌 호출자가 PC 도착 전에 부르는 경우가 생기면 그때 추가.
+ */
+// [OwnClient]
+void UJY_UIManagerSubsystem::ShowNotification(EJY_NotificationType Type, const FText& Message)
+{
+	PrimaryLayout->GetNotificationWidget(Type)->EnqueueMessage(Message);
 }
 
 /*

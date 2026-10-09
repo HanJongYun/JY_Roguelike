@@ -3,6 +3,7 @@
 #include "System/JY_GameData.h"
 #include "System/JY_GameplayTags.h"
 #include "System/JY_LogChannels.h"
+#include "System/JY_WorldSettings.h"
 #include "Interaction/JY_InteractableActor.h"
 #include "Character/JY_Character.h"
 #include "Player/JY_PlayerController.h"
@@ -34,6 +35,17 @@ void AJY_GameMode::HandleStartingNewPlayer_Implementation(APlayerController* New
 	LoadProgress(NewPlayer->GetPlayerState<AJY_PlayerState>());
 
 	Super::HandleStartingNewPlayer_Implementation(NewPlayer);
+
+	/*
+	 * 도착 배너 문구는 맵(World Settings)이 갖고, 띄우는 시점은 서버가 정한다.
+	 * 맵 이동은 hard travel이라 맵마다 새 PC로 여기가 다시 불린다 → 허브·던전 도착마다 1번.
+	 * 문구가 빈 맵(테스트 맵 등)은 띄우지 않는다.
+	 */
+	const AJY_WorldSettings* WorldSettings = CastChecked<AJY_WorldSettings>(GetWorldSettings());
+	if (WorldSettings->GetAreaNameText().IsEmpty() == false)
+	{
+		CastChecked<AJY_PlayerController>(NewPlayer)->Client_ShowNotification(EJY_NotificationType::Banner, WorldSettings->GetAreaNameText());
+	}
 }
 
 // [Server]

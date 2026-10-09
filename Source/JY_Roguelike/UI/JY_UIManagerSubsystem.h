@@ -29,6 +29,9 @@ public:
 	/* 확인 팝업을 Modal 층에 띄우고 결과를 OnResult로 돌려줌 */
 	void ShowConfirm(const FText& Title, const FText& Body, FJY_OnConfirmResult OnResult);
 
+	/* 알림 1개를 종류에 맞는 알림 칸(배너·토스트)에 띄움 */
+	void ShowNotification(EJY_NotificationType Type, const FText& Message);
+
 	/* 정지 화면이 켜지거나 꺼질 때 호출 — 목록이 비었다↔안 비었다 바뀔 때만 서버에 정지 요청 */
 	void SetPauseScreenActive(UJY_ScreenWidget* Screen, bool bActive);
 

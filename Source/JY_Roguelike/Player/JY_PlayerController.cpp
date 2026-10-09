@@ -198,3 +198,13 @@ void AJY_PlayerController::Server_SetUIPaused_Implementation(bool bPaused)
 	/* 정지를 건 PC에 해제 조건을 묶어 둔다 — 이 PC가 나가면 엔진이 그 정지를 지운다 */
 	SetPause(bPaused, FCanUnpause::CreateUObject(this, &APlayerController::DefaultCanUnpause));
 }
+
+/*
+ * 서버가 이 PC에만 보내는 일회성 알림 — 놓쳐도 게임 상태가 틀어지지 않는 것 전용.
+ * 서버가 여는 화면(축복 선택 등)은 RPC가 아니라 복제 상태로 연다 (늦게 접속·재접속해도 상태로 복원되게).
+ */
+// [Server -> Client RPC]
+void AJY_PlayerController::Client_ShowNotification_Implementation(EJY_NotificationType Type, const FText& Message)
+{
+	ULocalPlayer::GetSubsystem<UJY_UIManagerSubsystem>(GetLocalPlayer())->ShowNotification(Type, Message);
+}

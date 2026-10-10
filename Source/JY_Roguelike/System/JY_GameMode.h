@@ -32,18 +32,18 @@ public:
 	virtual void HandleStartingNewPlayer_Implementation(APlayerController* NewPlayer) override;
 
 public:
-	/* 메타 강화 1단계 구매 — 판매 대상(제단)·가격·최대 단계·보유 영혼석 검증 */
-	void TryBuyMetaUpgrade(APlayerController* Buyer, FGameplayTag UpgradeTag, AJY_InteractableActor* Seller);
+	/* 메타 강화 1단계 구매 — 제단·가격·최대 단계·보유 영혼석 검증 */
+	void TryBuyMetaUpgrade(APlayerController* Buyer, FGameplayTag UpgradeTag, AJY_InteractableActor* Altar);
 
-	/* 산 메타 강화를 전부 되돌리고 쓴 영혼석을 돌려줌 (판매 대상 검증) */
-	void RefundAllMetaUpgrades(APlayerController* Requester, AJY_InteractableActor* Seller);
+	/* 산 메타 강화를 전부 되돌리고 쓴 영혼석을 돌려줌 (제단 검증) */
+	void RefundAllMetaUpgrades(APlayerController* Requester, AJY_InteractableActor* Altar);
 
 	/* 영혼석 더하기 (치트·보상) */
 	void AddSoulStones(APlayerController* Receiver, int32 Amount);
 
 private:
 	/* 요청한 플레이어가 제단 옆에 있나 — 화면은 클라에서만 열려 서버가 모르므로 요청마다 확인 */
-	bool IsValidMetaSeller(const APlayerController* Requester, const AJY_InteractableActor* Seller) const;
+	bool IsUsableMetaAltar(const APlayerController* Requester, const AJY_InteractableActor* Altar) const;
 
 	/* 진행을 바꾸고 → 복제 → 즉시 저장 (단계가 바뀌었으면 메타 효과도 갱신) */
 	void CommitProgress(AJY_PlayerState* PlayerState, const FJY_PlayerProgress& NewProgress, EJY_ProgressCommitScope Scope);

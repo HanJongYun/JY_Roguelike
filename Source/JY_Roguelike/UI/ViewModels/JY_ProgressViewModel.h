@@ -19,10 +19,6 @@ public:
 	/* PlayerState 구독 해제 */
 	void UnbindPlayerState();
 
-	FText GetSoulStonesText() const { return SoulStonesText; }
-	FText GetRunCountText() const { return RunCountText; }
-	FText GetClearCountText() const { return ClearCountText; }
-
 private:
 	/* PlayerState 진행 값으로 화면용 값 3개를 다시 계산 */
 	void RefreshProgress();
@@ -39,15 +35,15 @@ private:
 	 */
 
 	/* 영혼석 수 */
-	UPROPERTY(BlueprintReadOnly, Transient, FieldNotify, Getter, Category = "JY|Progress", meta = (AllowPrivateAccess))
+	UPROPERTY(BlueprintReadOnly, Transient, FieldNotify, Category = "JY|Progress", meta = (AllowPrivateAccess))
 	FText SoulStonesText;
 
 	/* 도전 횟수 */
-	UPROPERTY(BlueprintReadOnly, Transient, FieldNotify, Getter, Category = "JY|Progress", meta = (AllowPrivateAccess))
+	UPROPERTY(BlueprintReadOnly, Transient, FieldNotify, Category = "JY|Progress", meta = (AllowPrivateAccess))
 	FText RunCountText;
 
 	/* 클리어 횟수 */
-	UPROPERTY(BlueprintReadOnly, Transient, FieldNotify, Getter, Category = "JY|Progress", meta = (AllowPrivateAccess))
+	UPROPERTY(BlueprintReadOnly, Transient, FieldNotify, Category = "JY|Progress", meta = (AllowPrivateAccess))
 	FText ClearCountText;
 
 private:

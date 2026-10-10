@@ -26,13 +26,6 @@ public:
 	/* ASC 구독 해제 */
 	void UnbindAbilitySystem();
 
-	float GetCurrentHealth() const { return CurrentHealth; }
-	float GetMaxHealth() const { return MaxHealth; }
-	float GetHealthPercent() const { return HealthPercent; }
-	FText GetHealthText() const { return HealthText; }
-	bool IsLowHealth() const { return bLowHealth; }
-	FLinearColor GetHealthBarColor() const { return HealthBarColor; }
-
 private:
 	/* ASC 체력·최대 체력이 바뀌었을 때 */
 	void HandleHealthChanged(const FOnAttributeChangeData& ChangeData);
@@ -54,27 +47,27 @@ private:
 	 */
 
 	/* 현재 체력 */
-	UPROPERTY(BlueprintReadOnly, Transient, FieldNotify, Getter, Category = "JY|Health", meta = (AllowPrivateAccess))
+	UPROPERTY(BlueprintReadOnly, Transient, FieldNotify, Category = "JY|Health", meta = (AllowPrivateAccess))
 	float CurrentHealth = 0.0f;
 
 	/* 최대 체력 */
-	UPROPERTY(BlueprintReadOnly, Transient, FieldNotify, Getter, Category = "JY|Health", meta = (AllowPrivateAccess))
+	UPROPERTY(BlueprintReadOnly, Transient, FieldNotify, Category = "JY|Health", meta = (AllowPrivateAccess))
 	float MaxHealth = 0.0f;
 
 	/* 체력 비율 0~1 (체력바 Percent) */
-	UPROPERTY(BlueprintReadOnly, Transient, FieldNotify, Getter, Category = "JY|Health", meta = (AllowPrivateAccess))
+	UPROPERTY(BlueprintReadOnly, Transient, FieldNotify, Category = "JY|Health", meta = (AllowPrivateAccess))
 	float HealthPercent = 0.0f;
 
 	/* "90 / 100" 형태 글자 */
-	UPROPERTY(BlueprintReadOnly, Transient, FieldNotify, Getter, Category = "JY|Health", meta = (AllowPrivateAccess))
+	UPROPERTY(BlueprintReadOnly, Transient, FieldNotify, Category = "JY|Health", meta = (AllowPrivateAccess))
 	FText HealthText;
 
 	/* 체력이 기준 비율 이하인지 (색 바꾸기용) */
-	UPROPERTY(BlueprintReadOnly, Transient, FieldNotify, Getter = "IsLowHealth", Category = "JY|Health", meta = (AllowPrivateAccess))
+	UPROPERTY(BlueprintReadOnly, Transient, FieldNotify, Category = "JY|Health", meta = (AllowPrivateAccess))
 	bool bLowHealth = false;
 
 	/* 체력바 채움 색 (낮은 체력이면 LowHealthColor) */
-	UPROPERTY(BlueprintReadOnly, Transient, FieldNotify, Getter, Category = "JY|Health", meta = (AllowPrivateAccess))
+	UPROPERTY(BlueprintReadOnly, Transient, FieldNotify, Category = "JY|Health", meta = (AllowPrivateAccess))
 	FLinearColor HealthBarColor = FLinearColor(ForceInit);
 
 private:

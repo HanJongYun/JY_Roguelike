@@ -47,14 +47,16 @@ struct FJY_PlayerProgress
 	/* 강화 단계 조회 (없으면 0) */
 	int32 GetMetaRank(const FGameplayTag& UpgradeTag) const
 	{
-		const FJY_MetaRank* Found = MetaRanks.FindByPredicate([&UpgradeTag](const FJY_MetaRank& Entry) { return Entry.UpgradeTag == UpgradeTag; });
+		auto HasSameTag = [&UpgradeTag](const FJY_MetaRank& Entry) { return Entry.UpgradeTag == UpgradeTag; };
+		const FJY_MetaRank* Found = MetaRanks.FindByPredicate(HasSameTag);
 		return Found != nullptr ? Found->Rank : 0;
 	}
 
 	/* 강화 단계 설정 (0이면 목록에서 뺌) */
 	void SetMetaRank(const FGameplayTag& UpgradeTag, int32 NewRank)
 	{
-		const int32 Index = MetaRanks.IndexOfByPredicate([&UpgradeTag](const FJY_MetaRank& Entry) { return Entry.UpgradeTag == UpgradeTag; });
+		auto HasSameTag = [&UpgradeTag](const FJY_MetaRank& Entry) { return Entry.UpgradeTag == UpgradeTag; };
+		const int32 Index = MetaRanks.IndexOfByPredicate(HasSameTag);
 		if (NewRank <= 0)
 		{
 			if (Index != INDEX_NONE)

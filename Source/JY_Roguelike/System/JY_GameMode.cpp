@@ -80,26 +80,26 @@ void AJY_GameMode::LoadProgress(AJY_PlayerState* PlayerState)
 }
 
 /*
- * 판매 대상 검증: 제단(Service.MetaAltar)이 맞고, 요청한 플레이어 폰이 그 사용 범위 안에 있어야 한다.
+ * 쓸 수 있는 제단인가: 메타 제단(Service.MetaAltar)이 맞고, 요청한 플레이어 폰이 그 사용 범위 안에 있어야 한다.
  * 개조 클라가 던전에서·멀리서 구매 요청을 보내도 여기서 거절된다. 상점·축복 NPC는 같은 방식으로 자기 서비스 태그를 쓴다.
  */
 // [Server]
-bool AJY_GameMode::IsValidMetaSeller(const APlayerController* Requester, const AJY_InteractableActor* Seller) const
+bool AJY_GameMode::IsUsableMetaAltar(const APlayerController* Requester, const AJY_InteractableActor* Altar) const
 {
-	if (Requester == nullptr || Seller == nullptr)
+	if (Requester == nullptr || Altar == nullptr)
 		return false;
 
-	if (Seller->GetServiceTag() != JYGameplayTags::Service_MetaAltar)
+	if (Altar->GetServiceTag() != JYGameplayTags::Service_MetaAltar)
 		return false;
 
-	return Seller->IsWithinInteractRange(Requester->GetPawn());
+	return Altar->IsWithinInteractRange(Requester->GetPawn());
 }
 
 /* 연타해도 요청이 서버에서 하나씩 처리되고, 매번 현재 값으로 다시 검증 → 영혼석이 음수가 되거나 최대를 넘지 않는다 */
 // [Server]
-void AJY_GameMode::TryBuyMetaUpgrade(APlayerController* Buyer, FGameplayTag UpgradeTag, AJY_InteractableActor* Seller)
+void AJY_GameMode::TryBuyMetaUpgrade(APlayerController* Buyer, FGameplayTag UpgradeTag, AJY_InteractableActor* Altar)
 {
-	if (IsValidMetaSeller(Buyer, Seller) == false)
+	if (IsUsableMetaAltar(Buyer, Altar) == false)
 		return;
 
 	AJY_PlayerState* PlayerState = Buyer != nullptr ? Buyer->GetPlayerState<AJY_PlayerState>() : nullptr;
@@ -121,15 +121,20 @@ void AJY_GameMode::TryBuyMetaUpgrade(APlayerController* Buyer, FGameplayTag Upgr
 	if (NewProgress.SoulStones < Cost)
 		return;
 
+	const int32 NewRank = CurrentRank + 1;
 	NewProgress.SoulStones -= Cost;
-	NewProgress.SetMetaRank(UpgradeTag, CurrentRank + 1);
+	NewProgress.SetMetaRank(UpgradeTag, NewRank);
 	CommitProgress(PlayerState, NewProgress, EJY_ProgressCommitScope::MetaRanksChanged);
+
+	/* 산 사람 화면에만 "강인함 1단계" — 문구 형식은 강화 표(PurchaseToastFormat) */
+	const FText ToastText = FText::Format(MetaData->GetPurchaseToastFormat(), Definition->DisplayName, NewRank);
+	CastChecked<AJY_PlayerController>(Buyer)->Client_ShowNotification(EJY_NotificationType::Toast, ToastText);
 }
 
 // [Server]
-void AJY_GameMode::RefundAllMetaUpgrades(APlayerController* Requester, AJY_InteractableActor* Seller)
+void AJY_GameMode::RefundAllMetaUpgrades(APlayerController* Requester, AJY_InteractableActor* Altar)
 {
-	if (IsValidMetaSeller(Requester, Seller) == false)
+	if (IsUsableMetaAltar(Requester, Altar) == false)
 		return;
 
 	AJY_PlayerState* PlayerState = Requester != nullptr ? Requester->GetPlayerState<AJY_PlayerState>() : nullptr;

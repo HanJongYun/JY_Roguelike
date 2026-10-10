@@ -36,13 +36,13 @@ public:
 	UFUNCTION(Exec)
 	void JYAddSoul(int32 Amount);
 
-	/* 메타 강화 1단계 구매 요청 — Seller = 제단 화면을 연 제단. 서버 GameMode가 검증 */
+	/* 메타 강화 1단계 구매 요청 — Altar = 제단 화면을 연 제단. 서버 GameMode가 검증 */
 	UFUNCTION(Server, Reliable)
-	void Server_BuyMetaUpgrade(FGameplayTag UpgradeTag, AJY_InteractableActor* Seller);
+	void Server_BuyMetaUpgrade(FGameplayTag UpgradeTag, AJY_InteractableActor* Altar);
 
 	/* 메타 강화 전액 환불 요청 */
 	UFUNCTION(Server, Reliable)
-	void Server_RefundAllMetaUpgrades(AJY_InteractableActor* Seller);
+	void Server_RefundAllMetaUpgrades(AJY_InteractableActor* Altar);
 
 	/* 정지 화면이 켜짐(true)·모두 꺼짐(false)을 서버에 알려 게임 정지·해제 요청 */
 	UFUNCTION(Server, Reliable)

@@ -11,6 +11,7 @@
 #include "UI/JY_UIManagerSubsystem.h"
 #include "UI/ViewModels/JY_StatsViewModel.h"
 #include "UI/ViewModels/JY_ProgressViewModel.h"
+#include "UI/ViewModels/JY_MetaUpgradeViewModel.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(JY_PlayerController)
 
@@ -54,8 +55,14 @@ void AJY_PlayerController::InitializeLocalUI()
 	if (JYPlayerState == nullptr)
 		return;
 
-	UIManager->GetOrCreateViewModel<UJY_StatsViewModel>()->BindAbilitySystem(JYPlayerState->GetJYAbilitySystemComponent());
-	UIManager->GetOrCreateViewModel<UJY_ProgressViewModel>()->BindPlayerState(JYPlayerState);
+	UJY_StatsViewModel* StatsViewModel = UIManager->GetOrCreateViewModel<UJY_StatsViewModel>();
+	StatsViewModel->BindAbilitySystem(JYPlayerState->GetJYAbilitySystemComponent());
+
+	UJY_ProgressViewModel* ProgressViewModel = UIManager->GetOrCreateViewModel<UJY_ProgressViewModel>();
+	ProgressViewModel->BindPlayerState(JYPlayerState);
+
+	UJY_MetaUpgradeViewModel* MetaUpgradeViewModel = UIManager->GetOrCreateViewModel<UJY_MetaUpgradeViewModel>();
+	MetaUpgradeViewModel->BindPlayerState(JYPlayerState);
 }
 
 // [OwnClient] 로컬 컨트롤러만
@@ -142,25 +149,25 @@ void AJY_PlayerController::Server_DebugApplyHealthDelta_Implementation(float Del
 #endif
 }
 
-/* 값 검증(판매 대상·거리·가격)은 전부 GameMode — PC는 요청을 전달만 한다 */
+/* 값 검증(제단·거리·가격)은 전부 GameMode — PC는 요청을 전달만 한다 */
 // [Server]
-void AJY_PlayerController::Server_BuyMetaUpgrade_Implementation(FGameplayTag UpgradeTag, AJY_InteractableActor* Seller)
+void AJY_PlayerController::Server_BuyMetaUpgrade_Implementation(FGameplayTag UpgradeTag, AJY_InteractableActor* Altar)
 {
 	AJY_GameMode* GameMode = GetWorld()->GetAuthGameMode<AJY_GameMode>();
 	if (GameMode == nullptr)
 		return;
 
-	GameMode->TryBuyMetaUpgrade(this, UpgradeTag, Seller);
+	GameMode->TryBuyMetaUpgrade(this, UpgradeTag, Altar);
 }
 
 // [Server]
-void AJY_PlayerController::Server_RefundAllMetaUpgrades_Implementation(AJY_InteractableActor* Seller)
+void AJY_PlayerController::Server_RefundAllMetaUpgrades_Implementation(AJY_InteractableActor* Altar)
 {
 	AJY_GameMode* GameMode = GetWorld()->GetAuthGameMode<AJY_GameMode>();
 	if (GameMode == nullptr)
 		return;
 
-	GameMode->RefundAllMetaUpgrades(this, Seller);
+	GameMode->RefundAllMetaUpgrades(this, Altar);
 }
 
 // [OwnClient] 콘솔 입력을 받은 로컬 컨트롤러

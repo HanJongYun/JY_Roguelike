@@ -44,14 +44,14 @@ void UJY_InteractionComponent::BeginPlay() //override
 // [Server] [OwnClient] [SimulatedProxy]
 void UJY_InteractionComponent::HandleOwnerBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
-	AJY_InteractableActor* Interactable = Cast<AJY_InteractableActor>(OtherActor);
-	if (Interactable == nullptr || OtherComp != Interactable->GetInteractionRange())
+	AJY_InteractableActor* InteractableActor = Cast<AJY_InteractableActor>(OtherActor);
+	if (InteractableActor == nullptr || OtherComp != InteractableActor->GetInteractionRange())
 		return;
 
 	if (CastChecked<APawn>(GetOwner())->IsLocallyControlled() == false)
 		return;
 
-	AddCandidate(Interactable);
+	AddCandidate(InteractableActor);
 }
 
 /*
@@ -61,24 +61,24 @@ void UJY_InteractionComponent::HandleOwnerBeginOverlap(UPrimitiveComponent* Over
 // [Server] [OwnClient] [SimulatedProxy]
 void UJY_InteractionComponent::HandleOwnerEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
 {
-	AJY_InteractableActor* Interactable = Cast<AJY_InteractableActor>(OtherActor);
-	if (Interactable == nullptr || OtherComp != Interactable->GetInteractionRange())
+	AJY_InteractableActor* InteractableActor = Cast<AJY_InteractableActor>(OtherActor);
+	if (InteractableActor == nullptr || OtherComp != InteractableActor->GetInteractionRange())
 		return;
 
-	RemoveCandidate(Interactable);
+	RemoveCandidate(InteractableActor);
 }
 
 // [OwnClient]
-void UJY_InteractionComponent::AddCandidate(AJY_InteractableActor* Interactable)
+void UJY_InteractionComponent::AddCandidate(AJY_InteractableActor* InteractableActor)
 {
-	Candidates.Add(Interactable);
+	Candidates.Add(InteractableActor);
 	RefreshFocus();
 }
 
 // [OwnClient]
-void UJY_InteractionComponent::RemoveCandidate(AJY_InteractableActor* Interactable)
+void UJY_InteractionComponent::RemoveCandidate(AJY_InteractableActor* InteractableActor)
 {
-	Candidates.Remove(Interactable);
+	Candidates.Remove(InteractableActor);
 	RefreshFocus();
 }
 
@@ -89,10 +89,10 @@ void UJY_InteractionComponent::RefreshFocus()
 	Candidates.RemoveAll(IsInvalidCandidate);
 
 	AJY_InteractableActor* NewFocus = Candidates.Num() > 0 ? Candidates.Last().Get() : nullptr;
-	if (NewFocus == FocusedInteractable.Get())
+	if (NewFocus == FocusTarget.Get())
 		return;
 
-	FocusedInteractable = NewFocus;
+	FocusTarget = NewFocus;
 
 	/*
 	 * 맵 이동 때 폰은 컨트롤러가 먼저 떨어진 뒤 겹침이 끝난다:
@@ -136,7 +136,7 @@ UJY_UIManagerSubsystem* UJY_InteractionComponent::GetUIManager() const
 // [OwnClient]
 void UJY_InteractionComponent::Interact()
 {
-	AJY_InteractableActor* Target = FocusedInteractable.Get();
+	AJY_InteractableActor* Target = FocusTarget.Get();
 	if (Target == nullptr)
 		return;
 
@@ -153,7 +153,11 @@ void UJY_InteractionComponent::Interact()
 			return;
 
 		/* BeginPlay에서 미리 로드해 둬 여기선 바로 돌려받는다 */
-		UIManager->PushScreen(JYGameplayTags::UI_Layer_GameMenu, Target->GetScreenClass().LoadSynchronous());
+		TSubclassOf<UJY_ScreenWidget> ScreenClass = Target->GetScreenClass().LoadSynchronous();
+
+		/* 화면이 켜지기 전에 "누가 열었나"를 넣는다 — 켜질 때(NativeOnActivated) 화면이 바로 쓸 수 있게 */
+		auto SetSourceBeforeActivate = [Target](UJY_ScreenWidget& Screen) { Screen.SetSourceActor(Target); };
+		UIManager->PushScreen(JYGameplayTags::UI_Layer_GameMenu, ScreenClass, SetSourceBeforeActivate);
 		return;
 	}
 	case EJY_InteractionType::ServerAction:

@@ -15,9 +15,6 @@ public:
 	/* 초점 대상 이름을 보여 줌 (빈 글자면 숨김) */
 	void SetFocusedName(const FText& InName);
 
-	FText GetPromptText() const { return PromptText; }
-	ESlateVisibility GetPromptVisibility() const { return PromptVisibility; }
-
 private:
 	/*
 	 * 위젯이 바인딩하는 값 (FieldNotify — 값이 바뀌면 위젯이 자동 갱신)
@@ -25,10 +22,10 @@ private:
 	 */
 
 	/* 대상 이름 (예: 제단) */
-	UPROPERTY(BlueprintReadOnly, Transient, FieldNotify, Getter, Category = "JY|Interaction", meta = (AllowPrivateAccess))
+	UPROPERTY(BlueprintReadOnly, Transient, FieldNotify, Category = "JY|Interaction", meta = (AllowPrivateAccess))
 	FText PromptText;
 
 	/* 안내 전체 보이기 — 초점 대상이 없으면 Collapsed */
-	UPROPERTY(BlueprintReadOnly, Transient, FieldNotify, Getter, Category = "JY|Interaction", meta = (AllowPrivateAccess))
+	UPROPERTY(BlueprintReadOnly, Transient, FieldNotify, Category = "JY|Interaction", meta = (AllowPrivateAccess))
 	ESlateVisibility PromptVisibility = ESlateVisibility::Collapsed;
 };

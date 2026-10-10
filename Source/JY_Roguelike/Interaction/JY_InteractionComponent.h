@@ -33,10 +33,10 @@ private:
 	void HandleOwnerEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
 
 	/* 대상 범위에 들어옴 — 가장 최근에 들어온 대상이 초점 */
-	void AddCandidate(AJY_InteractableActor* Interactable);
+	void AddCandidate(AJY_InteractableActor* InteractableActor);
 
 	/* 대상 범위에서 나감 — 초점이면 남은 대상 중 가장 최근 것으로 */
-	void RemoveCandidate(AJY_InteractableActor* Interactable);
+	void RemoveCandidate(AJY_InteractableActor* InteractableActor);
 
 	/* 후보 목록에서 초점 대상을 다시 고르고, 바뀌었으면 안내를 갱신 */
 	void RefreshFocus();
@@ -59,7 +59,7 @@ private:
 	TArray<TWeakObjectPtr<AJY_InteractableActor>> Candidates;
 
 	/* 지금 초점인 대상 (E를 누르면 쓰일 대상) */
-	TWeakObjectPtr<AJY_InteractableActor> FocusedInteractable;
+	TWeakObjectPtr<AJY_InteractableActor> FocusTarget;
 
 	/* 안내를 띄운 화면 관리자 — 컨트롤러가 먼저 떨어진 뒤(맵 이동)에도 안내를 지울 수 있게 */
 	TWeakObjectPtr<UJY_UIManagerSubsystem> PromptUIManager;

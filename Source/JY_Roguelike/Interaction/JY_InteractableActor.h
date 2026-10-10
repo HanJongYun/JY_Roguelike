@@ -76,7 +76,7 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "JY|Interaction", meta = (EditCondition = "InteractionType == EJY_InteractionType::ServerAction", EditConditionHides))
 	FText ConfirmText;
 
-	/* 이 물체가 제공하는 서비스 (제단 = Service.MetaAltar). 서버가 구매·환불 요청의 판매 대상인지 이것으로 확인 */
+	/* 이 물체가 제공하는 서비스 (제단 = Service.MetaAltar). 서버가 구매·환불 요청을 받은 물체가 제단인지 이것으로 확인 */
 	UPROPERTY(EditAnywhere, Category = "JY|Interaction", meta = (Categories = "Service"))
 	FGameplayTag ServiceTag;
 

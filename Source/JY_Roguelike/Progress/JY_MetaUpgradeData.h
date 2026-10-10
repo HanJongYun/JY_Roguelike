@@ -55,7 +55,8 @@ public:
 	/* 종류로 규칙 찾기 (없으면 nullptr) */
 	const FJY_MetaUpgradeDefinition* FindUpgrade(const FGameplayTag& UpgradeTag) const
 	{
-		return Upgrades.FindByPredicate([&UpgradeTag](const FJY_MetaUpgradeDefinition& Definition) { return Definition.UpgradeTag == UpgradeTag; });
+		auto HasSameTag = [&UpgradeTag](const FJY_MetaUpgradeDefinition& Definition) { return Definition.UpgradeTag == UpgradeTag; };
+		return Upgrades.FindByPredicate(HasSameTag);
 	}
 
 	const TArray<FJY_MetaUpgradeDefinition>& GetUpgrades() const { return Upgrades; }

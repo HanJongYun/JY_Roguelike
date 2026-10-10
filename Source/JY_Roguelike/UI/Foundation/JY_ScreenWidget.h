@@ -30,6 +30,13 @@ public:
 public:
 	virtual TOptional<FUIInputConfig> GetDesiredInputConfig() const override;
 
+public:
+	/* 이 화면을 연 월드 물체 지정 — 켜지기 전에 PushScreen의 InitFunc에서 부른다 */
+	void SetSourceActor(AActor* InSourceActor) { SourceActor = InSourceActor; }
+
+	/* 이 화면을 연 월드 물체 (예: 제단). 메뉴 키 등으로 열렸으면 nullptr */
+	AActor* GetSourceActor() const { return SourceActor.Get(); }
+
 protected:
 	virtual void NativeOnActivated() override;
 	virtual void NativeOnDeactivated() override;
@@ -52,4 +59,8 @@ protected:
 	/* 이 화면이 켜져 있는 동안 게임을 멈출지 (정지 메뉴·확인 팝업) */
 	UPROPERTY(EditDefaultsOnly, Category = "JY|Pause")
 	bool bPauseGame = false;
+
+private:
+	/* 이 화면을 연 월드 물체 — 화면이 떠 있는 동안 물체가 사라질 수 있어 약한 참조 */
+	TWeakObjectPtr<AActor> SourceActor;
 };

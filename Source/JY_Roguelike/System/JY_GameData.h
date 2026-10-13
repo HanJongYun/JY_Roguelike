@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
+#include "UI/JY_UITypes.h"
 #include "JY_GameData.generated.h"
 
 class UJY_PrimaryLayout;
@@ -33,4 +34,8 @@ public:
 	/* 메타 강화 표 (DA_JY_MetaUpgrades) — 서버가 구매 가격·효과를 검증할 때 씀 */
 	UPROPERTY(EditDefaultsOnly, Category = "Progress")
 	TObjectPtr<const UJY_MetaUpgradeData> MetaUpgradeData;
+
+	/* 마우스 커서 그림 (강철 칼 / 누르면 금빛 칼) */
+	UPROPERTY(EditDefaultsOnly, Category = "UI")
+	FJY_CursorData Cursor;
 };

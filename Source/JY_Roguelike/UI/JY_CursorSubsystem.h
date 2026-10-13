@@ -2,12 +2,29 @@
 
 #include "CoreMinimal.h"
 #include "Subsystems/LocalPlayerSubsystem.h"
+#include "Framework/Application/IInputProcessor.h"
 #include "JY_CursorSubsystem.generated.h"
 
-class FJY_CursorInputProcessor;
+class UJY_CursorSubsystem;
 
-/* 마우스 왼쪽 버튼을 누르고 있는 동안 커서를 바꾼다 (강철 칼 → 금빛 칼) — 게임·메뉴 어디서든 */
-UCLASS(Config = Game)
+/* 위젯·게임 입력보다 먼저 마우스 왼쪽 버튼을 보고 커서 서브시스템에 알림 (이벤트는 먹지 않음) */
+class FJY_CursorInputProcessor : public IInputProcessor
+{
+public:
+	explicit FJY_CursorInputProcessor(UJY_CursorSubsystem& InOwner);
+
+public:
+	virtual void Tick(const float DeltaTime, FSlateApplication& SlateApp, TSharedRef<ICursor> Cursor) override {}
+	virtual bool HandleMouseButtonDownEvent(FSlateApplication& SlateApp, const FPointerEvent& MouseEvent) override;
+	virtual bool HandleMouseButtonDoubleClickEvent(FSlateApplication& SlateApp, const FPointerEvent& MouseEvent) override;
+	virtual bool HandleMouseButtonUpEvent(FSlateApplication& SlateApp, const FPointerEvent& MouseEvent) override;
+
+private:
+	TWeakObjectPtr<UJY_CursorSubsystem> Owner;
+};
+
+/* 커서를 칼 그림으로 바꾸고, 마우스 왼쪽 버튼을 누르고 있는 동안 금빛 칼로 바꾼다 — 게임·메뉴 어디서든 */
+UCLASS()
 class UJY_CursorSubsystem : public ULocalPlayerSubsystem
 {
 	GENERATED_BODY()
@@ -15,17 +32,15 @@ class UJY_CursorSubsystem : public ULocalPlayerSubsystem
 public:
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
+	virtual void PlayerControllerChanged(APlayerController* NewPlayerController) override;
 
 public:
-	/* 누름 커서로 바꾸거나 원래 커서(UserInterfaceSettings의 HardwareCursors)로 되돌림 */
+	/* 누름 커서로 바꾸거나 평소 커서로 되돌림 (그림은 DA_JY_GameData의 Cursor 항목) */
 	void ShowPressedCursor(bool bPressed);
 
 private:
-	/* 설정값 — Config/DefaultGame.ini [/Script/JY_Roguelike.JY_CursorSubsystem] */
-
-	/* 누르고 있는 동안의 커서 (Content 기준 경로, 확장자 없이. 예: Slate/Cursors/SwordGold) */
-	UPROPERTY(Config)
-	FName PressedCursorPath;
+	/* 커서 모양마다 평소(false)·누름(true) 그림을 씌움 */
+	void ApplyCursor(bool bPressed);
 
 private:
 	/* Slate 입력 전처리기 — 모든 위젯보다 먼저 마우스 버튼을 본다 */

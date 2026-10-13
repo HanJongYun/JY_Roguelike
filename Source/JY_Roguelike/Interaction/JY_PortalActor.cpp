@@ -1,5 +1,6 @@
 #include "Interaction/JY_PortalActor.h"
 #include "Engine/World.h"
+#include "NiagaraComponent.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(JY_PortalActor)
 
@@ -7,6 +8,9 @@
 AJY_PortalActor::AJY_PortalActor()
 {
 	InteractionType = EJY_InteractionType::ServerAction;
+
+	VortexEffect = CreateDefaultSubobject<UNiagaraComponent>(TEXT("VortexEffect"));
+	VortexEffect->SetupAttachment(GetRootComponent());
 }
 
 /*

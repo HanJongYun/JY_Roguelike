@@ -25,7 +25,8 @@ public class JY_Roguelike : ModuleRules
 			"ModelViewViewModel",
 			"FieldNotification",
 			"CommonUI",
-			"CommonInput"
+			"CommonInput",
+			"Niagara"
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[] { });

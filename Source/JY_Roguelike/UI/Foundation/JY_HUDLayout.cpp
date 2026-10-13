@@ -1,6 +1,7 @@
 #include "UI/Foundation/JY_HUDLayout.h"
 #include "UI/JY_UIManagerSubsystem.h"
 #include "System/JY_GameplayTags.h"
+#include "System/JY_WorldSettings.h"
 #include "Engine/LocalPlayer.h"
 #include "Engine/AssetManager.h"
 #include "ICommonInputModule.h"
@@ -41,6 +42,24 @@ void UJY_HUDLayout::NativeOnInitialized() //override
 	{
 		EscapeMenuPreloadHandle = UAssetManager::GetStreamableManager().RequestAsyncLoad(EscapeMenuClass.ToSoftObjectPath());
 	}
+
+	RefreshCombatPanel();
+}
+
+/*
+ * 예: 허브 World Settings bShowCombatHUD=false → 체력 구슬 숨김, 던전 true → 표시 (하데스 허브엔 체력바가 없다).
+ * World Settings는 맵 파일에 들어 있어 클라도 맵을 여는 순간 갖고 있다 → GameState 복제를 기다릴 필요가 없다.
+ * HUD는 맵마다 새로 만들어지므로(hard travel) 생성 때 한 번만 읽으면 된다.
+ */
+// [OwnClient]
+void UJY_HUDLayout::RefreshCombatPanel()
+{
+	const AJY_WorldSettings* WorldSettings = Cast<AJY_WorldSettings>(GetWorld()->GetWorldSettings());
+	if (ensureMsgf(WorldSettings != nullptr, TEXT("World Settings가 AJY_WorldSettings가 아님 — DefaultEngine.ini WorldSettingsClassName 확인")) == false)
+		return;
+
+	const ESlateVisibility CombatVisibility = WorldSettings->ShouldShowCombatHUD() == true ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed;
+	CombatPanel->SetVisibility(CombatVisibility);
 }
 
 // [OwnClient]

@@ -20,10 +20,13 @@ private:
 	/* 뒤로가기 키(지금 Tab) → 정지 메뉴를 Menu 층에 올림 */
 	void HandleBackAction();
 
+	/* 이 맵 World Settings에 따라 전투 표시(체력 구슬) 보이기·숨기기 */
+	void RefreshCombatPanel();
+
 protected:
 	/* WBP_JY_HUD 안의 같은 이름 위젯과 연결 (BindWidget) */
 
-	/* 좌하단 체력바 묶음 칸 — SizeBox 380×44 */
+	/* 좌하단 체력 구슬 묶음 칸 — 허브에선 숨김 (AJY_WorldSettings::bShowCombatHUD) */
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UWidget> CombatPanel;
 

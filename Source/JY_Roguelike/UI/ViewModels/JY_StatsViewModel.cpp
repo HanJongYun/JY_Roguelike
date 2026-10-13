@@ -10,14 +10,6 @@ UJY_StatsViewModel::UJY_StatsViewModel()
 	HealthText = INVTEXT("-- / --");
 }
 
-/* 색은 BP 자식에서 바꾼 NormalHealthColor가 적용된 뒤 맞춰야 해서 생성자가 아니라 여기서 */
-void UJY_StatsViewModel::PostInitProperties() //override
-{
-	Super::PostInitProperties();
-
-	HealthBarColor = NormalHealthColor;
-}
-
 /*
  * 1장 HUD(UJY_HUDLayout::BindAbilitySystem)에 있던 구독을 그대로 옮겨 왔다 — 화면이 몇 개든 구독은 여기 1번.
  * ASC 값 변경 델리게이트는 서버 GE 적용과 클라 복제(OnRep) 둘 다에서 방송된다 (GameplayEffect.cpp:3783, 3945~3973).
@@ -94,8 +86,7 @@ void UJY_StatsViewModel::RefreshHealthValues()
 		UE_MVVM_SET_PROPERTY_VALUE(HealthText, FText::Format(INVTEXT("{0} / {1}"), FText::AsNumber(RoundedCurrentHealth), FText::AsNumber(RoundedMaxHealth)));
 	}
 
-	/* 기준·색을 여기서 정해 위젯은 값만 받는다 — 화면이 여러 개여도 같은 기준·색 */
+	/* 기준을 여기서 정해 위젯은 값만 받는다 — 화면이 여러 개여도 같은 기준 */
 	const bool bNewLowHealth = NewPercent <= LowHealthRatio;
 	UE_MVVM_SET_PROPERTY_VALUE(bLowHealth, bNewLowHealth);
-	UE_MVVM_SET_PROPERTY_VALUE(HealthBarColor, bNewLowHealth ? LowHealthColor : NormalHealthColor);
 }

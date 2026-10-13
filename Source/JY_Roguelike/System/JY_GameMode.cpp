@@ -126,9 +126,12 @@ void AJY_GameMode::TryBuyMetaUpgrade(APlayerController* Buyer, FGameplayTag Upgr
 	NewProgress.SetMetaRank(UpgradeTag, NewRank);
 	CommitProgress(PlayerState, NewProgress, EJY_ProgressCommitScope::MetaRanksChanged);
 
-	/* 산 사람 화면에만 "강인함 1단계" — 문구 형식은 강화 표(PurchaseToastFormat) */
+	/*
+	 * [보류] 구매 토스트 "강인함 1단계" — 연속 구매하면 토스트가 대기열에서 하나씩(2.5초) 나와 늦게 뜬다.
+	 * 제단 줄이 바로 바뀌어 없어도 충분해 일단 끔.
 	const FText ToastText = FText::Format(MetaData->GetPurchaseToastFormat(), Definition->DisplayName, NewRank);
 	CastChecked<AJY_PlayerController>(Buyer)->Client_ShowNotification(EJY_NotificationType::Toast, ToastText);
+	 */
 }
 
 // [Server]

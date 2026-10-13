@@ -22,7 +22,7 @@ struct FJY_MetaUpgradeDefinition
 	UPROPERTY(EditDefaultsOnly)
 	FText DisplayName;
 
-	/* 제단에 보일 설명 (예: 최대 체력 +20 / 단계) */
+	/* 제단에 보일 설명 형식 — {0} = 다음 단계의 효과 크기(단계 × ValuePerRank) (예: 최대 체력 +{0}) */
 	UPROPERTY(EditDefaultsOnly)
 	FText Description;
 
@@ -38,7 +38,7 @@ struct FJY_MetaUpgradeDefinition
 	UPROPERTY(EditDefaultsOnly)
 	TSubclassOf<UGameplayEffect> Effect;
 
-	/* 단계당 효과 크기 — 효과의 SetByCaller.MetaValue로 넘김 (예: 20 → 3단계면 60) */
+	/* 단계당 효과 크기 — 효과의 SetByCaller.MetaValue로 넘기고 제단 설명 숫자에도 쓴다 (예: 20 → 3단계면 60) */
 	UPROPERTY(EditDefaultsOnly)
 	float ValuePerRank = 0.0f;
 

@@ -17,9 +17,6 @@ public:
 	UJY_StatsViewModel();
 
 public:
-	virtual void PostInitProperties() override;
-
-public:
 	/* ASC 체력 변화 구독 + 현재 값으로 한 번 갱신 */
 	void BindAbilitySystem(UJY_AbilitySystemComponent* InAbilitySystemComponent);
 
@@ -30,7 +27,7 @@ private:
 	/* ASC 체력·최대 체력이 바뀌었을 때 */
 	void HandleHealthChanged(const FOnAttributeChangeData& ChangeData);
 
-	/* ASC의 현재 체력·최대 체력으로 화면용 값 6개를 다시 계산 (조각 4) */
+	/* ASC의 현재 체력·최대 체력으로 화면용 값 5개를 다시 계산 */
 	void RefreshHealthValues();
 
 private:
@@ -43,7 +40,7 @@ private:
 private:
 	/*
 	 * 위젯이 바인딩하는 값 (FieldNotify — 값이 바뀌면 위젯이 자동 갱신)
-	 * WBP_JY_HUD 체력바가 HealthPercent·HealthBarColor·HealthText 사용 (5-5에서 연결)
+	 * WBP_JY_HUD 체력 구슬이 HealthPercent·HealthText 사용
 	 */
 
 	/* 현재 체력 */
@@ -54,7 +51,7 @@ private:
 	UPROPERTY(BlueprintReadOnly, Transient, FieldNotify, Category = "JY|Health", meta = (AllowPrivateAccess))
 	float MaxHealth = 0.0f;
 
-	/* 체력 비율 0~1 (체력바 Percent) */
+	/* 체력 비율 0~1 (체력 구슬 FillPercent) */
 	UPROPERTY(BlueprintReadOnly, Transient, FieldNotify, Category = "JY|Health", meta = (AllowPrivateAccess))
 	float HealthPercent = 0.0f;
 
@@ -62,31 +59,19 @@ private:
 	UPROPERTY(BlueprintReadOnly, Transient, FieldNotify, Category = "JY|Health", meta = (AllowPrivateAccess))
 	FText HealthText;
 
-	/* 체력이 기준 비율 이하인지 (색 바꾸기용) */
+	/* 체력이 기준 비율 이하인지 */
 	UPROPERTY(BlueprintReadOnly, Transient, FieldNotify, Category = "JY|Health", meta = (AllowPrivateAccess))
 	bool bLowHealth = false;
-
-	/* 체력바 채움 색 (낮은 체력이면 LowHealthColor) */
-	UPROPERTY(BlueprintReadOnly, Transient, FieldNotify, Category = "JY|Health", meta = (AllowPrivateAccess))
-	FLinearColor HealthBarColor = FLinearColor(ForceInit);
 
 private:
 	/*
 	 * 설정값 — 지금은 아래 C++ 기본값을 그대로 쓴다
-	 * 에디터에서 바꿔야 할 때가 오면 DA_JY_GameData로 빼거나, 색은 WBP가 bLowHealth로 정하게 바꾼다
+	 * 에디터에서 바꿔야 할 때가 오면 DA_JY_GameData로 뺀다
 	 */
 
 	/* 낮은 체력 기준 비율 */
 	UPROPERTY(EditDefaultsOnly, Category = "JY|Health", meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float LowHealthRatio = 0.3f;
-
-	/* 평소 체력바 색 */
-	UPROPERTY(EditDefaultsOnly, Category = "JY|Health")
-	FLinearColor NormalHealthColor = FLinearColor(0.1f, 0.8f, 0.2f, 1.0f);
-
-	/* 낮은 체력일 때 체력바 색 */
-	UPROPERTY(EditDefaultsOnly, Category = "JY|Health")
-	FLinearColor LowHealthColor = FLinearColor(1.0f, 0.1f, 0.1f, 1.0f);
 
 private:
 	/* 구독 중인 ASC — PlayerState가 소유하므로 약한 참조 */

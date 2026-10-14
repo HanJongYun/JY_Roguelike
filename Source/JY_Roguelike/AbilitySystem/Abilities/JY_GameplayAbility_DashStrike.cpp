@@ -1,9 +1,9 @@
-#include "AbilitySystem/Abilities/JY_GameplayAbility_IaiDash.h"
+#include "AbilitySystem/Abilities/JY_GameplayAbility_DashStrike.h"
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(JY_GameplayAbility_IaiDash)
+#include UE_INLINE_GENERATED_CPP_BY_NAME(JY_GameplayAbility_DashStrike)
 
 // [Server] [OwnClient]
-void UJY_GameplayAbility_IaiDash::OnSkillStarted() //override
+void UJY_GameplayAbility_DashStrike::OnSkillStarted() //override
 {
 	const AActor* AvatarActor = GetAvatarActorFromActorInfo();
 	StartLocation = AvatarActor->GetActorLocation();
@@ -11,7 +11,7 @@ void UJY_GameplayAbility_IaiDash::OnSkillStarted() //override
 
 // [Server] [OwnClient]
 /* 돌진이 지나간 자리 전체를 벤다 — 원점을 시작 위치로 옮기고 경로 방향으로 뻗은 상자. 벽에 막혀 거의 안 움직였으면 몸 앞 */
-FJY_HitShape UJY_GameplayAbility_IaiDash::MakeHitShapeForEvent(int32 EventIndex, FTransform& InOutOrigin) const //override
+FJY_HitShape UJY_GameplayAbility_DashStrike::MakeHitShapeForEvent(int32 EventIndex, FTransform& InOutOrigin) const //override
 {
 	const FVector CurrentLocation = InOutOrigin.GetLocation();
 	const FVector Path = CurrentLocation - StartLocation;

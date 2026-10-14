@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
 #include "GameplayTagContainer.h"
+#include "Skill/JY_SkillTypes.h"
 #include "UI/JY_UITypes.h"
 #include "JY_GameData.generated.h"
 
@@ -74,6 +75,10 @@ public:
 	/* 런 시작 때 슬롯 순서대로 장착할 스킬 — 보상으로 얻기 전 테스트용. 개수만큼 슬롯이 열림 */
 	UPROPERTY(EditDefaultsOnly, Category = "Skill")
 	TArray<TObjectPtr<UJY_SkillDefinition>> StartSkills;
+
+	/* 슬롯과 별개로 런 내내 가진 스킬 (우클릭 찌르기). 보상 풀(SkillDefinitions)에 넣지 않는다 */
+	UPROPERTY(EditDefaultsOnly, Category = "Skill")
+	TArray<FJY_FixedSkill> FixedSkills;
 
 	/* 획득 가능한 스킬 (디버그 명령·보상 풀) */
 	UPROPERTY(EditDefaultsOnly, Category = "Skill")

@@ -49,6 +49,12 @@ void UJY_SkillLoadoutComponent::BeginPlay() //override
 		}
 	}
 
+	/* 고정 스킬은 슬롯·레벨·카드가 없어 핸들을 들고 있지 않는다 — PlayerState(ASC)와 수명이 같다 */
+	for (const FJY_FixedSkill& FixedSkill : GameData->FixedSkills)
+	{
+		GrantSkillAbility(FixedSkill.Skill, FixedSkill.InputTag);
+	}
+
 	OnSlotsChanged.Broadcast();
 }
 
@@ -154,7 +160,7 @@ void UJY_SkillLoadoutComponent::UnlockSlot()
 // [Server] [OwnClient]
 /*
  * 피해·범위 카드는 더해서 한 번에 곱한다(20% 두 장 = +40%).
- * 클라에 슬롯 복제가 GA 스펙보다 늦게 오면 슬롯이 없을 수 있다 → 1레벨 값. 서버 쿨타임 GE가 복제로 덮어쓴다
+ * 슬롯에 없으면 1레벨 값 — 고정 스킬(FixedSkills), 그리고 클라에 슬롯 복제가 GA 스펙보다 늦게 온 경우(서버 쿨타임 GE가 복제로 덮어쓴다)
  */
 FJY_SkillStats UJY_SkillLoadoutComponent::GetSkillStats(const UJY_SkillDefinition* Skill) const
 {
@@ -199,25 +205,36 @@ FJY_SkillStats UJY_SkillLoadoutComponent::GetSkillStats(const UJY_SkillDefinitio
 }
 
 // [Server]
-/* 기본 어빌리티 세트(UJY_AbilitySet::GiveToAbilitySystem)와 같은 입력 태그 방식 */
 void UJY_SkillLoadoutComponent::GrantSlotAbility(int32 SlotIndex)
 {
 	FJY_SkillSlotEntry& Slot = Slots[SlotIndex];
-	if (ensureMsgf(Slot.Skill->AbilityClass != nullptr, TEXT("%s에 AbilityClass가 없음"), *GetNameSafe(Slot.Skill)) == false)
-		return;
-
-	/* 같은 GA 클래스를 여러 스킬이 쓸 수 있어 GA는 SourceObject로 자기 스킬을 찾는다 (Lyra 장비 어빌리티와 같음) */
-	FGameplayAbilitySpec AbilitySpec(Slot.Skill->AbilityClass, 1, INDEX_NONE, Slot.Skill);
 
 	const UJY_GameData* GameData = UJY_AssetManager::Get().GetGameData();
+	FGameplayTag InputTag;
 	if (GameData->SkillSlotInputTags.IsValidIndex(SlotIndex) == true)
 	{
-		const FGameplayTag InputTag = GameData->SkillSlotInputTags[SlotIndex];
+		InputTag = GameData->SkillSlotInputTags[SlotIndex];
+	}
+
+	Slot.GrantedHandle = GrantSkillAbility(Slot.Skill, InputTag);
+}
+
+// [Server]
+/* 기본 어빌리티 세트(UJY_AbilitySet::GiveToAbilitySystem)와 같은 입력 태그 방식 */
+FGameplayAbilitySpecHandle UJY_SkillLoadoutComponent::GrantSkillAbility(UJY_SkillDefinition* Skill, FGameplayTag InputTag)
+{
+	if (ensureMsgf(Skill != nullptr && Skill->AbilityClass != nullptr, TEXT("스킬 정의 또는 AbilityClass가 없음 (%s)"), *GetNameSafe(Skill)) == false)
+		return FGameplayAbilitySpecHandle();
+
+	/* 같은 GA 클래스를 여러 스킬이 쓸 수 있어 GA는 SourceObject로 자기 스킬을 찾는다 (Lyra 장비 어빌리티와 같음) */
+	FGameplayAbilitySpec AbilitySpec(Skill->AbilityClass, 1, INDEX_NONE, Skill);
+	if (InputTag.IsValid() == true)
+	{
 		AbilitySpec.GetDynamicSpecSourceTags().AddTag(InputTag);
 	}
 
 	UJY_AbilitySystemComponent* JYASC = GetAbilitySystemComponent();
-	Slot.GrantedHandle = JYASC->GiveAbility(AbilitySpec);
+	return JYASC->GiveAbility(AbilitySpec);
 }
 
 // [Server]

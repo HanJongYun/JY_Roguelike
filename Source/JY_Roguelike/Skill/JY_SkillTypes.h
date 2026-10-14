@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameplayAbilitySpecHandle.h"
+#include "GameplayTagContainer.h"
 #include "JY_SkillTypes.generated.h"
 
 class UJY_SkillDefinition;
@@ -70,4 +71,17 @@ struct FJY_SkillSlotEntry
 	/* 서버만 — 지급한 어빌리티 */
 	UPROPERTY(NotReplicated)
 	FGameplayAbilitySpecHandle GrantedHandle;
+};
+
+/* 슬롯과 별개로 항상 가진 스킬과 그 입력 (우클릭 찌르기 등) */
+USTRUCT(BlueprintType)
+struct FJY_FixedSkill
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditDefaultsOnly)
+	TObjectPtr<UJY_SkillDefinition> Skill;
+
+	UPROPERTY(EditDefaultsOnly, Meta = (Categories = "InputTag.Skill"))
+	FGameplayTag InputTag;
 };

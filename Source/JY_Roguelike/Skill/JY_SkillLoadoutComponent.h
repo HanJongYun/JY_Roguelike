@@ -45,8 +45,11 @@ private:
 	/* [Server] 이 슬롯 스킬의 카드 후보를 섞어 선택지 만들기 */
 	void DrawUpgradeCards(int32 SlotIndex);
 
-	/* [Server] 슬롯 GA 지급 (입력 태그 = 슬롯 태그, SourceObject = 스킬 정의) */
+	/* [Server] 슬롯 GA 지급 (입력 태그 = 슬롯 태그) */
 	void GrantSlotAbility(int32 SlotIndex);
+
+	/* [Server] 스킬 GA 지급 (입력 태그 심기, SourceObject = 스킬 정의). 실패하면 빈 핸들 */
+	FGameplayAbilitySpecHandle GrantSkillAbility(UJY_SkillDefinition* Skill, FGameplayTag InputTag);
 
 	/* [Server] 슬롯 GA 회수 (실행 중이면 엔진이 끝냄) */
 	void RemoveSlotAbility(int32 SlotIndex);

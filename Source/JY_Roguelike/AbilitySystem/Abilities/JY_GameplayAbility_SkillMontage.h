@@ -46,6 +46,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "JY|Skill")
 	float PlayRate = 1.0f;
 
+	/* 시작 섹션 (비우면 처음부터) — 애니 앞부분 준비 동작을 건너뛸 때 */
+	UPROPERTY(EditDefaultsOnly, Category = "JY|Skill")
+	FName StartSectionName;
+
 	/* 타격 이벤트 순서대로 (모자라면 마지막 것 반복) */
 	UPROPERTY(EditDefaultsOnly, Category = "JY|Skill")
 	TArray<FJY_HitShape> HitShapes;

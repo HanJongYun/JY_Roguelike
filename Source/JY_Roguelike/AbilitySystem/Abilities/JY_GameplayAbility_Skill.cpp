@@ -30,6 +30,9 @@ UJY_GameplayAbility_Skill::UJY_GameplayAbility_Skill(const FObjectInitializer& O
 	BlockAbilitiesWithTag.AddTag(JYGameplayTags::Ability_Type_Jump);
 
 	ActivationBlockedTags.AddTag(JYGameplayTags::State_Dashing);
+
+	/* 끊기 구간에서 같은 스킬을 다시 누르면 지금 실행을 끝내고 새로 시작 (InputPressed) */
+	bRetriggerInstancedAbility = true;
 }
 
 // [Server] [OwnClient] 서버는 발동 RPC를 클라가 보낸 시점과 같은 몽타주 위치에서 받는다(서버 몽타주도 발동 RPC 도착 지연만큼 늦게 시작) → 같은 판정
@@ -83,6 +86,22 @@ void UJY_GameplayAbility_Skill::ApplyCooldown(const FGameplayAbilitySpecHandle H
 	CooldownSpec->SetSetByCallerMagnitude(JYGameplayTags::SetByCaller_Cooldown, Stats.Cooldown);
 
 	ApplyGameplayEffectSpecToOwner(Handle, ActorInfo, ActivationInfo, CooldownSpecHandle);
+}
+
+// [OwnClient] 실행 중에 같은 입력이 오면 엔진은 발동 대신 이 함수를 부른다 (UJY_AbilitySystemComponent::ProcessAbilityInput)
+/*
+ * 다시 발동은 엔진 재발동 경로 — InternalTryActivateAbility가 CanActivateAbility(쿨타임·끊기 구간) 통과 후 지금 실행을 끝내고 새로 시작한다
+ * (AbilitySystemComponent_Abilities.cpp:1817·1836). 끝냄 RPC가 발동 RPC보다 먼저 서버에 간다 (같은 ASC Reliable)
+ */
+void UJY_GameplayAbility_Skill::InputPressed(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo) //override
+{
+	Super::InputPressed(Handle, ActorInfo, ActivationInfo);
+
+	if (IsInCancelWindow() == false)
+		return;
+
+	UJY_AbilitySystemComponent* JYASC = GetJYAbilitySystemComponentFromActorInfo();
+	JYASC->TryActivateAbility(Handle);
 }
 
 UJY_SkillDefinition* UJY_GameplayAbility_Skill::GetSkillDefinition() const

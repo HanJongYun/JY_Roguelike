@@ -8,6 +8,7 @@
 #include "System/JY_GameplayTags.h"
 #include "System/JY_AssetManager.h"
 #include "System/JY_GameData.h"
+#include "System/JY_WorldSettings.h"
 #include "Player/JY_PlayerController.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(JY_UIManagerSubsystem)
@@ -24,7 +25,7 @@ void UJY_UIManagerSubsystem::Deinitialize() //override
  * 엔진이 로컬 플레이어에 새 PC를 붙일 때마다 부른다 (LocalPlayer.cpp:749 ReceivedPlayerController).
  * 데디 서버에는 로컬 플레이어가 없어 이 서브시스템 자체가 없다 → 클라에서만 실행.
  * 맵 이동 뒤: 위젯 Outer가 GameInstance라 옛 틀 포인터가 살아 있다(UserWidget.cpp:2753) → 지우고 새 PC로 다시 만든다.
- * 전제: 맵 이동은 hard travel(포털 ServerTravel). seamless travel이면 클라 PC가 유지돼 이 함수가 불리지 않는다.
+ * 심리스 이동도 서버가 도착 맵에서 PC를 새로 만든다 → 클라에 새 PC가 오면 여기가 불린다 (NetConnection.cpp:5213 HandleClientPlayer).
  */
 // [OwnClient]
 void UJY_UIManagerSubsystem::PlayerControllerChanged(APlayerController* NewPlayerController) //override
@@ -70,7 +71,7 @@ void UJY_UIManagerSubsystem::CreatePrimaryLayout(APlayerController* PC)
 	LayoutOwner = PC;
 
 	/* 층은 CreateWidget 안의 NativeOnInitialized에서 이미 등록됨 → 만든 직후 바로 Push 가능 */
-	PushHUD(*GameData);
+	PushHUD(PC, *GameData);
 }
 
 /*
@@ -137,10 +138,18 @@ UMVVMViewModelBase* UJY_UIManagerSubsystem::GetOrCreateViewModel(TSubclassOf<UMV
 /*
  * HUD는 올리기만 한다 — 체력·영혼석 값은 WBP 바인딩이 ViewModel에서 받는다.
  * ViewModel에 원본을 연결하는 건 AJY_PlayerController::InitializeLocalUI라서, 틀과 PlayerState 중 무엇이 먼저 오든 상관없다.
+ * 맵 파일 값이라 클라가 맵을 여는 순간 읽힌다 (예: 타이틀 = false → 틀만 있고 HUD 없음).
  */
 // [OwnClient]
-void UJY_UIManagerSubsystem::PushHUD(const UJY_GameData& GameData)
+void UJY_UIManagerSubsystem::PushHUD(APlayerController* PC, const UJY_GameData& GameData)
 {
+	const AJY_WorldSettings* WorldSettings = Cast<AJY_WorldSettings>(PC->GetWorldSettings());
+	if (ensureMsgf(WorldSettings != nullptr, TEXT("World Settings가 AJY_WorldSettings가 아님 — DefaultEngine.ini WorldSettingsClassName 확인")) == false)
+		return;
+
+	if (WorldSettings->ShouldShowHUD() == false)
+		return;
+
 	const TSubclassOf<UJY_HUDLayout> HUDClass = GameData.HUDLayoutClass.LoadSynchronous();
 	if (HUDClass == nullptr)
 		return;

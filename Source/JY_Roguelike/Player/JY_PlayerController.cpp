@@ -65,6 +65,17 @@ void AJY_PlayerController::InitializeLocalUI()
 	MetaUpgradeViewModel->BindPlayerState(JYPlayerState);
 }
 
+/*
+ * 맵에 도착한 뒤 PlayerState(영혼석·체력 원본)와 캐릭터가 둘 다 복제돼 올 때까지 로딩창 유지.
+ * 하나라도 없으면 HUD가 빈 값이거나 캐릭터 없는 빈 방이 보인다.
+ * 지금은 죽어도 캐릭터가 사라지지 않는다 — 부활(폰 교체)을 만들면 이 조건을 다시 본다.
+ */
+// [OwnClient]
+bool AJY_PlayerController::ShouldShowLoadingScreen() const //override
+{
+	return PlayerState == nullptr || GetPawn() == nullptr;
+}
+
 // [OwnClient] 로컬 컨트롤러만
 /* 템플릿과 같은 자리 — 로컬 플레이어가 붙은 뒤 호출되어 서브시스템을 확실히 얻는다 */
 void AJY_PlayerController::SetupInputComponent() //override

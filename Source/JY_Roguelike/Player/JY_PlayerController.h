@@ -4,6 +4,7 @@
 #include "GameFramework/PlayerController.h"
 #include "GameplayTagContainer.h"
 #include "UI/JY_UITypes.h"
+#include "UI/JY_LoadingProcessInterface.h"
 #include "JY_PlayerController.generated.h"
 
 class UInputMappingContext;
@@ -11,7 +12,7 @@ class AJY_InteractableActor;
 
 /* 클라 → 서버 요청 창구(구매·디버그) + 입력 매핑 등록. 키 입력 처리 자체는 폰(AJY_Character)이 하고, 어빌리티 입력은 프레임 끝에 ASC로 넘긴다 */
 UCLASS()
-class AJY_PlayerController : public APlayerController
+class AJY_PlayerController : public APlayerController, public IJY_LoadingProcessInterface
 {
 	GENERATED_BODY()
 
@@ -23,6 +24,9 @@ protected:
 	virtual void SetupInputComponent() override;
 	virtual void OnRep_PlayerState() override;
 	virtual void PostProcessInput(const float DeltaTime, const bool bGamePaused) override;
+
+public:
+	virtual bool ShouldShowLoadingScreen() const override;
 
 public:
 	/* 콘솔 명령: 서버에서 내 체력 깎기 (예: JYDamage 10) */

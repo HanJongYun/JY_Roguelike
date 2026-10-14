@@ -55,8 +55,8 @@ private:
 	/* 화면 틀을 만들어 이 플레이어 화면에 붙이고 HUD까지 올림 */
 	void CreatePrimaryLayout(APlayerController* PC);
 
-	/* HUD를 Game 층에 올림 */
-	void PushHUD(const UJY_GameData& GameData);
+	/* 이 맵이 HUD를 쓰면(World Settings bShowHUD) Game 층에 올림 */
+	void PushHUD(APlayerController* PC, const UJY_GameData& GameData);
 
 	/* 화면 틀을 화면에서 떼고 버림 */
 	void DestroyPrimaryLayout();

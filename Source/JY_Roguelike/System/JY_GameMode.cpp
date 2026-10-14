@@ -20,6 +20,9 @@ AJY_GameMode::AJY_GameMode()
 	PlayerStateClass = AJY_PlayerState::StaticClass();
 	PlayerControllerClass = AJY_PlayerController::StaticClass();
 	DefaultPawnClass = AJY_Character::StaticClass();
+
+	/* 맵 이동(허브↔던전) 중 화면이 멈추지 않게 — 접속은 유지하고 도착 맵을 백그라운드로 읽는다 */
+	bUseSeamlessTravel = true;
 }
 
 /*
@@ -38,7 +41,7 @@ void AJY_GameMode::HandleStartingNewPlayer_Implementation(APlayerController* New
 
 	/*
 	 * 도착 배너 문구는 맵(World Settings)이 갖고, 띄우는 시점은 서버가 정한다.
-	 * 맵 이동은 hard travel이라 맵마다 새 PC로 여기가 다시 불린다 → 허브·던전 도착마다 1번.
+	 * 심리스 이동도 서버가 도착 맵에서 PC를 새로 만들어 여기가 다시 불린다 → 허브·던전 도착마다 1번.
 	 * 문구가 빈 맵(테스트 맵 등)은 띄우지 않는다.
 	 */
 	const AJY_WorldSettings* WorldSettings = CastChecked<AJY_WorldSettings>(GetWorldSettings());

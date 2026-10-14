@@ -15,7 +15,7 @@ AJY_PortalActor::AJY_PortalActor()
 
 /*
  * 서버가 맵을 바꾸면 클라들이 따라온다. 솔로 게임이라 누가 눌렀는지와 무관하게 서버 전체가 이동한다.
- * hard travel 전제(seamless 끔) — 새 맵에서는 PC·PlayerState가 새로 생긴다.
+ * GameMode가 심리스 이동이라 접속은 유지되고, 도착 맵에서 PC·PlayerState는 새로 생긴다.
  * 허브↔던전만 맵 이동. 던전 안 방 이동은 같은 맵의 서브레벨 스트리밍이다.
  */
 // [Server]

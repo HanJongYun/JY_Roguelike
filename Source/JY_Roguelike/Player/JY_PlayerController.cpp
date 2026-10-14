@@ -1,5 +1,6 @@
 #include "Player/JY_PlayerController.h"
 #include "Player/JY_PlayerState.h"
+#include "Camera/JY_CameraOcclusionFadeComponent.h"
 #include "AbilitySystem/JY_AbilitySystemComponent.h"
 #include "AbilitySystem/Effects/JY_DebugGameplayEffects.h"
 #include "System/JY_GameplayTags.h"
@@ -21,6 +22,7 @@
 
 AJY_PlayerController::AJY_PlayerController()
 {
+	CameraOcclusionFadeComponent = CreateDefaultSubobject<UJY_CameraOcclusionFadeComponent>(TEXT("CameraOcclusionFade"));
 }
 
 /* 서버·혼자 플레이는 BeginPlay 때 PlayerState가 이미 있어 OnRep이 안 온다 → 여기서 연결 */

@@ -9,6 +9,7 @@
 
 class UInputMappingContext;
 class AJY_InteractableActor;
+class UJY_CameraOcclusionFadeComponent;
 
 /* 클라 → 서버 요청 창구(구매·디버그) + 입력 매핑 등록. 키 입력 처리 자체는 폰(AJY_Character)이 하고, 어빌리티 입력은 프레임 끝에 ASC로 넘긴다 */
 UCLASS()
@@ -93,6 +94,11 @@ protected:
 	/* 디버그 슬롯 해금 요청 */
 	UFUNCTION(Server, Reliable)
 	void Server_DebugUnlockSkillSlot();
+
+private:
+	/* 카메라를 가린 벽 흐리게 (내 화면만) */
+	UPROPERTY(VisibleAnywhere, Category = "JY|Camera")
+	TObjectPtr<UJY_CameraOcclusionFadeComponent> CameraOcclusionFadeComponent;
 
 private:
 	/* 설정값 — BP_JY_PlayerController의 Class Defaults에서 수정 */

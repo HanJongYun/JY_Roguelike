@@ -865,6 +865,27 @@ bool UJY_AnimGraphToolset::ReplaceMontageAnimations(UAnimMontage* Montage, const
 
 	Montage->Modify();
 	Montage->ReplaceReferredAnimations(ReplacementMap);
+
+	/*
+	 * 엔진 교체는 구간 시작·끝 시각을 그대로 둔다 → 길이가 다른 애니면 구간이 어긋난다.
+	 * 바꾼 구간은 몽타주 편집기 "Reset Segment Length"처럼 새 애니 길이로 다시 맞추고 뒤 구간을 이어 붙인다
+	 */
+	for (FSlotAnimationTrack& SlotTrack : Montage->SlotAnimTracks)
+	{
+		float NextStartPos = 0.0f;
+		for (FAnimSegment& Segment : SlotTrack.AnimTrack.AnimSegments)
+		{
+			UAnimSequenceBase* SegmentAnimation = Segment.GetAnimReference();
+			if (ToAnimations.Contains(SegmentAnimation) == true)
+			{
+				Segment.SetAnimReference(SegmentAnimation, true);
+			}
+
+			Segment.StartPos = NextStartPos;
+			NextStartPos = Segment.GetEndPos();
+		}
+	}
+
 	JY_AnimGraphToolset::RefreshMontage(Montage);
 	return true;
 }

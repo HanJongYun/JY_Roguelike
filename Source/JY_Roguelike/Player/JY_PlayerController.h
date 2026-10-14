@@ -50,6 +50,10 @@ public:
 	UFUNCTION(Exec)
 	void JYUnlockSkillSlot();
 
+	/* 콘솔 명령: 쿨타임 무시 켜기·끄기 (예: JYNoCooldown 1) */
+	UFUNCTION(Exec)
+	void JYNoCooldown(bool bEnable);
+
 	/* 콘솔 명령: 강화 카드 고르기 (예: JYChooseSkillCard 0) */
 	UFUNCTION(Exec)
 	void JYChooseSkillCard(int32 ChoiceIndex);
@@ -94,6 +98,10 @@ protected:
 	/* 디버그 슬롯 해금 요청 */
 	UFUNCTION(Server, Reliable)
 	void Server_DebugUnlockSkillSlot();
+
+	/* 디버그 쿨타임 무시 요청 */
+	UFUNCTION(Server, Reliable)
+	void Server_DebugSetIgnoreCooldowns(bool bEnable);
 
 private:
 	/* 카메라를 가린 벽 흐리게 (내 화면만) */

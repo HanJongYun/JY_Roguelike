@@ -10,6 +10,7 @@
 #include "Skill/JY_SkillDefinition.h"
 #include "Skill/JY_SkillLoadoutComponent.h"
 #include "GameFramework/CheatManagerDefines.h"
+#include "HAL/IConsoleManager.h"
 #include "EnhancedInputSubsystems.h"
 #include "Engine/LocalPlayer.h"
 #include "InputMappingContext.h"
@@ -241,6 +242,18 @@ void AJY_PlayerController::JYUnlockSkillSlot()
 }
 
 // [OwnClient]
+/*
+ * 엔진 치트 변수 AbilitySystem.IgnoreCooldowns(AbilitySystemGlobals.cpp:39)를 켠다 — 발동 검사·커밋 검사에서 쿨타임을 건너뜀(GameplayAbility.cpp:508·613·671).
+ * 발동 검사는 조종 클라 예측에서도 돌므로 내 쪽과 서버 양쪽에 켠다 (PIE 한 프로세스면 같은 변수)
+ */
+void AJY_PlayerController::JYNoCooldown(bool bEnable)
+{
+	IConsoleVariable* IgnoreCooldownsVariable = IConsoleManager::Get().FindConsoleVariable(TEXT("AbilitySystem.IgnoreCooldowns"));
+	IgnoreCooldownsVariable->Set(bEnable, ECVF_SetByConsole);
+	Server_DebugSetIgnoreCooldowns(bEnable);
+}
+
+// [OwnClient]
 void AJY_PlayerController::JYChooseSkillCard(int32 ChoiceIndex)
 {
 	Server_ChooseSkillCard(ChoiceIndex);
@@ -291,6 +304,18 @@ void AJY_PlayerController::Server_DebugUnlockSkillSlot_Implementation()
 
 	UJY_SkillLoadoutComponent* SkillLoadout = JYPlayerState->GetSkillLoadoutComponent();
 	SkillLoadout->UnlockSlot();
+#endif
+}
+
+// [Server]
+void AJY_PlayerController::Server_DebugSetIgnoreCooldowns_Implementation(bool bEnable)
+{
+#if UE_WITH_CHEAT_MANAGER
+	if (CheatManager == nullptr)
+		return;
+
+	IConsoleVariable* IgnoreCooldownsVariable = IConsoleManager::Get().FindConsoleVariable(TEXT("AbilitySystem.IgnoreCooldowns"));
+	IgnoreCooldownsVariable->Set(bEnable, ECVF_SetByConsole);
 #endif
 }
 

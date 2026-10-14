@@ -29,6 +29,22 @@ void UJY_AnimNotify_GameplayEvent::Notify(USkeletalMeshComponent* MeshComp, UAni
 	OwnerJYASC->HandleGameplayEvent(EventTag, &EventData);
 }
 
+/* 시각을 미리 알아야 할 때(재생 속도 맞춤 등) 쓴다 — 노티파이가 몽타주 시간축에 저장된 값(FAnimNotifyEvent::GetTriggerTime)을 읽기만 함 */
+bool UJY_AnimNotify_GameplayEvent::FindEventTime(const UAnimSequenceBase* Animation, FGameplayTag Tag, float& OutEventTime)
+{
+	for (const FAnimNotifyEvent& NotifyEvent : Animation->Notifies)
+	{
+		const UJY_AnimNotify_GameplayEvent* EventNotify = Cast<UJY_AnimNotify_GameplayEvent>(NotifyEvent.Notify);
+		if (EventNotify == nullptr || EventNotify->EventTag.MatchesTagExact(Tag) == false)
+			continue;
+
+		OutEventTime = NotifyEvent.GetTriggerTime();
+		return true;
+	}
+
+	return false;
+}
+
 FString UJY_AnimNotify_GameplayEvent::GetNotifyName_Implementation() const //override
 {
 	if (EventTag.IsValid() == false)

@@ -1,11 +1,15 @@
 #include "AbilitySystem/Abilities/JY_GameplayAbility_Plunge.h"
 #include "AbilitySystem/JY_AbilitySystemComponent.h"
 #include "System/JY_GameplayTags.h"
+#include "Animation/JY_AnimNotify_GameplayEvent.h"
 #include "Abilities/Tasks/AbilityTask_ApplyRootMotionConstantForce.h"
+#include "Abilities/Tasks/AbilityTask_ApplyRootMotionJumpForce.h"
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "Components/CapsuleComponent.h"
+#include "Animation/AnimInstance.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(JY_GameplayAbility_Plunge)
 
@@ -72,10 +76,17 @@ void UJY_GameplayAbility_Plunge::OnDirectionReceived(const FGameplayAbilityTarge
 	}
 
 	bAirPlunge = ApplicationTag.MatchesTagExact(JYGameplayTags::Ability_Start_Air);
-	UAnimMontage* PlungeMontage = bAirPlunge == true ? AirMontage.Get() : GroundMontage.Get();
 
 	/* 비용(쿨타임)을 내기 전에 검사 */
-	if (ensureMsgf(PlungeMontage != nullptr, TEXT("%s에 내려찍기 몽타주가 없음 (공중 %d)"), *GetNameSafe(this), bAirPlunge) == false)
+	if (ensureMsgf(PlungeMontage != nullptr, TEXT("%s에 내려찍기 몽타주가 없음"), *GetNameSafe(this)) == false)
+	{
+		EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
+		return;
+	}
+
+	/* 칼이 땅을 치는 시각은 몽타주 노티파이에서 — 애니를 바꾸면 노티파이만 옮기면 됨 */
+	const bool bSlamPoseFound = UJY_AnimNotify_GameplayEvent::FindEventTime(PlungeMontage, JYGameplayTags::Event_Skill_SlamPose, OUT SlamPoseTime);
+	if (ensureMsgf(bSlamPoseFound == true, TEXT("%s에 Event.Skill.SlamPose 노티파이가 없음"), *GetNameSafe(PlungeMontage)) == false)
 	{
 		EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
 		return;
@@ -88,41 +99,109 @@ void UJY_GameplayAbility_Plunge::OnDirectionReceived(const FGameplayAbilityTarge
 	}
 
 	FaceDirection(Direction);
+	PlungeDirection = Direction;
 
 	const AActor* AvatarActor = GetAvatarActorFromActorInfo();
 	const FVector AvatarLocation = AvatarActor->GetActorLocation();
 	PlungeStartHeight = AvatarLocation.Z;
 
-	UAbilityTask_PlayMontageAndWait* MontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(this, NAME_None, PlungeMontage, PlayRate, NAME_None, true);
+	/* 땅 — 평지면 LeapDuration 뒤 착지하므로 그때 칼이 땅에 닿게 처음부터 속도를 맞춤 (서버·조종 클라 같은 값) */
+	float MontagePlayRate = PlayRate;
+	if (bAirPlunge == false)
+	{
+		MontagePlayRate = SlamPoseTime / LeapDuration;
+	}
+
+	UAbilityTask_PlayMontageAndWait* MontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(this, NAME_None, PlungeMontage, MontagePlayRate, NAME_None, true);
 	MontageTask->OnCompleted.AddDynamic(this, &ThisClass::OnMontageFinished);
 	MontageTask->OnBlendOut.AddDynamic(this, &ThisClass::OnMontageFinished);
 	MontageTask->OnInterrupted.AddDynamic(this, &ThisClass::OnMontageInterrupted);
 	MontageTask->OnCancelled.AddDynamic(this, &ThisClass::OnMontageInterrupted);
 	MontageTask->ReadyForActivation();
+
+	if (bAirPlunge == true)
+		return;
+
+	/*
+	 * 땅 — 엔진 점프 루트모션: 앞으로 LeapDistance, 포물선 최고 LeapHeight. 서버·조종 클라가 같은 소스로 예측·보정(공중 하강과 같은 경로).
+	 * bFinishOnLanded = 시간이 지나도 끝 속도로 계속 떨어지다 착지하면 스스로 끝남(RootMotionSource.cpp:1180~1187, AbilityTask_ApplyRootMotionJumpForce.cpp:111).
+	 * 착지 처리를 태스크에 맡기는 이유 — 이동 재생(bClientUpdating) 중 착지에서 소스를 지우면 재생용 소스를 지우게 된다(AbilityTask_ApplyRootMotionJumpForce.h TriggerLanded 주석)
+	 */
+	const FRotator LeapRotation = Direction.Rotation();
+	LeapTask = UAbilityTask_ApplyRootMotionJumpForce::ApplyRootMotionJumpForce(this, NAME_None, LeapRotation, LeapDistance, LeapHeight, LeapDuration, 0.0f, true, ERootMotionFinishVelocityMode::SetVelocity, FVector::ZeroVector, 0.0f, nullptr, nullptr);
+	LeapTask->ReadyForActivation();
 }
 
 // [Server] [OwnClient]
 /*
  * 능력이 주는 이동은 CMC 루트모션 소스가 예측·보정하는 표준 경로 (양쪽 LaunchCharacter는 시점 차이로 보정이 생김).
- * 길이 -1 = 착지할 때 손으로 끝냄(RootMotionSource.h:261), Override라 애니 루트모션보다 우선(CharacterMovementComponent.cpp:4509~4531)
+ * 길이 -1 = 착지할 때 손으로 끝냄(RootMotionSource.h:261). 애니 루트모션이 있으면 그쪽이 우선이라(CharacterMovementComponent.cpp:4512) 몽타주 Start·Loop 구간에 DisableRootMotion 노티파이 상태를 둔다
  */
 void UJY_GameplayAbility_Plunge::OnDiveStartEvent(FGameplayEventData Payload)
 {
 	if (bAirPlunge == false || bLanded == true)
 		return;
 
-	DiveTask = UAbilityTask_ApplyRootMotionConstantForce::ApplyRootMotionConstantForce(this, NAME_None, FVector::DownVector, DiveSpeed, -1.0f, false, nullptr, ERootMotionFinishVelocityMode::SetVelocity, FVector::ZeroVector, 0.0f, false);
+	/* 앞+아래 대각선 — 방향과 세기는 두 속도를 합친 벡터에서 */
+	const FVector ForwardVelocity = PlungeDirection * DiveForwardSpeed;
+	const FVector DownVelocity = FVector::DownVector * DiveSpeed;
+	const FVector DiveVelocity = ForwardVelocity + DownVelocity;
+	const FVector DiveDirection = DiveVelocity.GetSafeNormal();
+	const float DiveStrength = DiveVelocity.Size();
+
+	DiveTask = UAbilityTask_ApplyRootMotionConstantForce::ApplyRootMotionConstantForce(this, NAME_None, DiveDirection, DiveStrength, -1.0f, false, nullptr, ERootMotionFinishVelocityMode::SetVelocity, FVector::ZeroVector, 0.0f, false);
 	DiveTask->ReadyForActivation();
+
+	if (CurrentActorInfo->IsLocallyControlled() == true)
+	{
+		MatchSlamToLanding(DiveVelocity);
+	}
+}
+
+// [OwnClient]
+/*
+ * 재생 속도 변경은 조종 클라만 — ASC가 서버로 보내고 서버가 시뮬에 복제한다(AbilitySystemComponent_Abilities.cpp:3613~3631). 착지 섹션 이동과 같은 원칙.
+ * 낙하 시간 = 발밑에서 하강 방향으로 바닥까지 거리 / 하강 속도. 바닥이 안 보이면 원래 속도 유지(Loop 자세로 기다림)
+ */
+void UJY_GameplayAbility_Plunge::MatchSlamToLanding(const FVector& DiveVelocity)
+{
+	const ACharacter* Character = CastChecked<ACharacter>(GetAvatarActorFromActorInfo());
+	const UCapsuleComponent* Capsule = Character->GetCapsuleComponent();
+	const FVector AvatarLocation = Character->GetActorLocation();
+	const FVector FeetLocation = AvatarLocation - FVector::UpVector * Capsule->GetScaledCapsuleHalfHeight();
+
+	const float DiveSpeedTotal = DiveVelocity.Size();
+	const FVector DiveDirection = DiveVelocity.GetSafeNormal();
+	const FVector TraceEnd = FeetLocation + DiveDirection * DiveSpeedTotal * FallTraceSeconds;
+
+	FHitResult GroundHit;
+	const FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(JYPlungeGround), false, Character);
+	const bool bGroundFound = GetWorld()->LineTraceSingleByObjectType(OUT GroundHit, FeetLocation, TraceEnd, FCollisionObjectQueryParams(ECC_WorldStatic), QueryParams);
+	if (bGroundFound == false)
+		return;
+
+	const float FallTime = GroundHit.Distance / DiveSpeedTotal;
+	const UAnimInstance* AnimInstance = CurrentActorInfo->GetAnimInstance();
+	const float MontagePosition = AnimInstance->Montage_GetPosition(PlungeMontage);
+	const float SlamTimeLeft = SlamPoseTime - MontagePosition;
+	if (SlamTimeLeft <= 0.0f || FallTime <= UE_KINDA_SMALL_NUMBER)
+		return;
+
+	const float SlamPlayRate = FMath::Max(SlamTimeLeft / FallTime, MinSlamPlayRate);
+	UJY_AbilitySystemComponent* JYASC = GetJYAbilitySystemComponentFromActorInfo();
+	JYASC->CurrentMontageSetPlayRate(SlamPlayRate);
 }
 
 // [Server] [OwnClient] 각자 자기 CMC 착지
 /*
+ * 땅 도약도 여기로 온다 — 시작할 때는 걷는 중이라 착지 알림은 뜬 뒤에만 온다(CharacterMovementComponent.cpp:4566 루트모션 수직 속도로 낙하 전환).
+ * 도약 태스크는 스스로 끝나므로 여기선 공중 하강 태스크만 끝낸다.
  * 착지 섹션으로 넘기는 건 조종 클라만 — 엔진이 서버로 같은 섹션 이동을 보낸다(AbilitySystemComponent_Abilities.cpp:3566~3571).
  * 서버가 직접 넘기면 클라 RPC와 겹쳐 두 번 넘어갈 수 있다 (기본 공격 다음 타와 같은 원칙)
  */
 void UJY_GameplayAbility_Plunge::OnLanded(const FHitResult& Hit)
 {
-	if (bAirPlunge == false || bLanded == true)
+	if (bLanded == true)
 		return;
 
 	bLanded = true;
@@ -135,6 +214,9 @@ void UJY_GameplayAbility_Plunge::OnLanded(const FHitResult& Hit)
 
 	if (CurrentActorInfo->IsLocallyControlled() == true)
 	{
+		/* 착지 후 동작은 원래 속도로 */
+		UJY_AbilitySystemComponent* JYASC = GetJYAbilitySystemComponentFromActorInfo();
+		JYASC->CurrentMontageSetPlayRate(PlayRate);
 		MontageJumpToSection(LandSectionName);
 	}
 }
@@ -188,8 +270,11 @@ void UJY_GameplayAbility_Plunge::EndAbility(const FGameplayAbilitySpecHandle Han
 		Character->LandedDelegate.RemoveDynamic(this, &ThisClass::OnLanded);
 	}
 
-	/* 하강 태스크는 어빌리티가 끝나면 엔진이 정리(소스 제거 AbilityTask_ApplyRootMotionConstantForce.cpp:146~151) */
+	/* 하강·도약 태스크는 어빌리티가 끝나면 엔진이 정리(소스 제거 AbilityTask_ApplyRootMotionConstantForce.cpp:146~151) */
 	DiveTask = nullptr;
+	LeapTask = nullptr;
+	PlungeDirection = FVector::ZeroVector;
+	SlamPoseTime = 0.0f;
 	bAirPlunge = false;
 	bLanded = false;
 

@@ -42,6 +42,7 @@ namespace JYGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Melee_StepStart);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Skill_Hit);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Skill_DiveStart);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Skill_SlamPose);
 
 	/* State — 어빌리티가 실행 중에 붙이는 태그 */
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Dashing);

@@ -39,6 +39,7 @@ namespace JYGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Melee_StepStart,   "Event.Melee.StepStart",   "콤보 각 타 시작 직후 (몸 돌리기).");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Skill_Hit,         "Event.Skill.Hit",         "스킬 타격 시점.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Skill_DiveStart,   "Event.Skill.DiveStart",   "공중 내려찍기 하강 시작.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Skill_SlamPose,    "Event.Skill.SlamPose",    "내려찍기 칼이 땅을 치는 순간 — 착지에 맞춰 재생 속도를 정하는 기준 시각.");
 
 	/* State */
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Dashing,           "State.Dashing",           "대시 중. 점프를 막는다.");

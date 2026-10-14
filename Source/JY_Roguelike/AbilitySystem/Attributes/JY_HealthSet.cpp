@@ -1,5 +1,6 @@
 #include "AbilitySystem/Attributes/JY_HealthSet.h"
 #include "AbilitySystem/JY_AbilitySystemComponent.h"
+#include "System/JY_GameplayTags.h"
 #include "GameplayEffectExtension.h"
 #include "Net/UnrealNetwork.h"
 
@@ -53,11 +54,18 @@ void UJY_HealthSet::OnRep_MaxHealth(const FGameplayAttributeData& OldValue)
 }
 
 // [Server]
-/* Lyra의 데미지 면역·GodMode 검사는 해당 태그가 아직 없어 뺐다. 면역이 생기면 여기서 Magnitude를 0으로 */
+/* 무적이면 들어오는 데미지를 0으로 (LyraHealthSet::PreGameplayEffectExecute와 같음. 자폭·GodMode 예외는 쓰는 곳이 없어 뺐다) */
 bool UJY_HealthSet::PreGameplayEffectExecute(FGameplayEffectModCallbackData& Data) //override
 {
 	if (Super::PreGameplayEffectExecute(Data) == false)
 		return false;
+
+	const bool bIsIncomingDamage = Data.EvaluatedData.Attribute == GetDamageAttribute() && Data.EvaluatedData.Magnitude > 0.0f;
+	if (bIsIncomingDamage == true && Data.Target.HasMatchingGameplayTag(JYGameplayTags::Gameplay_DamageImmunity) == true)
+	{
+		Data.EvaluatedData.Magnitude = 0.0f;
+		return false;
+	}
 
 	/* 변경 전 값 저장 → Post에서 실제로 바뀌었는지 비교 */
 	HealthBeforeAttributeChange = GetHealth();

@@ -2,13 +2,16 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
+#include "GameplayTagContainer.h"
+#include "AbilitySystem/JY_AbilitySet.h"
 #include "JY_Character.generated.h"
 
 class USpringArmComponent;
 class UCameraComponent;
 class UStaticMeshComponent;
 class UPointLightComponent;
-class UInputAction;
+class UJY_InputConfig;
+class UJY_AbilitySystemComponent;
 class UJY_HealthComponent;
 class UJY_InteractionComponent;
 struct FInputActionValue;
@@ -26,14 +29,19 @@ public:
 	virtual void OnConstruction(const FTransform& Transform) override;
 	virtual void PossessedBy(AController* NewController) override;
 	virtual void OnRep_PlayerState() override;
+	virtual void UnPossessed() override;
 
 protected:
 	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
+	virtual bool ShouldReplicateAcceleration() const override;
 
 public:
 	USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 	UCameraComponent* GetTopDownCamera() const { return TopDownCamera; }
 	UJY_HealthComponent* GetHealthComponent() const { return HealthComponent; }
+
+	/* PlayerState의 ASC. 클라는 PlayerState가 복제로 늦게 올 수 있어 없으면 nullptr */
+	UJY_AbilitySystemComponent* GetJYAbilitySystemComponent() const;
 	UStaticMeshComponent* GetWeaponMesh() const { return WeaponMesh; }
 	UPointLightComponent* GetCharacterLight() const { return CharacterLight; }
 
@@ -43,6 +51,12 @@ protected:
 
 	/* 상호작용 입력 처리 */
 	void Interact();
+
+	/* 어빌리티 입력 눌림 → ASC */
+	void Input_AbilityInputTagPressed(FGameplayTag InputTag);
+
+	/* 어빌리티 입력 뗌 → ASC */
+	void Input_AbilityInputTagReleased(FGameplayTag InputTag);
 
 	/* PlayerState의 ASC에 이 캐릭터를 아바타로 연결 */
 	void InitializeAbilitySystem();
@@ -92,11 +106,15 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "JY|Weapon")
 	FName WeaponSocketName = TEXT("weapon_rSocket");
 
-	/* 이동 입력 (Vector2D: X=오른쪽, Y=앞) */
-	UPROPERTY(EditAnywhere, Category = "JY|Input")
-	TObjectPtr<UInputAction> MoveAction;
+	/* 키와 입력 태그 목록 (이동·상호작용·점프·대시) */
+	UPROPERTY(EditDefaultsOnly, Category = "JY|Input")
+	TObjectPtr<UJY_InputConfig> InputConfig;
 
-	/* 상호작용 입력 (E) */
-	UPROPERTY(EditAnywhere, Category = "JY|Input")
-	TObjectPtr<UInputAction> InteractAction;
+	/* 빙의 때 서버가 지급하는 어빌리티 묶음 */
+	UPROPERTY(EditDefaultsOnly, Category = "JY|Ability")
+	TObjectPtr<UJY_AbilitySet> AbilitySet;
+
+private:
+	/* 지급한 어빌리티 핸들. 빙의 해제 때 회수 */
+	FJY_AbilitySet_GrantedHandles GrantedAbilityHandles;
 };

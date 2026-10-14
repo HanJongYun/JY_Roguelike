@@ -10,6 +10,7 @@
 class UAbilitySystemComponent;
 class UJY_AbilitySystemComponent;
 class UJY_HealthSet;
+class UJY_DashSet;
 class UJY_MetaUpgradeData;
 
 /* 플레이어의 ASC와 체력 속성을 가진 PlayerState */
@@ -68,6 +69,10 @@ private:
 	/* 체력 속성 세트 (ASC가 InitializeComponent에서 찾아 등록) */
 	UPROPERTY()
 	TObjectPtr<const UJY_HealthSet> HealthSet;
+
+	/* 대시 횟수 속성 세트 */
+	UPROPERTY()
+	TObjectPtr<const UJY_DashSet> DashSet;
 
 	/* 강화 종류별로 걸려 있는 메타 효과 (서버만) */
 	TMap<FGameplayTag, FActiveGameplayEffectHandle> MetaEffectHandles;

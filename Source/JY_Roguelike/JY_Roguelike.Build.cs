@@ -26,7 +26,9 @@ public class JY_Roguelike : ModuleRules
 			"FieldNotification",
 			"CommonUI",
 			"CommonInput",
-			"Niagara"
+			"Niagara",
+			"AnimGraphRuntime",
+			"AnimationLocomotionLibraryRuntime"
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[] { });

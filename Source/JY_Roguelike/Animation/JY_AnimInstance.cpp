@@ -1,0 +1,156 @@
+#include "Animation/JY_AnimInstance.h"
+#include "AnimCharacterMovementLibrary.h"
+#include "AnimDistanceMatchingLibrary.h"
+#include "SequenceEvaluatorLibrary.h"
+#include "SequencePlayerLibrary.h"
+#include "AnimExecutionContextLibrary.h"
+#include "GameFramework/Character.h"
+#include "GameFramework/CharacterMovementComponent.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(JY_AnimInstance)
+
+void UJY_AnimInstance::NativeInitializeAnimation() //override
+{
+	Super::NativeInitializeAnimation();
+
+	bIsFirstUpdate = true;
+}
+
+// [Server] [OwnClient] [SimulatedProxy] 각자 받은 이동 상태로 계산 (애님은 복제 안 함)
+/* 게임 스레드: 캐릭터·CMC 값을 복사만 한다. 계산은 NativeThreadSafeUpdateAnimation에서 */
+void UJY_AnimInstance::NativeUpdateAnimation(float DeltaSeconds) //override
+{
+	Super::NativeUpdateAnimation(DeltaSeconds);
+
+	/* 애님 에디터 미리보기에는 캐릭터가 없다 */
+	const ACharacter* Character = Cast<ACharacter>(TryGetPawnOwner());
+	if (Character == nullptr)
+		return;
+
+	const UCharacterMovementComponent* MovementComp = Character->GetCharacterMovement();
+	WorldLocation = Character->GetActorLocation();
+	WorldVelocity = Character->GetVelocity();
+	LastUpdateVelocity = MovementComp->GetLastUpdateVelocity();
+	WorldAcceleration = MovementComp->GetCurrentAcceleration();
+	bMovingOnGround = MovementComp->IsMovingOnGround();
+	bUseSeparateBrakingFriction = MovementComp->bUseSeparateBrakingFriction;
+	BrakingFriction = MovementComp->BrakingFriction;
+	GroundFriction = MovementComp->GroundFriction;
+	BrakingFrictionFactor = MovementComp->BrakingFrictionFactor;
+	BrakingDecelerationWalking = MovementComp->BrakingDecelerationWalking;
+	JumpCount = Character->JumpCurrentCount;
+	bIsSimulatedProxy = Character->GetLocalRole() == ROLE_SimulatedProxy;
+}
+
+void UJY_AnimInstance::NativeThreadSafeUpdateAnimation(float DeltaSeconds) //override
+{
+	Super::NativeThreadSafeUpdateAnimation(DeltaSeconds);
+
+	/* 첫 업데이트는 이전 값이 없어 이동 거리·속도 변화가 순간이동처럼 커진다 → 이번 값으로 채움 */
+	if (bIsFirstUpdate == true)
+	{
+		PreviousWorldLocation = WorldLocation;
+		PreviousVelocityZ = WorldVelocity.Z;
+		PreviousJumpCount = JumpCount;
+		bWasOnGround = bMovingOnGround;
+		bIsFirstUpdate = false;
+	}
+
+	DisplacementSinceLastUpdate = FVector::Dist2D(WorldLocation, PreviousWorldLocation);
+	DisplacementSpeed = DeltaSeconds > 0.0f ? DisplacementSinceLastUpdate / DeltaSeconds : 0.0f;
+	PreviousWorldLocation = WorldLocation;
+
+	const FVector Velocity2D(WorldVelocity.X, WorldVelocity.Y, 0.0f);
+	const FVector Acceleration2D(WorldAcceleration.X, WorldAcceleration.Y, 0.0f);
+	Speed2D = Velocity2D.Size();
+	bHasAcceleration = Acceleration2D.IsNearlyZero() == false;
+
+	bIsOnGround = bMovingOnGround;
+	bIsJumping = bIsOnGround == false && WorldVelocity.Z > 0.0f;
+	bIsFalling = bIsOnGround == false && WorldVelocity.Z <= 0.0f;
+	bShouldMove = bHasAcceleration == true && bIsOnGround == true;
+	bShouldSkipStart = bShouldMove == true && Speed2D >= StartSkipSpeed;
+	bShouldStop = bHasAcceleration == false;
+	bShouldDistanceMatchStop = Velocity2D.IsNearlyZero() == false && bHasAcceleration == false;
+
+	/*
+	 * 공중 점프 감지. 서버·조종 클라는 점프 횟수(ACharacter::JumpCurrentCount)가 정확하다 — 올라가는 초반 2단 점프는 속도 증가가 작아 속도로는 놓친다.
+	 * 시뮬 프록시는 점프 횟수가 복제되지 않아(Character.cpp GetLifetimeReplicatedProps 목록에 없음) 속도 증가로 본다
+	 */
+	const bool bStayedInAir = bWasOnGround == false && bIsOnGround == false;
+	const bool bJumpCountIncreased = JumpCount > PreviousJumpCount;
+	const float VelocityZGain = WorldVelocity.Z - PreviousVelocityZ;
+	const bool bAirJumpDetected = bIsSimulatedProxy == true ? VelocityZGain > DoubleJumpSpeedGain : bJumpCountIncreased;
+	bDoubleJumped = bStayedInAir == true && bAirJumpDetected == true;
+	PreviousVelocityZ = WorldVelocity.Z;
+	PreviousJumpCount = JumpCount;
+	bWasOnGround = bIsOnGround;
+
+	/* Lyra GetPredictedStopDistance와 같게 CMC의 마지막 이동 속도로 예측 (보간된 표시 속도가 아니라 실제 이동에 쓴 값) */
+	const FVector LastUpdateVelocity2D(LastUpdateVelocity.X, LastUpdateVelocity.Y, 0.0f);
+	const FVector StopLocation = UAnimCharacterMovementLibrary::PredictGroundMovementStopLocation(LastUpdateVelocity2D, bUseSeparateBrakingFriction, BrakingFriction, GroundFriction, BrakingFrictionFactor, BrakingDecelerationWalking);
+	StopDistance = StopLocation.Size2D();
+}
+
+/* Lyra SetUpStartAnim: 처음부터, 보폭 조절은 0에서 시작 */
+void UJY_AnimInstance::SetupStartAnim(const FAnimUpdateContext& Context, const FAnimNodeReference& Node)
+{
+	EAnimNodeReferenceConversionResult Result;
+	const FSequenceEvaluatorReference Evaluator = USequenceEvaluatorLibrary::ConvertToSequenceEvaluator(Node, OUT Result);
+	USequenceEvaluatorLibrary::SetExplicitTime(Evaluator, 0.0f);
+	StrideWarpingStartAlpha = 0.0f;
+}
+
+/*
+ * Lyra UpdateStartAnim: 이동한 거리만큼 출발 애니를 진행하고, 앞부분(발 디딤) 이후 보폭 조절을 섞어 넣는다.
+ * 섞는 동안 최소 재생 속도를 낮게 시작해 한계값까지 올린다 — Lyra는 Lerp 시작값에 섞는 시간 변수(0.2)를 그대로 쓴다
+ */
+void UJY_AnimInstance::UpdateStartAnim(const FAnimUpdateContext& Context, const FAnimNodeReference& Node)
+{
+	EAnimNodeReferenceConversionResult Result;
+	const FSequenceEvaluatorReference Evaluator = USequenceEvaluatorLibrary::ConvertToSequenceEvaluator(Node, OUT Result);
+	const float ExplicitTime = USequenceEvaluatorLibrary::GetAccumulatedTime(Evaluator);
+	const FVector2D BlendInRange(0.0f, StrideWarpingBlendInDuration);
+	const FVector2D AlphaRange(0.0f, 1.0f);
+	StrideWarpingStartAlpha = FMath::GetMappedRangeValueClamped(BlendInRange, AlphaRange, ExplicitTime - StrideWarpingBlendInStartOffset);
+
+	const float MinPlayRate = FMath::Lerp(StrideWarpingBlendInDuration, StartPlayRateClamp.X, StrideWarpingStartAlpha);
+	const FVector2D PlayRateClamp(MinPlayRate, StartPlayRateClamp.Y);
+	UAnimDistanceMatchingLibrary::AdvanceTimeByDistanceMatching(Context, Evaluator, DisplacementSinceLastUpdate, DistanceCurveName, PlayRateClamp);
+}
+
+/* Lyra UpdateCycleAnim: 재생 속도를 실제 이동 속도에 맞추고(한계 0.8~1.2), 보폭 조절 Alpha를 1로 따라가게 */
+void UJY_AnimInstance::UpdateCycleAnim(const FAnimUpdateContext& Context, const FAnimNodeReference& Node)
+{
+	EAnimNodeReferenceConversionResult Result;
+	const FSequencePlayerReference Player = USequencePlayerLibrary::ConvertToSequencePlayer(Node, OUT Result);
+	UAnimDistanceMatchingLibrary::SetPlayrateToMatchSpeed(Player, DisplacementSpeed, CyclePlayRateClamp);
+
+	const float DeltaTime = UAnimExecutionContextLibrary::GetDeltaTime(Context);
+	StrideWarpingCycleAlpha = FMath::FInterpTo(StrideWarpingCycleAlpha, 1.0f, DeltaTime, StrideWarpingCycleAlphaInterpSpeed);
+}
+
+/* Lyra SetUpStopAnim: 이미 섰거나 입력이 있으면 멈춤점(거리 0)으로 바로 맞춘다. 미끄러지는 중이면 Update가 맞춘다 */
+void UJY_AnimInstance::SetupStopAnim(const FAnimUpdateContext& Context, const FAnimNodeReference& Node)
+{
+	if (bShouldDistanceMatchStop == true)
+		return;
+
+	EAnimNodeReferenceConversionResult Result;
+	const FSequenceEvaluatorReference Evaluator = USequenceEvaluatorLibrary::ConvertToSequenceEvaluator(Node, OUT Result);
+	UAnimDistanceMatchingLibrary::DistanceMatchToTarget(Evaluator, 0.0f, DistanceCurveName);
+}
+
+/* Lyra UpdateStopAnim: 미끄러지는 동안은 남은 정지 거리에 맞는 프레임, 섰으면 나머지(정리 동작)를 1배속으로 */
+void UJY_AnimInstance::UpdateStopAnim(const FAnimUpdateContext& Context, const FAnimNodeReference& Node)
+{
+	EAnimNodeReferenceConversionResult Result;
+	const FSequenceEvaluatorReference Evaluator = USequenceEvaluatorLibrary::ConvertToSequenceEvaluator(Node, OUT Result);
+	if (bShouldDistanceMatchStop == true && StopDistance > 0.0f)
+	{
+		UAnimDistanceMatchingLibrary::DistanceMatchToTarget(Evaluator, StopDistance, DistanceCurveName);
+		return;
+	}
+
+	USequenceEvaluatorLibrary::AdvanceTime(Context, Evaluator, 1.0f);
+}

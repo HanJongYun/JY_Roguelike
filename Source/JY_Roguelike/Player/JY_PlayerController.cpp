@@ -87,6 +87,20 @@ void AJY_PlayerController::SetupInputComponent() //override
 	}
 }
 
+// [OwnClient] 로컬 컨트롤러만 — 입력 바인딩 실행 뒤 엔진이 호출 (UPlayerInput::ProcessInputStack, PlayerInput.cpp:1310)
+void AJY_PlayerController::PostProcessInput(const float DeltaTime, const bool bGamePaused) //override
+{
+	/* 클라는 PlayerState가 복제로 늦게 올 수 있다 */
+	AJY_PlayerState* JYPlayerState = GetPlayerState<AJY_PlayerState>();
+	if (JYPlayerState != nullptr)
+	{
+		UJY_AbilitySystemComponent* JYASC = JYPlayerState->GetJYAbilitySystemComponent();
+		JYASC->ProcessAbilityInput(DeltaTime, bGamePaused);
+	}
+
+	Super::PostProcessInput(DeltaTime, bGamePaused);
+}
+
 // [OwnClient] 콘솔 입력을 받은 로컬 컨트롤러
 /* 0 이하는 무시 — 방향은 명령 이름이 정하고, 값은 크기만 받는다 */
 void AJY_PlayerController::JYDamage(float Amount)

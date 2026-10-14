@@ -11,5 +11,6 @@ public class JY_RoguelikeEditorTarget : TargetRules
 		DefaultBuildSettings = BuildSettingsVersion.V7;
 		IncludeOrderVersion = EngineIncludeOrderVersion.Unreal5_8;
 		ExtraModuleNames.Add("JY_Roguelike");
+		ExtraModuleNames.Add("JY_RoguelikeEditor");
 	}
 }

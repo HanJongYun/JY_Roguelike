@@ -13,6 +13,11 @@
 				"AIModule",
 				"UMG"
 			]
+		},
+		{
+			"Name": "JY_RoguelikeEditor",
+			"Type": "Editor",
+			"LoadingPhase": "PostEngineInit"
 		}
 	],
 	"Plugins": [
@@ -33,6 +38,14 @@
 		},
 		{
 			"Name": "GameplayAbilities",
+			"Enabled": true
+		},
+		{
+			"Name": "AnimationLocomotionLibrary",
+			"Enabled": true
+		},
+		{
+			"Name": "AnimationWarping",
 			"Enabled": true
 		},
 		{

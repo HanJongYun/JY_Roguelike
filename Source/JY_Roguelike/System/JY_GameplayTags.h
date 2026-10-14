@@ -18,4 +18,20 @@ namespace JYGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(UI_Layer_GameMenu);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(UI_Layer_Menu);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(UI_Layer_Modal);
+
+	/* InputTag — InputConfig가 입력 액션과 짝짓는 태그. 어빌리티 입력은 AbilitySet도 같은 태그로 지급 */
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(InputTag_Move);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(InputTag_Interact);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(InputTag_Jump);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(InputTag_Dash);
+
+	/* Status — 캐릭터 상태. 어빌리티 발동 차단 조건 */
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Status_Death);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Status_Death_Dying);
+
+	/* State — 어빌리티가 실행 중에 붙이는 태그 */
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Dashing);
+
+	/* Gameplay — 데미지 규칙 */
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Gameplay_DamageImmunity);
 }

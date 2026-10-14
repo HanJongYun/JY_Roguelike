@@ -3,14 +3,14 @@
 #include "Interaction/JY_InteractionComponent.h"
 #include "Player/JY_PlayerState.h"
 #include "AbilitySystem/JY_AbilitySystemComponent.h"
-#include "System/JY_LogChannels.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/PointLightComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
-#include "EnhancedInputComponent.h"
+#include "Input/JY_InputComponent.h"
+#include "System/JY_GameplayTags.h"
 #include "InputActionValue.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(JY_Character)
@@ -19,6 +19,12 @@ AJY_Character::AJY_Character()
 {
 	/* 매 프레임 할 일이 없음. 이동은 CMC, 입력은 이벤트로 처리 */
 	PrimaryActorTick.bCanEverTick = false;
+
+	/* ini(DefaultInputComponentClass) 대신 폰에서 지정 — APawn::CreatePlayerInputComponent가 이 값을 먼저 쓴다 */
+	OverrideInputComponentClass = UJY_InputComponent::StaticClass();
+
+	/* 2단 점프 (판정은 ACharacter::CanJump) */
+	JumpMaxCount = 2;
 
 	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
 
@@ -29,10 +35,16 @@ AJY_Character::AJY_Character()
 
 	UCharacterMovementComponent* MovementComp = GetCharacterMovement();
 	MovementComp->bOrientRotationToMovement = true;
-	MovementComp->RotationRate = FRotator(0.0f, 500.0f, 0.0f);
 	MovementComp->MaxWalkSpeed = 500.f;
 	MovementComp->MinAnalogWalkSpeed = 20.f;
-	MovementComp->BrakingDecelerationWalking = 2000.f;
+
+	/* 가속·제동·회전은 Lyra 값 (ALyraCharacter 생성자·B_Hero_Default). 500cm/s에서 약 0.17초·33cm에 정지 — 멈춤 애니는 거리 매칭으로 그 지점부터 재생 */
+	MovementComp->RotationRate = FRotator(0.0f, 720.0f, 0.0f);
+	MovementComp->MaxAcceleration = 2400.f;
+	MovementComp->GroundFriction = 8.f;
+	MovementComp->BrakingDecelerationWalking = 1400.f;
+	MovementComp->BrakingFriction = 6.f;
+	MovementComp->BrakingFrictionFactor = 1.f;
 
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
 	CameraBoom->SetupAttachment(RootComponent);
@@ -90,6 +102,37 @@ void AJY_Character::PossessedBy(AController* NewController) //override
 	Super::PossessedBy(NewController);
 
 	InitializeAbilitySystem();
+
+	if (ensureMsgf(AbilitySet != nullptr, TEXT("%s에 AbilitySet이 없음"), *GetNameSafe(this)) == false)
+		return;
+
+	UJY_AbilitySystemComponent* JYASC = GetJYAbilitySystemComponent();
+	if (JYASC == nullptr)
+		return;
+
+	AbilitySet->GiveToAbilitySystem(JYASC, OUT GrantedAbilityHandles, this);
+}
+
+// [Server]
+/* 같은 PlayerState로 다시 빙의하면 이중 지급되므로 지급한 것을 회수. Super가 PlayerState를 비우므로(APawn::UnPossessed) 먼저 */
+void AJY_Character::UnPossessed() //override
+{
+	UJY_AbilitySystemComponent* JYASC = GetJYAbilitySystemComponent();
+	if (JYASC != nullptr)
+	{
+		GrantedAbilityHandles.TakeFromAbilitySystem(JYASC);
+	}
+
+	Super::UnPossessed();
+}
+
+UJY_AbilitySystemComponent* AJY_Character::GetJYAbilitySystemComponent() const
+{
+	const AJY_PlayerState* JYPlayerState = GetPlayerState<AJY_PlayerState>();
+	if (JYPlayerState == nullptr)
+		return nullptr;
+
+	return JYPlayerState->GetJYAbilitySystemComponent();
 }
 
 // [OwnClient] [SimulatedProxy]
@@ -119,15 +162,42 @@ void AJY_Character::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 {
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
 
-	UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent);
-	if (EnhancedInputComponent == nullptr)
-	{
-		UE_LOG(LogJY, Error, TEXT("[%s] %s: EnhancedInputComponent 없음"), JY_GetNetRoleTag(this), *GetNameSafe(this));
+	if (ensureMsgf(InputConfig != nullptr, TEXT("%s에 InputConfig가 없음"), *GetNameSafe(this)) == false)
 		return;
-	}
 
-	EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &AJY_Character::Move);
-	EnhancedInputComponent->BindAction(InteractAction, ETriggerEvent::Started, this, &AJY_Character::Interact);
+	/* 생성자 OverrideInputComponentClass로 정한 클래스 */
+	UJY_InputComponent* JYInputComponent = CastChecked<UJY_InputComponent>(PlayerInputComponent);
+	JYInputComponent->BindNativeAction(InputConfig, JYGameplayTags::InputTag_Move, ETriggerEvent::Triggered, this, &ThisClass::Move);
+	JYInputComponent->BindNativeAction(InputConfig, JYGameplayTags::InputTag_Interact, ETriggerEvent::Started, this, &ThisClass::Interact);
+	JYInputComponent->BindAbilityActions(InputConfig, this, &ThisClass::Input_AbilityInputTagPressed, &ThisClass::Input_AbilityInputTagReleased);
+}
+
+// [OwnClient]
+void AJY_Character::Input_AbilityInputTagPressed(FGameplayTag InputTag)
+{
+	UJY_AbilitySystemComponent* JYASC = GetJYAbilitySystemComponent();
+	if (JYASC == nullptr)
+		return;
+
+	JYASC->AbilityInputTagPressed(InputTag);
+}
+
+// [OwnClient]
+void AJY_Character::Input_AbilityInputTagReleased(FGameplayTag InputTag)
+{
+	UJY_AbilitySystemComponent* JYASC = GetJYAbilitySystemComponent();
+	if (JYASC == nullptr)
+		return;
+
+	JYASC->AbilityInputTagReleased(InputTag);
+}
+
+// [Server] [SimulatedProxy]
+/* 서버가 ReplicatedMovement에 가속도를 실어 보내고(ACharacter::GatherCurrentMovement),
+   남의 화면은 그 값을 CMC에 넣는다(UpdateProxyAcceleration). 끄면 속도 방향 단위벡터라 멈춤 시작을 애님이 알 수 없다 */
+bool AJY_Character::ShouldReplicateAcceleration() const //override
+{
+	return true;
 }
 
 // [OwnClient] 로컬 입력 → CMC가 예측 이동, 서버가 검증

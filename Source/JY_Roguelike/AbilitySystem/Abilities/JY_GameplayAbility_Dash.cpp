@@ -118,7 +118,7 @@ void UJY_GameplayAbility_Dash::OnDashDirectionReady(const FGameplayAbilityTarget
 		ScheduleRecharge();
 	}
 
-	UAbilityTask_PlayMontageAndWait* MontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(this, NAME_None, DashMontage, 1.0f, NAME_None, true, RootMotionScale);
+	UAbilityTask_PlayMontageAndWait* MontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(this, NAME_None, DashMontage, PlayRate, NAME_None, true, RootMotionScale);
 	MontageTask->OnBlendOut.AddDynamic(this, &ThisClass::OnDashMontageFinished);
 	MontageTask->OnCompleted.AddDynamic(this, &ThisClass::OnDashMontageFinished);
 	MontageTask->OnInterrupted.AddDynamic(this, &ThisClass::OnDashMontageInterrupted);

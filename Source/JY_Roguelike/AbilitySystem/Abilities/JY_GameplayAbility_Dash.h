@@ -45,6 +45,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "JY|Dash")
 	TObjectPtr<UAnimMontage> DashMontage;
 
+	/* 재생 속도 — 올리면 같은 거리를 더 빨리 (무적 시간도 그만큼 짧아짐) */
+	UPROPERTY(EditDefaultsOnly, Category = "JY|Dash", Meta = (ClampMin = "0.1"))
+	float PlayRate = 1.0f;
+
 	/* 루트모션 이동 거리 배율 (1 = 애니 그대로) */
 	UPROPERTY(EditDefaultsOnly, Category = "JY|Dash")
 	float RootMotionScale = 1.0f;

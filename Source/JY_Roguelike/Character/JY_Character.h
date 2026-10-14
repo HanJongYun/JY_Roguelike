@@ -3,6 +3,8 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "GameplayTagContainer.h"
+#include "AbilitySystemInterface.h"
+#include "GenericTeamAgentInterface.h"
 #include "AbilitySystem/JY_AbilitySet.h"
 #include "JY_Character.generated.h"
 
@@ -18,7 +20,7 @@ struct FInputActionValue;
 
 /* 쿼터뷰 카메라로 움직이는 플레이어 캐릭터 */
 UCLASS()
-class AJY_Character : public ACharacter
+class AJY_Character : public ACharacter, public IAbilitySystemInterface, public IGenericTeamAgentInterface
 {
 	GENERATED_BODY()
 
@@ -30,6 +32,11 @@ public:
 	virtual void PossessedBy(AController* NewController) override;
 	virtual void OnRep_PlayerState() override;
 	virtual void UnPossessed() override;
+
+	//~IAbilitySystemInterface — PlayerState의 ASC (LyraCharacter와 같음)
+	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
+	//~IGenericTeamAgentInterface
+	virtual FGenericTeamId GetGenericTeamId() const override;
 
 protected:
 	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;

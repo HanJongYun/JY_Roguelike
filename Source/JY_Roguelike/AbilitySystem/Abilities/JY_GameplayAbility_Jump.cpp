@@ -9,8 +9,15 @@ UJY_GameplayAbility_Jump::UJY_GameplayAbility_Jump(const FObjectInitializer& Obj
 {
 	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalPredicted;
 
+	FGameplayTagContainer JumpTags;
+	JumpTags.AddTag(JYGameplayTags::Ability_Type_Jump);
+	SetAssetTags(JumpTags);
+
 	/* 대시 중 점프 금지 */
 	ActivationBlockedTags.AddTag(JYGameplayTags::State_Dashing);
+
+	/* 점프는 공격을 끊는다 */
+	CancelAbilitiesWithTag.AddTag(JYGameplayTags::Ability_Type_Attack);
 }
 
 /* 2단 점프 횟수·공중 여부는 엔진 판정 그대로 (ACharacter::CanJump → JumpMaxCount) */

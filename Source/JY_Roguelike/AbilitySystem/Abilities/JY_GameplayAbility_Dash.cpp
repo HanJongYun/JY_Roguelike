@@ -21,6 +21,9 @@ UJY_GameplayAbility_Dash::UJY_GameplayAbility_Dash(const FObjectInitializer& Obj
 	 */
 	RollingTags.AddTag(JYGameplayTags::State_Dashing);
 	RollingTags.AddTag(JYGameplayTags::Gameplay_DamageImmunity);
+
+	/* 대시는 공격을 끊는다 (하데스식) */
+	CancelAbilitiesWithTag.AddTag(JYGameplayTags::Ability_Type_Attack);
 }
 
 // [Server] [OwnClient]
@@ -43,13 +46,7 @@ void UJY_GameplayAbility_Dash::ActivateAbility(const FGameplayAbilitySpecHandle 
 	FScopedPredictionWindow ScopedPrediction(AbilitySystemComponent, ActivationPredictionKey);
 
 	const FVector DashDirection = ComputeDashDirection();
-	const FRotator DashRotation = DashDirection.Rotation();
-
-	FGameplayAbilityTargetData_LocationInfo* DirectionData = new FGameplayAbilityTargetData_LocationInfo();
-	DirectionData->TargetLocation.LocationType = EGameplayAbilityTargetingLocationType::LiteralTransform;
-	DirectionData->TargetLocation.LiteralTransform = FTransform(DashRotation);
-
-	const FGameplayAbilityTargetDataHandle DirectionDataHandle(DirectionData);
+	const FGameplayAbilityTargetDataHandle DirectionDataHandle = MakeDirectionTargetData(DashDirection);
 	OnDashDirectionReady(DirectionDataHandle, FGameplayTag());
 }
 
@@ -84,18 +81,13 @@ void UJY_GameplayAbility_Dash::OnDashDirectionReady(const FGameplayAbilityTarget
 	/* 아래 Consume이 ASC 저장본을 지우므로 복사해 둔다 */
 	const FGameplayAbilityTargetDataHandle LocalDataHandle = DirectionDataHandle;
 
-	const bool bShouldNotifyServer = CurrentActorInfo->IsLocallyControlled() == true && CurrentActorInfo->IsNetAuthority() == false;
-	if (bShouldNotifyServer == true)
-	{
-		const FPredictionKey ScopedPredictionKey = AbilitySystemComponent->ScopedPredictionKey;
-		AbilitySystemComponent->CallServerSetReplicatedTargetData(CurrentSpecHandle, ActivationPredictionKey, LocalDataHandle, ApplicationTag, ScopedPredictionKey);
-	}
+	SendTargetDataToServer(LocalDataHandle, ApplicationTag);
 
 	AbilitySystemComponent->ConsumeClientReplicatedTargetData(CurrentSpecHandle, ActivationPredictionKey);
 
 	/* 서버에선 네트워크로 온 값이라 비어 있을 수 있다 */
-	const FGameplayAbilityTargetData* DirectionData = LocalDataHandle.Get(0);
-	if (DirectionData == nullptr)
+	const FVector DashDirection = GetDirectionFromTargetData(LocalDataHandle);
+	if (DashDirection.IsNearlyZero() == true)
 	{
 		EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
 		return;
@@ -119,11 +111,7 @@ void UJY_GameplayAbility_Dash::OnDashDirectionReady(const FGameplayAbilityTarget
 	bRollingTagsAdded = true;
 
 	/* 몽타주 루트모션 중엔 CMC가 몸을 돌리지 않는다(bAllowPhysicsRotationDuringAnimRootMotion=false, CharacterMovementComponent.cpp:3044) → 처음 돌린 방향으로 끝까지 */
-	const FTransform DirectionTransform = DirectionData->GetEndPointTransform();
-	const FRotator DirectionRotation = DirectionTransform.Rotator();
-	const FRotator DashRotation(0.0f, DirectionRotation.Yaw, 0.0f);
-	AActor* AvatarActor = GetAvatarActorFromActorInfo();
-	AvatarActor->SetActorRotation(DashRotation);
+	FaceDirection(DashDirection);
 
 	if (CurrentActorInfo->IsNetAuthority() == true)
 	{

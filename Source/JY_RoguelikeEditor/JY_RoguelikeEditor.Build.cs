@@ -19,7 +19,9 @@ public class JY_RoguelikeEditor : ModuleRules
 			"BlueprintGraph",
 			"AnimationModifiers",
 			"AnimationBlueprintLibrary",
-			"AssetTools"
+			"AssetTools",
+			"Fab",
+			"Json"
 		});
 
 		PublicIncludePaths.AddRange(new string[] {

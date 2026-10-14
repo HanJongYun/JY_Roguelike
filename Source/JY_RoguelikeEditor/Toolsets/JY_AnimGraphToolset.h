@@ -7,7 +7,10 @@
 class UEdGraph;
 class UEdGraphNode;
 class UAnimSequence;
+class UAnimSequenceBase;
 class UAnimMontage;
+class UAnimNotify;
+class UAnimNotifyState;
 class UAnimBlueprint;
 class USkeleton;
 class USkeletalMesh;
@@ -134,6 +137,15 @@ public:
 	static UObject* CreateAssetWithFactory(UClass* AssetClass, UClass* FactoryClass, const FString& FolderPath, const FString& AssetName);
 
 	/**
+	 * 디스크 파일(wav·fbx·png 등)을 에셋으로 가져온다 (콘텐츠 브라우저 '가져오기'와 같은 경로, 대화창 없음).
+	 * @param Filenames 가져올 파일 절대 경로 목록
+	 * @param DestinationPath 저장 폴더 (예: /Game/Han/Audio/Sword)
+	 * @return 만든 에셋 경로 목록
+	 */
+	UFUNCTION(meta = (AICallable), Category = "JY|Editor")
+	static TArray<FString> ImportFiles(const TArray<FString>& Filenames, const FString& DestinationPath);
+
+	/**
 	 * 애니 커브 값을 일정 간격으로 읽는다 (거리 커브 범위 확인 등).
 	 * @param Sequence 대상 애니
 	 * @param CurveName 커브 이름
@@ -152,6 +164,24 @@ public:
 	 */
 	UFUNCTION(meta = (AICallable), Category = "JY|Animation")
 	static TArray<FString> SampleBoneLocation(UAnimSequence* Sequence, FName BoneName, int32 SampleCount);
+
+	/**
+	 * 본의 컴포넌트 공간 위치·방향을 일정 간격으로 읽는다 (칼 휘두르는 방향·회전 공격·내려찍는 높이 확인 등).
+	 * @param Sequence 대상 애니
+	 * @param BoneName 본 이름 (예: hand_r, weapon_r)
+	 * @param SampleCount 샘플 수 (처음·끝 포함)
+	 * @return "시간 X Y Z Yaw Pitch" 문자열 목록 (컴포넌트 공간)
+	 */
+	UFUNCTION(meta = (AICallable), Category = "JY|Animation")
+	static TArray<FString> SampleBoneComponentSpace(UAnimSequence* Sequence, FName BoneName, int32 SampleCount);
+
+	/**
+	 * 애니·몽타주의 노티파이와 몽타주 섹션을 나열한다 (타격 시점·이펙트·사운드·카메라 흔들림 확인).
+	 * @param Animation 대상 애니 시퀀스 또는 몽타주
+	 * @return "시간 길이 클래스 이름 속성=값..." 문자열 목록. 몽타주는 "Section 이름 시작시간"도 포함
+	 */
+	UFUNCTION(meta = (AICallable), Category = "JY|Animation")
+	static TArray<FString> ListAnimNotifies(UAnimSequenceBase* Animation);
 
 	/**
 	 * 애님 블루프린트를 만든다 (콘텐츠 브라우저 '애니메이션 블루프린트 생성'과 같은 팩토리).
@@ -191,4 +221,73 @@ public:
 	 */
 	UFUNCTION(meta = (AICallable), Category = "JY|Animation")
 	static void RevertAnimationModifier(UAnimSequence* Sequence, UClass* ModifierClass);
+
+	/**
+	 * 몽타주 첫 슬롯 끝에 애니를 이어 붙인다 (몽타주 편집기 슬롯에 애니를 끌어다 놓는 것과 같은 경로).
+	 * @param Montage 대상 몽타주
+	 * @param Animation 붙일 애니
+	 * @return 붙인 구간의 몽타주 시작 시간. 실패하면 -1
+	 */
+	UFUNCTION(meta = (AICallable), Category = "JY|Animation")
+	static float AppendMontageSegment(UAnimMontage* Montage, UAnimSequenceBase* Animation);
+
+	/**
+	 * 몽타주 섹션을 모두 지우고 다시 만든다 (섹션 패널과 같은 정렬·연결).
+	 * @param Montage 대상 몽타주
+	 * @param Sections "이름 시작시간 다음섹션" 목록 (다음이 없으면 "-")
+	 * @return 성공 여부
+	 */
+	UFUNCTION(meta = (AICallable), Category = "JY|Animation")
+	static bool SetMontageSections(UAnimMontage* Montage, const TArray<FString>& Sections);
+
+	/**
+	 * 몽타주에 노티파이를 추가한다 (엔진 AnimationBlueprintLibrary.AddAnimationNotifyEvent, 트랙 "JY"). 속성은 반환된 노티파이에 SetPropertyAsText로 넣는다.
+	 * @param Montage 대상 몽타주
+	 * @param Time 몽타주 시간 (초)
+	 * @param NotifyClass UAnimNotify 하위 클래스
+	 * @return 만든 노티파이
+	 */
+	UFUNCTION(meta = (AICallable), Category = "JY|Animation")
+	static UAnimNotify* AddMontageNotify(UAnimMontage* Montage, float Time, UClass* NotifyClass);
+
+	/**
+	 * 몽타주에 노티파이 상태(구간)를 추가한다 (엔진 AnimationBlueprintLibrary.AddAnimationNotifyStateEvent, 트랙 "JY"). 속성은 반환된 객체에 SetPropertyAsText로 넣는다.
+	 * @param Montage 대상 몽타주
+	 * @param Time 시작 시간 (초)
+	 * @param Duration 길이 (초)
+	 * @param NotifyStateClass UAnimNotifyState 하위 클래스
+	 * @return 만든 노티파이 상태
+	 */
+	UFUNCTION(meta = (AICallable), Category = "JY|Animation")
+	static UAnimNotifyState* AddMontageNotifyState(UAnimMontage* Montage, float Time, float Duration, UClass* NotifyStateClass);
+
+	/**
+	 * 다른 애니의 노티파이(노티파이 상태 포함)를 시간 오프셋을 더해 복사한다 (원본 이펙트 노티파이 옮기기).
+	 * @param Source 원본 애니·몽타주
+	 * @param Destination 대상 몽타주
+	 * @param TimeOffset 더할 시간 (초)
+	 * @param ClassFilter 노티파이 클래스 이름에 이 문자열이 든 것만 (빈 문자열이면 전부)
+	 * @return 복사한 개수
+	 */
+	UFUNCTION(meta = (AICallable), Category = "JY|Animation")
+	static int32 CopyAnimNotifies(UAnimSequenceBase* Source, UAnimMontage* Destination, float TimeOffset, const FString& ClassFilter);
+
+	/**
+	 * 몽타주가 쓰는 애니를 다른 애니로 바꿔 끼운다 (엔진 UAnimMontage::ReplaceReferredAnimations — 섹션·노티파이 유지).
+	 * @param Montage 대상 몽타주
+	 * @param FromAnimations 지금 쓰는 애니
+	 * @param ToAnimations 바꿀 애니 (FromAnimations와 같은 순서·개수)
+	 * @return 성공 여부
+	 */
+	/**
+	 * 몽타주에서 이름이 같은 노티파이를 지운다 (엔진 AnimationBlueprintLibrary.RemoveAnimationNotifyEventsByName — 클래스 이름이 바뀐 노티파이 정리 등).
+	 * @param Montage 대상 몽타주
+	 * @param NotifyName 노티파이 이름 (ListAnimNotifies 세 번째 칸)
+	 * @return 지운 개수
+	 */
+	UFUNCTION(meta = (AICallable), Category = "JY|Animation")
+	static int32 RemoveMontageNotifies(UAnimMontage* Montage, FName NotifyName);
+
+	UFUNCTION(meta = (AICallable), Category = "JY|Animation")
+	static bool ReplaceMontageAnimations(UAnimMontage* Montage, const TArray<UAnimSequenceBase*>& FromAnimations, const TArray<UAnimSequenceBase*>& ToAnimations);
 };

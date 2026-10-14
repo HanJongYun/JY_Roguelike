@@ -4,6 +4,10 @@
 #include "AbilitySystem/Effects/JY_DebugGameplayEffects.h"
 #include "System/JY_GameplayTags.h"
 #include "System/JY_GameMode.h"
+#include "System/JY_AssetManager.h"
+#include "System/JY_GameData.h"
+#include "Skill/JY_SkillDefinition.h"
+#include "Skill/JY_SkillLoadoutComponent.h"
 #include "GameFramework/CheatManagerDefines.h"
 #include "EnhancedInputSubsystems.h"
 #include "Engine/LocalPlayer.h"
@@ -218,6 +222,85 @@ void AJY_PlayerController::Server_DebugAddSoulStones_Implementation(int32 Amount
 
 	GameMode->AddSoulStones(this, Amount);
 #endif
+}
+
+// [OwnClient] 콘솔 입력을 받은 로컬 컨트롤러
+/* 슬롯 키 번호(1부터)를 슬롯 인덱스로 */
+void AJY_PlayerController::JYGiveSkill(const FString& SkillName, int32 SlotNumber)
+{
+	const FName SkillFName(*SkillName);
+	Server_DebugGiveSkill(SkillFName, SlotNumber - 1);
+}
+
+// [OwnClient]
+void AJY_PlayerController::JYUnlockSkillSlot()
+{
+	Server_DebugUnlockSkillSlot();
+}
+
+// [OwnClient]
+void AJY_PlayerController::JYChooseSkillCard(int32 ChoiceIndex)
+{
+	Server_ChooseSkillCard(ChoiceIndex);
+}
+
+// [Server]
+/* 태그 끝 이름(Skill.Plunge → Plunge)으로 GameData 목록에서 찾는다 */
+void AJY_PlayerController::Server_DebugGiveSkill_Implementation(FName SkillName, int32 SlotIndex)
+{
+#if UE_WITH_CHEAT_MANAGER
+	if (CheatManager == nullptr)
+		return;
+
+	AJY_PlayerState* JYPlayerState = GetPlayerState<AJY_PlayerState>();
+	if (JYPlayerState == nullptr)
+		return;
+
+	UJY_SkillLoadoutComponent* SkillLoadout = JYPlayerState->GetSkillLoadoutComponent();
+	const TArray<FJY_SkillSlotEntry>& Slots = SkillLoadout->GetSlots();
+	if (Slots.IsValidIndex(SlotIndex) == false)
+		return;
+
+	const FString TagSuffix = FString(TEXT(".")) + SkillName.ToString();
+	const UJY_GameData* GameData = UJY_AssetManager::Get().GetGameData();
+	auto IsNamedSkill = [&TagSuffix](const TObjectPtr<UJY_SkillDefinition>& Skill)
+	{
+		const FString TagString = Skill->SkillTag.ToString();
+		return TagString.EndsWith(TagSuffix);
+	};
+	const TObjectPtr<UJY_SkillDefinition>* FoundSkill = GameData->SkillDefinitions.FindByPredicate(IsNamedSkill);
+	if (FoundSkill == nullptr)
+		return;
+
+	SkillLoadout->AcquireSkill(*FoundSkill, SlotIndex);
+#endif
+}
+
+// [Server]
+void AJY_PlayerController::Server_DebugUnlockSkillSlot_Implementation()
+{
+#if UE_WITH_CHEAT_MANAGER
+	if (CheatManager == nullptr)
+		return;
+
+	AJY_PlayerState* JYPlayerState = GetPlayerState<AJY_PlayerState>();
+	if (JYPlayerState == nullptr)
+		return;
+
+	UJY_SkillLoadoutComponent* SkillLoadout = JYPlayerState->GetSkillLoadoutComponent();
+	SkillLoadout->UnlockSlot();
+#endif
+}
+
+// [Server]
+void AJY_PlayerController::Server_ChooseSkillCard_Implementation(int32 ChoiceIndex)
+{
+	AJY_PlayerState* JYPlayerState = GetPlayerState<AJY_PlayerState>();
+	if (JYPlayerState == nullptr)
+		return;
+
+	UJY_SkillLoadoutComponent* SkillLoadout = JYPlayerState->GetSkillLoadoutComponent();
+	SkillLoadout->ChooseUpgradeCard(ChoiceIndex);
 }
 
 /*

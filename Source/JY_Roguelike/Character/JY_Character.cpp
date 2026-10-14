@@ -3,6 +3,7 @@
 #include "Interaction/JY_InteractionComponent.h"
 #include "Player/JY_PlayerState.h"
 #include "AbilitySystem/JY_AbilitySystemComponent.h"
+#include "Combat/JY_CombatTypes.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -242,4 +243,19 @@ void AJY_Character::DisableMovementAndCollision()
 	UCharacterMovementComponent* MovementComp = GetCharacterMovement();
 	MovementComp->StopMovementImmediately();
 	MovementComp->DisableMovement();
+}
+
+/*
+ * 노티파이·판정·큐는 UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(캐릭터)로 ASC를 찾는다.
+ * ASC가 PlayerState에 있어 인터페이스가 없으면 못 찾는다(AbilitySystemGlobals.cpp:239~249).
+ * 반환 타입이 엔진 고정이라 UAbilitySystemComponent* (ASC 타입 통일의 예외)
+ */
+UAbilitySystemComponent* AJY_Character::GetAbilitySystemComponent() const //override
+{
+	return GetJYAbilitySystemComponent();
+}
+
+FGenericTeamId AJY_Character::GetGenericTeamId() const //override
+{
+	return FGenericTeamId(static_cast<uint8>(EJY_Team::Player));
 }

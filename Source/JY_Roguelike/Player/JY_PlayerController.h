@@ -41,6 +41,22 @@ public:
 	UFUNCTION(Exec)
 	void JYAddSoul(int32 Amount);
 
+	/* 콘솔 명령: 스킬 얻기 (예: JYGiveSkill Plunge 1) — 이름 = Skill 태그 끝 이름, 숫자 = 슬롯 키 번호(1부터) */
+	UFUNCTION(Exec)
+	void JYGiveSkill(const FString& SkillName, int32 SlotNumber);
+
+	/* 콘솔 명령: 스킬 슬롯 1칸 늘리기 */
+	UFUNCTION(Exec)
+	void JYUnlockSkillSlot();
+
+	/* 콘솔 명령: 강화 카드 고르기 (예: JYChooseSkillCard 0) */
+	UFUNCTION(Exec)
+	void JYChooseSkillCard(int32 ChoiceIndex);
+
+	/* 강화 카드 선택 요청 (카드 UI도 이걸 부름) */
+	UFUNCTION(Server, Reliable)
+	void Server_ChooseSkillCard(int32 ChoiceIndex);
+
 	/* 메타 강화 1단계 구매 요청 — Altar = 제단 화면을 연 제단. 서버 GameMode가 검증 */
 	UFUNCTION(Server, Reliable)
 	void Server_BuyMetaUpgrade(FGameplayTag UpgradeTag, AJY_InteractableActor* Altar);
@@ -69,6 +85,14 @@ protected:
 	/* 디버그 영혼석 추가 요청 */
 	UFUNCTION(Server, Reliable)
 	void Server_DebugAddSoulStones(int32 Amount);
+
+	/* 디버그 스킬 획득 요청 */
+	UFUNCTION(Server, Reliable)
+	void Server_DebugGiveSkill(FName SkillName, int32 SlotIndex);
+
+	/* 디버그 슬롯 해금 요청 */
+	UFUNCTION(Server, Reliable)
+	void Server_DebugUnlockSkillSlot();
 
 private:
 	/* 설정값 — BP_JY_PlayerController의 Class Defaults에서 수정 */

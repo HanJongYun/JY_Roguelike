@@ -8,7 +8,10 @@
 #include "AnimationModifier.h"
 #include "Animation/AnimMontage.h"
 #include "Animation/AnimSequence.h"
+#include "Animation/AnimNotifies/AnimNotify.h"
+#include "Animation/AnimNotifies/AnimNotifyState.h"
 #include "AssetToolsModule.h"
+#include "AutomatedAssetImportData.h"
 #include "BlueprintActionDatabase.h"
 #include "BlueprintActionFilter.h"
 #include "BlueprintNodeSpawner.h"
@@ -409,6 +412,138 @@ TArray<FString> UJY_AnimGraphToolset::SampleBoneLocation(UAnimSequence* Sequence
 	return Result;
 }
 
+/* 루트까지 부모 사슬을 따라 로컬 변환을 곱한다. 트랙이 없는 본은 레퍼런스 포즈 값 */
+TArray<FString> UJY_AnimGraphToolset::SampleBoneComponentSpace(UAnimSequence* Sequence, FName BoneName, int32 SampleCount)
+{
+	if (Sequence == nullptr || SampleCount < 2)
+	{
+		UKismetSystemLibrary::RaiseScriptError(TEXT("Sequence is required and SampleCount must be at least 2."));
+		return {};
+	}
+
+	const USkeleton* Skeleton = Sequence->GetSkeleton();
+	if (Skeleton == nullptr)
+	{
+		UKismetSystemLibrary::RaiseScriptError(TEXT("Sequence has no skeleton."));
+		return {};
+	}
+
+	const FReferenceSkeleton& RefSkeleton = Skeleton->GetReferenceSkeleton();
+	const int32 BoneIndex = RefSkeleton.FindBoneIndex(BoneName);
+	if (BoneIndex == INDEX_NONE)
+	{
+		UKismetSystemLibrary::RaiseScriptError(FString::Printf(TEXT("Bone %s not found."), *BoneName.ToString()));
+		return {};
+	}
+
+	/* 대상 본 → 루트 순서 */
+	TArray<int32> Chain;
+	for (int32 Index = BoneIndex; Index != INDEX_NONE; Index = RefSkeleton.GetParentIndex(Index))
+	{
+		Chain.Add(Index);
+	}
+
+	IAnimationDataModel* DataModel = Sequence->GetDataModel();
+	const FFrameRate FrameRate = DataModel->GetFrameRate();
+	const TArray<FTransform>& RefPose = RefSkeleton.GetRefBonePose();
+
+	TArray<FString> Result;
+	const float Length = Sequence->GetPlayLength();
+	for (int32 SampleIndex = 0; SampleIndex < SampleCount; ++SampleIndex)
+	{
+		const float Time = Length * SampleIndex / (SampleCount - 1);
+		const FFrameTime FrameTime = FrameRate.AsFrameTime(Time);
+
+		FTransform ComponentTransform = FTransform::Identity;
+		for (const int32 ChainIndex : Chain)
+		{
+			const FName ChainBoneName = RefSkeleton.GetBoneName(ChainIndex);
+			FTransform Local = RefPose[ChainIndex];
+			if (DataModel->IsValidBoneTrackName(ChainBoneName) == true)
+			{
+				Local = DataModel->EvaluateBoneTrackTransform(ChainBoneName, FrameTime, EAnimInterpolationType::Linear);
+			}
+			ComponentTransform = ComponentTransform * Local;
+		}
+
+		const FVector Location = ComponentTransform.GetLocation();
+		const FRotator Rotation = ComponentTransform.Rotator();
+		Result.Add(FString::Printf(TEXT("%.3f %.1f %.1f %.1f %.1f %.1f"), Time, Location.X, Location.Y, Location.Z, Rotation.Yaw, Rotation.Pitch));
+	}
+	return Result;
+}
+
+/* 노티파이 클래스마다 헤더를 넣지 않고 리플렉션으로 오브젝트·이름 속성만 꺼낸다 (팩 전용 노티파이도 읽힘) */
+TArray<FString> UJY_AnimGraphToolset::ListAnimNotifies(UAnimSequenceBase* Animation)
+{
+	if (Animation == nullptr)
+	{
+		UKismetSystemLibrary::RaiseScriptError(TEXT("Animation is required."));
+		return {};
+	}
+
+	auto DescribeObject = [](const UObject* Object) -> FString
+	{
+		if (Object == nullptr)
+			return TEXT("");
+
+		FString Text = Object->GetClass()->GetName();
+		for (TFieldIterator<FProperty> It(Object->GetClass()); It; ++It)
+		{
+			const FProperty* Property = *It;
+			const void* ValuePtr = Property->ContainerPtrToValuePtr<void>(Object);
+			if (const FObjectPropertyBase* ObjectProperty = CastField<FObjectPropertyBase>(Property))
+			{
+				const UObject* Value = ObjectProperty->GetObjectPropertyValue(ValuePtr);
+				if (Value != nullptr)
+				{
+					Text += FString::Printf(TEXT(" %s=%s"), *Property->GetName(), *Value->GetPathName());
+				}
+			}
+			else if (const FNameProperty* NameProperty = CastField<FNameProperty>(Property))
+			{
+				const FName Value = NameProperty->GetPropertyValue(ValuePtr);
+				if (Value.IsNone() == false)
+				{
+					Text += FString::Printf(TEXT(" %s=%s"), *Property->GetName(), *Value.ToString());
+				}
+			}
+		}
+		return Text;
+	};
+
+	TArray<FString> Result;
+	for (const FAnimNotifyEvent& Event : Animation->Notifies)
+	{
+		const UObject* NotifyObject = Event.Notify.Get();
+		if (NotifyObject == nullptr)
+		{
+			NotifyObject = Event.NotifyStateClass.Get();
+		}
+		const FString Description = DescribeObject(NotifyObject);
+		Result.Add(FString::Printf(TEXT("%.3f %.3f %s %s"), Event.GetTriggerTime(), Event.GetDuration(), *Event.NotifyName.ToString(), *Description));
+	}
+
+	if (const UAnimMontage* Montage = Cast<UAnimMontage>(Animation))
+	{
+		for (const FCompositeSection& Section : Montage->CompositeSections)
+		{
+			Result.Add(FString::Printf(TEXT("Section %s %.3f Next=%s"), *Section.SectionName.ToString(), Section.GetTime(), *Section.NextSectionName.ToString()));
+		}
+		for (const FSlotAnimationTrack& SlotTrack : Montage->SlotAnimTracks)
+		{
+			for (const FAnimSegment& Segment : SlotTrack.AnimTrack.AnimSegments)
+			{
+				const UAnimSequenceBase* Reference = Segment.GetAnimReference();
+				const FString ReferencePath = Reference != nullptr ? Reference->GetPathName() : TEXT("None");
+				const FString SlotName = SlotTrack.SlotName.ToString();
+				Result.Add(FString::Printf(TEXT("Segment %s %s %.3f..%.3f"), *SlotName, *ReferencePath, Segment.AnimStartTime, Segment.AnimEndTime));
+			}
+		}
+	}
+	return Result;
+}
+
 /* 콘텐츠 브라우저 '애니메이션 블루프린트 생성'과 같은 팩토리 — 대상 스켈레톤은 생성 때만 정할 수 있다 */
 UAnimBlueprint* UJY_AnimGraphToolset::CreateAnimBlueprint(USkeleton* Skeleton, UClass* ParentClass, USkeletalMesh* PreviewMesh, const FString& FolderPath, const FString& AssetName)
 {
@@ -514,4 +649,236 @@ void UJY_AnimGraphToolset::RevertAnimationModifier(UAnimSequence* Sequence, UCla
 
 	UAnimationModifier* Modifier = NewObject<UAnimationModifier>(GetTransientPackage(), ModifierClass);
 	Modifier->RevertFromAnimationSequence(Sequence);
+}
+
+TArray<FString> UJY_AnimGraphToolset::ImportFiles(const TArray<FString>& Filenames, const FString& DestinationPath)
+{
+	UAutomatedAssetImportData* ImportData = NewObject<UAutomatedAssetImportData>();
+	ImportData->Filenames = Filenames;
+	ImportData->DestinationPath = DestinationPath;
+	ImportData->bReplaceExisting = true;
+
+	IAssetTools& AssetTools = FAssetToolsModule::GetModule().Get();
+	const TArray<UObject*> Imported = AssetTools.ImportAssetsAutomated(ImportData);
+
+	TArray<FString> Paths;
+	for (UObject* Asset : Imported)
+		Paths.Add(Asset->GetPathName());
+	return Paths;
+}
+
+namespace JY_AnimGraphToolset
+{
+	/* 노티파이를 넣을 트랙 이름 */
+	const FName NotifyTrackName(TEXT("JY"));
+
+	/* 몽타주 편집기 SortAndUpdateMontage와 같은 순서 (SAnimMontagePanel.cpp:354) — 링크 갱신 → 길이 → 섹션 정렬 → 노티파이 트리거 오프셋 → 저장 표시 */
+	void RefreshMontage(UAnimMontage* Montage)
+	{
+		Montage->UpdateLinkableElements();
+
+		const float SequenceLength = Montage->CalculateSequenceLength();
+		Montage->SetCompositeLength(SequenceLength);
+
+		auto IsSectionEarlier = [](const FCompositeSection& A, const FCompositeSection& B)
+		{
+			return A.GetTime() < B.GetTime();
+		};
+		Montage->CompositeSections.Sort(IsSectionEarlier);
+
+		for (FAnimNotifyEvent& NotifyEvent : Montage->Notifies)
+		{
+			const float NotifyTime = NotifyEvent.GetTime();
+			const EAnimEventTriggerOffsets::Type TriggerOffset = Montage->CalculateOffsetForNotify(NotifyTime);
+			NotifyEvent.RefreshTriggerOffset(TriggerOffset);
+		}
+
+		Montage->RefreshCacheData();
+		Montage->PostEditChange();
+		Montage->MarkPackageDirty();
+	}
+
+	void EnsureNotifyTrack(UAnimSequenceBase* Animation)
+	{
+		if (UAnimationBlueprintLibrary::IsValidAnimNotifyTrackName(Animation, NotifyTrackName) == true)
+			return;
+
+		UAnimationBlueprintLibrary::AddAnimationNotifyTrack(Animation, NotifyTrackName);
+	}
+}
+
+/* SAnimSegmentsPanel::AddAnimSegment와 같은 구간 생성 (SetAnimReference(…, true)가 시작·끝·재생 속도를 애니 길이로 채움) */
+float UJY_AnimGraphToolset::AppendMontageSegment(UAnimMontage* Montage, UAnimSequenceBase* Animation)
+{
+	if (Montage == nullptr || Animation == nullptr)
+	{
+		UKismetSystemLibrary::RaiseScriptError(TEXT("Montage and Animation are required."));
+		return -1.0f;
+	}
+
+	Montage->Modify();
+
+	FSlotAnimationTrack& SlotTrack = Montage->SlotAnimTracks[0];
+	FAnimTrack& AnimTrack = SlotTrack.AnimTrack;
+	const float StartTime = AnimTrack.GetLength();
+
+	FAnimSegment NewSegment;
+	NewSegment.SetAnimReference(Animation, true);
+	NewSegment.StartPos = StartTime;
+	AnimTrack.AnimSegments.Add(NewSegment);
+
+	JY_AnimGraphToolset::RefreshMontage(Montage);
+	return StartTime;
+}
+
+bool UJY_AnimGraphToolset::SetMontageSections(UAnimMontage* Montage, const TArray<FString>& Sections)
+{
+	if (Montage == nullptr || Sections.Num() == 0)
+	{
+		UKismetSystemLibrary::RaiseScriptError(TEXT("Montage and at least one section are required."));
+		return false;
+	}
+
+	Montage->Modify();
+	Montage->CompositeSections.Reset();
+
+	TArray<FName> NextSectionNames;
+	for (const FString& SectionText : Sections)
+	{
+		TArray<FString> Parts;
+		SectionText.ParseIntoArrayWS(OUT Parts);
+		if (Parts.Num() != 3)
+		{
+			UKismetSystemLibrary::RaiseScriptError(FString::Printf(TEXT("Bad section '%s' (expected 'Name Start Next')."), *SectionText));
+			return false;
+		}
+
+		const FName SectionName(*Parts[0]);
+		const float StartTime = FCString::Atof(*Parts[1]);
+		Montage->AddAnimCompositeSection(SectionName, StartTime);
+
+		const FName NextSectionName = Parts[2] == TEXT("-") ? NAME_None : FName(*Parts[2]);
+		NextSectionNames.Add(NextSectionName);
+	}
+
+	/* 섹션 이름으로 다음 섹션을 찾으므로 전부 만든 뒤에 연결 */
+	for (int32 SectionIndex = 0; SectionIndex < Sections.Num(); ++SectionIndex)
+	{
+		const FString& SectionText = Sections[SectionIndex];
+		TArray<FString> Parts;
+		SectionText.ParseIntoArrayWS(OUT Parts);
+		const FName SectionName(*Parts[0]);
+		const int32 MontageSectionIndex = Montage->GetSectionIndex(SectionName);
+		FCompositeSection& Section = Montage->GetAnimCompositeSection(MontageSectionIndex);
+		Section.NextSectionName = NextSectionNames[SectionIndex];
+	}
+
+	JY_AnimGraphToolset::RefreshMontage(Montage);
+	return true;
+}
+
+UAnimNotify* UJY_AnimGraphToolset::AddMontageNotify(UAnimMontage* Montage, float Time, UClass* NotifyClass)
+{
+	if (Montage == nullptr || NotifyClass == nullptr || NotifyClass->IsChildOf(UAnimNotify::StaticClass()) == false)
+	{
+		UKismetSystemLibrary::RaiseScriptError(TEXT("Montage and a UAnimNotify class are required."));
+		return nullptr;
+	}
+
+	Montage->Modify();
+	JY_AnimGraphToolset::EnsureNotifyTrack(Montage);
+	UAnimNotify* Notify = UAnimationBlueprintLibrary::AddAnimationNotifyEvent(Montage, JY_AnimGraphToolset::NotifyTrackName, Time, NotifyClass);
+	JY_AnimGraphToolset::RefreshMontage(Montage);
+	return Notify;
+}
+
+UAnimNotifyState* UJY_AnimGraphToolset::AddMontageNotifyState(UAnimMontage* Montage, float Time, float Duration, UClass* NotifyStateClass)
+{
+	if (Montage == nullptr || NotifyStateClass == nullptr || NotifyStateClass->IsChildOf(UAnimNotifyState::StaticClass()) == false)
+	{
+		UKismetSystemLibrary::RaiseScriptError(TEXT("Montage and a UAnimNotifyState class are required."));
+		return nullptr;
+	}
+
+	Montage->Modify();
+	JY_AnimGraphToolset::EnsureNotifyTrack(Montage);
+	UAnimNotifyState* NotifyState = UAnimationBlueprintLibrary::AddAnimationNotifyStateEvent(Montage, JY_AnimGraphToolset::NotifyTrackName, Time, Duration, NotifyStateClass);
+	JY_AnimGraphToolset::RefreshMontage(Montage);
+	return NotifyState;
+}
+
+int32 UJY_AnimGraphToolset::CopyAnimNotifies(UAnimSequenceBase* Source, UAnimMontage* Destination, float TimeOffset, const FString& ClassFilter)
+{
+	if (Source == nullptr || Destination == nullptr)
+	{
+		UKismetSystemLibrary::RaiseScriptError(TEXT("Source and Destination are required."));
+		return 0;
+	}
+
+	Destination->Modify();
+	JY_AnimGraphToolset::EnsureNotifyTrack(Destination);
+
+	int32 CopiedCount = 0;
+	for (const FAnimNotifyEvent& SourceEvent : Source->Notifies)
+	{
+		UObject* SourceObject = SourceEvent.Notify != nullptr ? static_cast<UObject*>(SourceEvent.Notify) : static_cast<UObject*>(SourceEvent.NotifyStateClass);
+		if (SourceObject == nullptr)
+			continue;
+
+		const UClass* SourceClass = SourceObject->GetClass();
+		const FString ClassName = SourceClass->GetName();
+		if (ClassFilter.IsEmpty() == false && ClassName.Contains(ClassFilter) == false)
+			continue;
+
+		const float Time = SourceEvent.GetTime() + TimeOffset;
+		if (SourceEvent.Notify != nullptr)
+		{
+			UAnimNotify* NotifyCopy = DuplicateObject<UAnimNotify>(SourceEvent.Notify, Destination);
+			UAnimationBlueprintLibrary::AddAnimationNotifyEventObject(Destination, Time, NotifyCopy, JY_AnimGraphToolset::NotifyTrackName);
+		}
+		else
+		{
+			UAnimNotifyState* NotifyStateCopy = DuplicateObject<UAnimNotifyState>(SourceEvent.NotifyStateClass, Destination);
+			const float Duration = SourceEvent.GetDuration();
+			UAnimationBlueprintLibrary::AddAnimationNotifyStateEventObject(Destination, Time, Duration, NotifyStateCopy, JY_AnimGraphToolset::NotifyTrackName);
+		}
+		++CopiedCount;
+	}
+
+	JY_AnimGraphToolset::RefreshMontage(Destination);
+	return CopiedCount;
+}
+
+bool UJY_AnimGraphToolset::ReplaceMontageAnimations(UAnimMontage* Montage, const TArray<UAnimSequenceBase*>& FromAnimations, const TArray<UAnimSequenceBase*>& ToAnimations)
+{
+	if (Montage == nullptr || FromAnimations.Num() == 0 || FromAnimations.Num() != ToAnimations.Num())
+	{
+		UKismetSystemLibrary::RaiseScriptError(TEXT("Montage and matching From/To arrays are required."));
+		return false;
+	}
+
+	TMap<UAnimationAsset*, UAnimationAsset*> ReplacementMap;
+	for (int32 AnimationIndex = 0; AnimationIndex < FromAnimations.Num(); ++AnimationIndex)
+	{
+		ReplacementMap.Add(FromAnimations[AnimationIndex], ToAnimations[AnimationIndex]);
+	}
+
+	Montage->Modify();
+	Montage->ReplaceReferredAnimations(ReplacementMap);
+	JY_AnimGraphToolset::RefreshMontage(Montage);
+	return true;
+}
+
+int32 UJY_AnimGraphToolset::RemoveMontageNotifies(UAnimMontage* Montage, FName NotifyName)
+{
+	if (Montage == nullptr)
+	{
+		UKismetSystemLibrary::RaiseScriptError(TEXT("Montage is required."));
+		return 0;
+	}
+
+	Montage->Modify();
+	const int32 RemovedCount = UAnimationBlueprintLibrary::RemoveAnimationNotifyEventsByName(Montage, NotifyName);
+	JY_AnimGraphToolset::RefreshMontage(Montage);
+	return RemovedCount;
 }

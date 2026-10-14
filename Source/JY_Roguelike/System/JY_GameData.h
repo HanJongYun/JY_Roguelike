@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
+#include "GameplayTagContainer.h"
 #include "UI/JY_UITypes.h"
 #include "JY_GameData.generated.h"
 
@@ -11,6 +12,7 @@ class UJY_ConfirmDialog;
 class UJY_MetaUpgradeData;
 class UJY_ScreenWidget;
 class UUserWidget;
+class UJY_SkillDefinition;
 
 /* 게임 전체가 같이 쓰는 데이터 한 벌 (에셋 DA_JY_GameData) */
 UCLASS(BlueprintType, Const)
@@ -52,4 +54,28 @@ public:
 	/* 마우스 커서 그림 (강철 칼 / 누르면 금빛 칼) */
 	UPROPERTY(EditDefaultsOnly, Category = "UI")
 	FJY_CursorData Cursor;
+
+	/* 런 시작 스킬 슬롯 수 */
+	UPROPERTY(EditDefaultsOnly, Category = "Skill", Meta = (ClampMin = "1"))
+	int32 StartSkillSlotCount = 1;
+
+	/* 슬롯 번호 → 입력 태그 (InputTag.Skill.Slot1~). 개수 = 최대 슬롯 수 */
+	UPROPERTY(EditDefaultsOnly, Category = "Skill", Meta = (Categories = "InputTag.Skill"))
+	TArray<FGameplayTag> SkillSlotInputTags;
+
+	/* 강화 카드 선택지 수 */
+	UPROPERTY(EditDefaultsOnly, Category = "Skill", Meta = (ClampMin = "1"))
+	int32 SkillCardChoiceCount = 3;
+
+	/* 카드로 줄일 수 있는 쿨타임 하한 (초) */
+	UPROPERTY(EditDefaultsOnly, Category = "Skill", Meta = (ClampMin = "0"))
+	float MinSkillCooldown = 0.5f;
+
+	/* 런 시작 때 슬롯 순서대로 장착할 스킬 — 보상으로 얻기 전 테스트용. 개수만큼 슬롯이 열림 */
+	UPROPERTY(EditDefaultsOnly, Category = "Skill")
+	TArray<TObjectPtr<UJY_SkillDefinition>> StartSkills;
+
+	/* 획득 가능한 스킬 (디버그 명령·보상 풀) */
+	UPROPERTY(EditDefaultsOnly, Category = "Skill")
+	TArray<TObjectPtr<UJY_SkillDefinition>> SkillDefinitions;
 };

@@ -41,9 +41,6 @@ public:
 	void UninitializeFromAbilitySystem();
 
 	UFUNCTION(BlueprintCallable, Category = "JY|Health")
-	EJY_DeathState GetDeathState() const { return DeathState; }
-
-	UFUNCTION(BlueprintCallable, Category = "JY|Health")
 	bool IsDeadOrDying() const { return DeathState > EJY_DeathState::NotDead; }
 
 protected:

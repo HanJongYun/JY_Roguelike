@@ -66,15 +66,8 @@ struct FJY_HitPayload
 
 	float Damage = 0.0f;
 
-	/* 상태이상 종류 (Status.Burn/Freeze/Shock, 없으면 빈 태그) — C3 */
-	FGameplayTag StatusTag;
-
-	float StatusMagnitude = 0.0f;
-
 	/* 밀어내는 속도 (cm/s, 수평) */
 	FVector2f KnockbackImpulse = FVector2f::ZeroVector;
-
-	bool bCrit = false;
 
 	/* 피격 연출 큐 (비우면 연출 없음) */
 	FGameplayTag HitCueTag;

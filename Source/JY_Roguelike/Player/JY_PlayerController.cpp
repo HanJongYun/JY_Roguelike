@@ -1,16 +1,10 @@
 #include "Player/JY_PlayerController.h"
 #include "Player/JY_PlayerState.h"
+#include "Player/JY_CheatManager.h"
 #include "Camera/JY_CameraOcclusionFadeComponent.h"
 #include "AbilitySystem/JY_AbilitySystemComponent.h"
-#include "AbilitySystem/Effects/JY_DebugGameplayEffects.h"
-#include "System/JY_GameplayTags.h"
 #include "System/JY_GameMode.h"
-#include "System/JY_AssetManager.h"
-#include "System/JY_GameData.h"
-#include "Skill/JY_SkillDefinition.h"
 #include "Skill/JY_SkillLoadoutComponent.h"
-#include "GameFramework/CheatManagerDefines.h"
-#include "HAL/IConsoleManager.h"
 #include "EnhancedInputSubsystems.h"
 #include "Engine/LocalPlayer.h"
 #include "InputMappingContext.h"
@@ -24,6 +18,7 @@
 AJY_PlayerController::AJY_PlayerController()
 {
 	CameraOcclusionFadeComponent = CreateDefaultSubobject<UJY_CameraOcclusionFadeComponent>(TEXT("CameraOcclusionFade"));
+	CheatClass = UJY_CheatManager::StaticClass();
 }
 
 /* 서버·혼자 플레이는 BeginPlay 때 PlayerState가 이미 있어 OnRep이 안 온다 → 여기서 연결 */
@@ -83,6 +78,17 @@ bool AJY_PlayerController::ShouldShowLoadingScreen() const //override
 	return PlayerState == nullptr || GetPawn() == nullptr;
 }
 
+/*
+ * 클라는 GameMode가 없어 엔진이 CheatManager를 안 만든다(PlayerController.cpp:1162) — 콘솔 명령을 받아 서버로 보낼 쪽이라 만든다(Lyra AddCheats LyraPlayerController.cpp:323).
+ * 실행 여부는 서버 PC의 CheatManager가 정한다 — 서버는 엔진 판단(AllowCheats) 그대로.
+ */
+// [OwnClient]
+void AJY_PlayerController::AddCheats(bool bForce) //override
+{
+	const bool bClient = GetNetMode() == NM_Client;
+	Super::AddCheats(bForce == true || bClient == true);
+}
+
 // [OwnClient] 로컬 컨트롤러만
 /* 템플릿과 같은 자리 — 로컬 플레이어가 붙은 뒤 호출되어 서브시스템을 확실히 얻는다 */
 void AJY_PlayerController::SetupInputComponent() //override
@@ -119,68 +125,6 @@ void AJY_PlayerController::PostProcessInput(const float DeltaTime, const bool bG
 	Super::PostProcessInput(DeltaTime, bGamePaused);
 }
 
-// [OwnClient] 콘솔 입력을 받은 로컬 컨트롤러
-/* 0 이하는 무시 — 방향은 명령 이름이 정하고, 값은 크기만 받는다 */
-void AJY_PlayerController::JYDamage(float Amount)
-{
-	if (Amount <= 0.0f)
-		return;
-
-	Server_DebugApplyHealthDelta(-Amount);
-}
-
-// [OwnClient] 콘솔 입력을 받은 로컬 컨트롤러
-void AJY_PlayerController::JYHeal(float Amount)
-{
-	if (Amount <= 0.0f)
-		return;
-
-	Server_DebugApplyHealthDelta(Amount);
-}
-
-/*
- * 체력은 서버에서 GE로만 바꾼다. 클라가 직접 속성을 바꾸지 않는다.
- * UFUNCTION은 #if 블록 안에 둘 수 없어 선언은 두고, 본문만 치트 매니저가 없는 빌드에서 막는다.
- * CheatManager 검사 = Lyra ServerCheat(LyraPlayerController.cpp:332~341)와 같은 관문.
- *   서버 PC의 AddCheats는 GameMode AllowCheats일 때만 CheatManager를 만든다 (PIE는 항상 허용, 배포 서버는 막힘).
- *   이게 없으면 개발 빌드 전용 서버에서 개조 클라가 이 RPC로 무한 회복할 수 있다.
- */
-// [Server]
-void AJY_PlayerController::Server_DebugApplyHealthDelta_Implementation(float Delta)
-{
-#if UE_WITH_CHEAT_MANAGER
-	if (CheatManager == nullptr)
-		return;
-
-	/* NaN·무한대 차단 */
-	if (Delta == 0.0f || FMath::IsFinite(Delta) == false)
-		return;
-
-	AJY_PlayerState* JYPlayerState = GetPlayerState<AJY_PlayerState>();
-	if (JYPlayerState == nullptr)
-		return;
-
-	UJY_AbilitySystemComponent* JYASC = JYPlayerState->GetJYAbilitySystemComponent();
-	if (JYASC == nullptr)
-		return;
-
-	/* 음수=데미지 GE, 양수=회복 GE. 크기는 항상 양수로 SetByCaller에 싣는다 */
-	const bool bIsDamage = Delta < 0.0f;
-	const TSubclassOf<UGameplayEffect> EffectClass = bIsDamage ? UJY_GameplayEffect_DebugDamage::StaticClass() : UJY_GameplayEffect_DebugHeal::StaticClass();
-	const FGameplayTag MagnitudeTag = bIsDamage ? JYGameplayTags::SetByCaller_Damage : JYGameplayTags::SetByCaller_Heal;
-
-	FGameplayEffectContextHandle EffectContext = JYASC->MakeEffectContext();
-	EffectContext.AddSourceObject(this);
-
-	const FGameplayEffectSpecHandle SpecHandle = JYASC->MakeOutgoingSpec(EffectClass, 1.0f, EffectContext);
-	if (SpecHandle.IsValid() == false)
-		return;
-
-	SpecHandle.Data->SetSetByCallerMagnitude(MagnitudeTag, FMath::Abs(Delta));
-	JYASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
-#endif
-}
-
 /* 값 검증(제단·거리·가격)은 전부 GameMode — PC는 요청을 전달만 한다 */
 // [Server]
 void AJY_PlayerController::Server_BuyMetaUpgrade_Implementation(FGameplayTag UpgradeTag, AJY_InteractableActor* Altar)
@@ -202,121 +146,10 @@ void AJY_PlayerController::Server_RefundAllMetaUpgrades_Implementation(AJY_Inter
 	GameMode->RefundAllMetaUpgrades(this, Altar);
 }
 
-// [OwnClient] 콘솔 입력을 받은 로컬 컨트롤러
-void AJY_PlayerController::JYAddSoul(int32 Amount)
-{
-	if (Amount <= 0)
-		return;
-
-	Server_DebugAddSoulStones(Amount);
-}
-
-/* 체력 치트와 같은 관문 — 치트가 허용된 서버(PIE)에서만 */
-// [Server]
-void AJY_PlayerController::Server_DebugAddSoulStones_Implementation(int32 Amount)
-{
-#if UE_WITH_CHEAT_MANAGER
-	if (CheatManager == nullptr || Amount <= 0)
-		return;
-
-	AJY_GameMode* GameMode = GetWorld()->GetAuthGameMode<AJY_GameMode>();
-	if (GameMode == nullptr)
-		return;
-
-	GameMode->AddSoulStones(this, Amount);
-#endif
-}
-
-// [OwnClient] 콘솔 입력을 받은 로컬 컨트롤러
-/* 슬롯 키 번호(1부터)를 슬롯 인덱스로 */
-void AJY_PlayerController::JYGiveSkill(const FString& SkillName, int32 SlotNumber)
-{
-	const FName SkillFName(*SkillName);
-	Server_DebugGiveSkill(SkillFName, SlotNumber - 1);
-}
-
-// [OwnClient]
-void AJY_PlayerController::JYUnlockSkillSlot()
-{
-	Server_DebugUnlockSkillSlot();
-}
-
-// [OwnClient]
-/*
- * 엔진 치트 변수 AbilitySystem.IgnoreCooldowns(AbilitySystemGlobals.cpp:39)를 켠다 — 발동 검사·커밋 검사에서 쿨타임을 건너뜀(GameplayAbility.cpp:508·613·671).
- * 발동 검사는 조종 클라 예측에서도 돌므로 내 쪽과 서버 양쪽에 켠다 (PIE 한 프로세스면 같은 변수)
- */
-void AJY_PlayerController::JYNoCooldown(bool bEnable)
-{
-	IConsoleVariable* IgnoreCooldownsVariable = IConsoleManager::Get().FindConsoleVariable(TEXT("AbilitySystem.IgnoreCooldowns"));
-	IgnoreCooldownsVariable->Set(bEnable, ECVF_SetByConsole);
-	Server_DebugSetIgnoreCooldowns(bEnable);
-}
-
 // [OwnClient]
 void AJY_PlayerController::JYChooseSkillCard(int32 ChoiceIndex)
 {
 	Server_ChooseSkillCard(ChoiceIndex);
-}
-
-// [Server]
-/* 태그 끝 이름(Skill.Plunge → Plunge)으로 GameData 목록에서 찾는다 */
-void AJY_PlayerController::Server_DebugGiveSkill_Implementation(FName SkillName, int32 SlotIndex)
-{
-#if UE_WITH_CHEAT_MANAGER
-	if (CheatManager == nullptr)
-		return;
-
-	AJY_PlayerState* JYPlayerState = GetPlayerState<AJY_PlayerState>();
-	if (JYPlayerState == nullptr)
-		return;
-
-	UJY_SkillLoadoutComponent* SkillLoadout = JYPlayerState->GetSkillLoadoutComponent();
-	const TArray<FJY_SkillSlotEntry>& Slots = SkillLoadout->GetSlots();
-	if (Slots.IsValidIndex(SlotIndex) == false)
-		return;
-
-	const FString TagSuffix = FString(TEXT(".")) + SkillName.ToString();
-	const UJY_GameData* GameData = UJY_AssetManager::Get().GetGameData();
-	auto IsNamedSkill = [&TagSuffix](const TObjectPtr<UJY_SkillDefinition>& Skill)
-	{
-		const FString TagString = Skill->SkillTag.ToString();
-		return TagString.EndsWith(TagSuffix);
-	};
-	const TObjectPtr<UJY_SkillDefinition>* FoundSkill = GameData->SkillDefinitions.FindByPredicate(IsNamedSkill);
-	if (FoundSkill == nullptr)
-		return;
-
-	SkillLoadout->AcquireSkill(*FoundSkill, SlotIndex);
-#endif
-}
-
-// [Server]
-void AJY_PlayerController::Server_DebugUnlockSkillSlot_Implementation()
-{
-#if UE_WITH_CHEAT_MANAGER
-	if (CheatManager == nullptr)
-		return;
-
-	AJY_PlayerState* JYPlayerState = GetPlayerState<AJY_PlayerState>();
-	if (JYPlayerState == nullptr)
-		return;
-
-	UJY_SkillLoadoutComponent* SkillLoadout = JYPlayerState->GetSkillLoadoutComponent();
-	SkillLoadout->UnlockSlot();
-#endif
-}
-
-// [Server]
-void AJY_PlayerController::Server_DebugSetIgnoreCooldowns_Implementation(bool bEnable)
-{
-#if UE_WITH_CHEAT_MANAGER
-	if (CheatManager == nullptr)
-		return;
-
-	IConsoleVariable* IgnoreCooldownsVariable = IConsoleManager::Get().FindConsoleVariable(TEXT("AbilitySystem.IgnoreCooldowns"));
-	IgnoreCooldownsVariable->Set(bEnable, ECVF_SetByConsole);
-#endif
 }
 
 // [Server]

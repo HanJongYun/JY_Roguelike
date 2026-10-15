@@ -10,6 +10,10 @@
 #include "Player/JY_PlayerState.h"
 #include "Progress/JY_ProgressSaveGame.h"
 #include "Progress/JY_MetaUpgradeData.h"
+#include "Room/JY_RoomFlowSubsystem.h"
+#include "Engine/Level.h"
+#include "Engine/World.h"
+#include "GameFramework/PlayerStart.h"
 #include "Kismet/GameplayStatics.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(JY_GameMode)
@@ -49,6 +53,78 @@ void AJY_GameMode::HandleStartingNewPlayer_Implementation(APlayerController* New
 	{
 		CastChecked<AJY_PlayerController>(NewPlayer)->Client_ShowNotification(EJY_NotificationType::Banner, WorldSettings->GetAreaNameText());
 	}
+}
+
+/*
+ * 던전 지역 맵은 첫 방이 모든 클라에 뜬 뒤에 캐릭터를 만든다 — 그 전엔 설 바닥이 없다.
+ * 엔진 AGameMode가 경기 시작 전 false를 돌려주고(GameMode.cpp:548) 시작할 때 모아서 만드는 것(207)과 같은 방식. 모아서 만드는 쪽은 UJY_RoomFlowSubsystem.
+ * HandleStartingNewPlayer(GameModeBase.cpp:1071)와 클라의 다시 시작 요청(PlayerController.cpp:3322)이 모두 여기를 지난다.
+ */
+// [Server]
+bool AJY_GameMode::PlayerCanRestart_Implementation(APlayerController* Player) //override
+{
+	if (Super::PlayerCanRestart_Implementation(Player) == false)
+		return false;
+
+	const UJY_RoomFlowSubsystem* RoomFlow = GetWorld()->GetSubsystem<UJY_RoomFlowSubsystem>();
+	return RoomFlow->CanStartPlayers();
+}
+
+/*
+ * 던전 지역 맵은 방(하위 레벨)마다 PlayerStart가 있다 — 지금 방 것 중에서 고른다.
+ * 엔진 기본(GameModeBase.cpp:1093)은 월드 전체를 돌아 아직 꺼지는 중인 이전 방 것도 고를 수 있다. 빈 자리 우선은 엔진과 같다(1115).
+ */
+// [Server]
+AActor* AJY_GameMode::ChoosePlayerStart_Implementation(AController* Player) //override
+{
+	const UJY_RoomFlowSubsystem* RoomFlow = GetWorld()->GetSubsystem<UJY_RoomFlowSubsystem>();
+	const ULevel* RoomLevel = RoomFlow->GetCurrentRoomLevel();
+	if (RoomLevel == nullptr)
+		return Super::ChoosePlayerStart_Implementation(Player);
+
+	const UClass* PawnClass = GetDefaultPawnClassForController(Player);
+	const APawn* PawnToFit = PawnClass != nullptr ? PawnClass->GetDefaultObject<APawn>() : nullptr;
+
+	APlayerStart* OccupiedStart = nullptr;
+	for (AActor* Actor : RoomLevel->Actors)
+	{
+		APlayerStart* PlayerStart = Cast<APlayerStart>(Actor);
+		if (PlayerStart == nullptr)
+			continue;
+
+		if (GetWorld()->EncroachingBlockingGeometry(PawnToFit, PlayerStart->GetActorLocation(), PlayerStart->GetActorRotation()) == false)
+			return PlayerStart;
+
+		OccupiedStart = PlayerStart;
+	}
+
+	ensureMsgf(OccupiedStart != nullptr, TEXT("%s에 PlayerStart가 없음"), *RoomLevel->GetOuter()->GetName());
+	return OccupiedStart;
+}
+
+/*
+ * 엔진은 접속·심리스 도착 때 시작 지점을 미리 정해 컨트롤러에 저장하고(GameModeBase.cpp:816 → 842 UpdatePlayerStartSpot), 스폰 때 그걸 먼저 쓴다(1165).
+ * 던전 지역 맵은 그 순간 방이 아직 없어 월드 원점이 저장되고, 방이 바뀌면 이전 방 자리가 남는다 — 스폰 순간 ChoosePlayerStart로만 정한다.
+ * Lyra도 같은 이유로 둘 다 끈다(LyraGameMode.cpp:385 · 486).
+ */
+// [Server]
+bool AJY_GameMode::ShouldSpawnAtStartSpot(AController* Player) //override
+{
+	const UJY_RoomFlowSubsystem* RoomFlow = GetWorld()->GetSubsystem<UJY_RoomFlowSubsystem>();
+	if (RoomFlow->IsRegionMap() == true)
+		return false;
+
+	return Super::ShouldSpawnAtStartSpot(Player);
+}
+
+// [Server]
+bool AJY_GameMode::UpdatePlayerStartSpot(AController* Player, const FString& Portal, FString& OutErrorMessage) //override
+{
+	const UJY_RoomFlowSubsystem* RoomFlow = GetWorld()->GetSubsystem<UJY_RoomFlowSubsystem>();
+	if (RoomFlow->IsRegionMap() == true)
+		return true;
+
+	return Super::UpdatePlayerStartSpot(Player, Portal, OutErrorMessage);
 }
 
 // [Server]
@@ -128,13 +204,6 @@ void AJY_GameMode::TryBuyMetaUpgrade(APlayerController* Buyer, FGameplayTag Upgr
 	NewProgress.SoulStones -= Cost;
 	NewProgress.SetMetaRank(UpgradeTag, NewRank);
 	CommitProgress(PlayerState, NewProgress, EJY_ProgressCommitScope::MetaRanksChanged);
-
-	/*
-	 * [보류] 구매 토스트 "강인함 1단계" — 연속 구매하면 토스트가 대기열에서 하나씩(2.5초) 나와 늦게 뜬다.
-	 * 제단 줄이 바로 바뀌어 없어도 충분해 일단 끔.
-	const FText ToastText = FText::Format(MetaData->GetPurchaseToastFormat(), Definition->DisplayName, NewRank);
-	CastChecked<AJY_PlayerController>(Buyer)->Client_ShowNotification(EJY_NotificationType::Toast, ToastText);
-	 */
 }
 
 // [Server]

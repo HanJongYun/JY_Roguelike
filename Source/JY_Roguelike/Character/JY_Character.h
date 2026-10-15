@@ -43,14 +43,8 @@ protected:
 	virtual bool ShouldReplicateAcceleration() const override;
 
 public:
-	USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
-	UCameraComponent* GetTopDownCamera() const { return TopDownCamera; }
-	UJY_HealthComponent* GetHealthComponent() const { return HealthComponent; }
-
 	/* PlayerState의 ASC. 클라는 PlayerState가 복제로 늦게 올 수 있어 없으면 nullptr */
 	UJY_AbilitySystemComponent* GetJYAbilitySystemComponent() const;
-	UStaticMeshComponent* GetWeaponMesh() const { return WeaponMesh; }
-	UPointLightComponent* GetCharacterLight() const { return CharacterLight; }
 
 protected:
 	/* 이동 입력 처리 */

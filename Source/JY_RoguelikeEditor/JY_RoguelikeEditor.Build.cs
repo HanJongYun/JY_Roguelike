@@ -21,7 +21,8 @@ public class JY_RoguelikeEditor : ModuleRules
 			"AnimationBlueprintLibrary",
 			"AssetTools",
 			"Fab",
-			"Json"
+			"Json",
+			"NavigationSystem"
 		});
 
 		PublicIncludePaths.AddRange(new string[] {

@@ -30,6 +30,12 @@ public:
 
 public:
 	virtual void HandleStartingNewPlayer_Implementation(APlayerController* NewPlayer) override;
+	virtual bool PlayerCanRestart_Implementation(APlayerController* Player) override;
+	virtual AActor* ChoosePlayerStart_Implementation(AController* Player) override;
+
+protected:
+	virtual bool ShouldSpawnAtStartSpot(AController* Player) override;
+	virtual bool UpdatePlayerStartSpot(AController* Player, const FString& Portal, FString& OutErrorMessage) override;
 
 public:
 	/* 메타 강화 1단계 구매 — 제단·가격·최대 단계·보유 영혼석 검증 */

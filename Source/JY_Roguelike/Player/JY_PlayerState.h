@@ -37,8 +37,6 @@ public:
 
 	UJY_SkillLoadoutComponent* GetSkillLoadoutComponent() const { return SkillLoadoutComponent; }
 
-	const UJY_HealthSet* GetHealthSet() const { return HealthSet; }
-
 	const FJY_PlayerProgress& GetProgress() const { return Progress; }
 
 	/* 진행 값 교체 (서버가 로드·구매·환불 뒤 호출) → 소유 클라에 복제 */

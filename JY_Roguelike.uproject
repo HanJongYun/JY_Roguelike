@@ -13,6 +13,11 @@
 				"AIModule",
 				"UMG"
 			]
+		},
+		{
+			"Name": "JY_RoguelikeEditor",
+			"Type": "Editor",
+			"LoadingPhase": "PostEngineInit"
 		}
 	],
 	"Plugins": [
@@ -36,7 +41,19 @@
 			"Enabled": true
 		},
 		{
+			"Name": "AnimationLocomotionLibrary",
+			"Enabled": true
+		},
+		{
+			"Name": "AnimationWarping",
+			"Enabled": true
+		},
+		{
 			"Name": "ModelViewViewModel",
+			"Enabled": true
+		},
+		{
+			"Name": "CommonUI",
 			"Enabled": true
 		},
 		{

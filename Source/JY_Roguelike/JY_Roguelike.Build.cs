@@ -24,7 +24,11 @@ public class JY_Roguelike : ModuleRules
 			"GameplayTasks",
 			"ModelViewViewModel",
 			"FieldNotification",
-			"DeveloperSettings"
+			"CommonUI",
+			"CommonInput",
+			"Niagara",
+			"AnimGraphRuntime",
+			"AnimationLocomotionLibraryRuntime"
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[] { });

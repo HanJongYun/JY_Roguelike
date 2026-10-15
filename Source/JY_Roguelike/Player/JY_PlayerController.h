@@ -2,46 +2,116 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
+#include "GameplayTagContainer.h"
+#include "UI/JY_UITypes.h"
+#include "UI/JY_LoadingProcessInterface.h"
 #include "JY_PlayerController.generated.h"
 
 class UInputMappingContext;
-class UJY_ScreenWidget;
+class AJY_InteractableActor;
+class UJY_CameraOcclusionFadeComponent;
 
-/** 입력 매핑 등록, 커서 표시, 디버그 체력 명령을 맡는 컨트롤러 */
+/* 클라 → 서버 요청 창구(구매·디버그) + 입력 매핑 등록. 키 입력 처리 자체는 폰(AJY_Character)이 하고, 어빌리티 입력은 프레임 끝에 ASC로 넘긴다 */
 UCLASS()
-class AJY_PlayerController : public APlayerController
+class AJY_PlayerController : public APlayerController, public IJY_LoadingProcessInterface
 {
 	GENERATED_BODY()
 
 public:
 	AJY_PlayerController();
 
-	/** 콘솔 명령: 서버에서 내 체력 깎기 (예: JYDamage 10) */
-	UFUNCTION(Exec)
-	void JYDamage(float Amount);
-
-	/** 콘솔 명령: 서버에서 내 체력 채우기 (예: JYHeal 10) */
-	UFUNCTION(Exec)
-	void JYHeal(float Amount);
-
 protected:
 	virtual void BeginPlay() override;
 	virtual void SetupInputComponent() override;
 	virtual void OnRep_PlayerState() override;
+	virtual void PostProcessInput(const float DeltaTime, const bool bGamePaused) override;
 
-	/** 로컬이면 HUD를 띄우고 PlayerState의 ASC를 UI에 연결 */
+public:
+	virtual bool ShouldShowLoadingScreen() const override;
+
+public:
+	/* 콘솔 명령: 서버에서 내 체력 깎기 (예: JYDamage 10) */
+	UFUNCTION(Exec)
+	void JYDamage(float Amount);
+
+	/* 콘솔 명령: 서버에서 내 체력 채우기 (예: JYHeal 10) */
+	UFUNCTION(Exec)
+	void JYHeal(float Amount);
+
+	/* 콘솔 명령: 서버에서 영혼석 더하기 (예: JYAddSoul 100) */
+	UFUNCTION(Exec)
+	void JYAddSoul(int32 Amount);
+
+	/* 콘솔 명령: 스킬 얻기 (예: JYGiveSkill Plunge 1) — 이름 = Skill 태그 끝 이름, 숫자 = 슬롯 키 번호(1부터) */
+	UFUNCTION(Exec)
+	void JYGiveSkill(const FString& SkillName, int32 SlotNumber);
+
+	/* 콘솔 명령: 스킬 슬롯 1칸 늘리기 */
+	UFUNCTION(Exec)
+	void JYUnlockSkillSlot();
+
+	/* 콘솔 명령: 쿨타임 무시 켜기·끄기 (예: JYNoCooldown 1) */
+	UFUNCTION(Exec)
+	void JYNoCooldown(bool bEnable);
+
+	/* 콘솔 명령: 강화 카드 고르기 (예: JYChooseSkillCard 0) */
+	UFUNCTION(Exec)
+	void JYChooseSkillCard(int32 ChoiceIndex);
+
+	/* 강화 카드 선택 요청 (카드 UI도 이걸 부름) */
+	UFUNCTION(Server, Reliable)
+	void Server_ChooseSkillCard(int32 ChoiceIndex);
+
+	/* 메타 강화 1단계 구매 요청 — Altar = 제단 화면을 연 제단. 서버 GameMode가 검증 */
+	UFUNCTION(Server, Reliable)
+	void Server_BuyMetaUpgrade(FGameplayTag UpgradeTag, AJY_InteractableActor* Altar);
+
+	/* 메타 강화 전액 환불 요청 */
+	UFUNCTION(Server, Reliable)
+	void Server_RefundAllMetaUpgrades(AJY_InteractableActor* Altar);
+
+	/* 정지 화면이 켜짐(true)·모두 꺼짐(false)을 서버에 알려 게임 정지·해제 요청 */
+	UFUNCTION(Server, Reliable)
+	void Server_SetUIPaused(bool bPaused);
+
+	/* 서버가 정한 일회성 알림(배너·토스트)을 내 화면에 띄움 */
+	UFUNCTION(Client, Reliable)
+	void Client_ShowNotification(EJY_NotificationType Type, const FText& Message);
+
+private:
+	/* 복제 상태(체력·영혼석) 원본을 화면용 ViewModel에 연결 — 로컬 PC만. 여러 번 불려도 안전 */
 	void InitializeLocalUI();
 
-	/** 디버그 체력 변경 요청 (음수=데미지, 양수=회복) */
+protected:
+	/* 디버그 체력 변경 요청 (음수=데미지, 양수=회복) */
 	UFUNCTION(Server, Reliable)
 	void Server_DebugApplyHealthDelta(float Delta);
 
+	/* 디버그 영혼석 추가 요청 */
+	UFUNCTION(Server, Reliable)
+	void Server_DebugAddSoulStones(int32 Amount);
+
+	/* 디버그 스킬 획득 요청 */
+	UFUNCTION(Server, Reliable)
+	void Server_DebugGiveSkill(FName SkillName, int32 SlotIndex);
+
+	/* 디버그 슬롯 해금 요청 */
+	UFUNCTION(Server, Reliable)
+	void Server_DebugUnlockSkillSlot();
+
+	/* 디버그 쿨타임 무시 요청 */
+	UFUNCTION(Server, Reliable)
+	void Server_DebugSetIgnoreCooldowns(bool bEnable);
+
 private:
-	/** 로컬 플레이어에 등록할 입력 매핑 */
+	/* 카메라를 가린 벽 흐리게 (내 화면만) */
+	UPROPERTY(VisibleAnywhere, Category = "JY|Camera")
+	TObjectPtr<UJY_CameraOcclusionFadeComponent> CameraOcclusionFadeComponent;
+
+private:
+	/* 설정값 — BP_JY_PlayerController의 Class Defaults에서 수정 */
+
+	/* 로컬 플레이어에 등록할 입력 매핑 */
 	UPROPERTY(EditAnywhere, Category = "JY|Input")
 	TArray<TObjectPtr<UInputMappingContext>> DefaultMappingContexts;
-
-	/** 게임 중 띄울 HUD 위젯 */
-	UPROPERTY(EditDefaultsOnly, Category = "JY|UI")
-	TSubclassOf<UJY_ScreenWidget> HUDWidgetClass;
 };

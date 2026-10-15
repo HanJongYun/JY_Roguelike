@@ -2,34 +2,76 @@
 
 #include "CoreMinimal.h"
 #include "Subsystems/LocalPlayerSubsystem.h"
+#include "GameplayTagContainer.h"
+#include "MVVMViewModelBase.h"
+#include "UI/JY_UITypes.h"
 #include "JY_UIManagerSubsystem.generated.h"
 
 class APlayerController;
-class UAbilitySystemComponent;
-class UJY_HealthViewModel;
+class UJY_GameData;
+class UJY_PrimaryLayout;
 class UJY_ScreenWidget;
 
-/** 로컬 플레이어의 화면과 ViewModel을 관리 */
+/*
+ * 로컬 플레이어의 화면과 ViewModel을 관리 — 클라에만 있다(데디 서버엔 로컬 플레이어가 없음)
+ *
+ * ViewModel에 값을 넣는 규칙 3가지 (새 화면을 만들 때 이 중 하나를 고른다)
+ *   1. 복제 상태(체력·영혼석·강화 단계) → ViewModel이 원본을 구독한다. 연결은 AJY_PlayerController::InitializeLocalUI 한 곳
+ *   2. 로컬 전용 상태(상호작용 초점)   → 그 상태를 가진 게임 코드가 GetOrCreateViewModel로 직접 값을 넣는다
+ *   3. 목록 항목(제단 줄)             → 화면이 항목 위젯마다 ViewModel을 직접 넣는다 (WBP Creation Type = Manual)
+ *
+ * ViewModel 수명 규칙: ViewModel은 맵을 넘어 남는다 → 월드 물체가 채운 값은 그 물체 쪽이 사라질 때 비운다
+ *   (예: UJY_InteractionComponent가 "[E] 포털" 안내를 지움 — 안 지우면 던전 HUD에 남는다)
+ */
 UCLASS()
 class UJY_UIManagerSubsystem : public ULocalPlayerSubsystem
 {
 	GENERATED_BODY()
 
 public:
-	/** 체력 ViewModel (없으면 생성) */
-	UFUNCTION(BlueprintCallable, Category = "JY|UI")
-	UJY_HealthViewModel* GetHealthViewModel();
+	virtual void Deinitialize() override;
+	virtual void PlayerControllerChanged(APlayerController* NewPlayerController) override;
 
-	/** HUD를 만들어 화면에 띄움 (이미 있으면 무시) */
-	void ShowHUD(APlayerController* PC, TSubclassOf<UJY_ScreenWidget> HUDClass);
+public:
+	/* 화면을 해당 층 스택 맨 위에 올림 (예: UI.Layer.Menu). InitFunc는 화면이 켜지기 전에 한 번 불린다 */
+	UJY_ScreenWidget* PushScreen(FGameplayTag LayerTag, TSubclassOf<UJY_ScreenWidget> ScreenClass, TFunctionRef<void(UJY_ScreenWidget&)> InitFunc = [](UJY_ScreenWidget&) {});
 
-	/** ASC를 ViewModel에 연결 */
-	void BindAbilitySystem(UAbilitySystemComponent* InASC);
+	/* 확인 팝업을 Modal 층에 띄우고 결과를 OnResult로 돌려줌 */
+	void ShowConfirm(const FText& Title, const FText& Body, FJY_OnConfirmResult OnResult);
+
+	/* 알림 1개를 종류에 맞는 알림 칸(배너·토스트)에 띄움 */
+	void ShowNotification(EJY_NotificationType Type, const FText& Message);
+
+	/* 정지 화면이 켜지거나 꺼질 때 호출 — 목록이 비었다↔안 비었다 바뀔 때만 서버에 정지 요청 */
+	void SetPauseScreenActive(UJY_ScreenWidget* Screen, bool bActive);
+
+	/* 요청한 ViewModel을 플레이어당 하나로 꺼냄 (없으면 생성) — 어느 화면·코드가 요청해도 같은 인스턴스 */
+	UMVVMViewModelBase* GetOrCreateViewModel(TSubclassOf<UMVVMViewModelBase> ViewModelClass);
+
+	template <typename T>
+	T* GetOrCreateViewModel() { return Cast<T>(GetOrCreateViewModel(T::StaticClass())); }
+
+private:
+	/* 화면 틀을 만들어 이 플레이어 화면에 붙이고 HUD까지 올림 */
+	void CreatePrimaryLayout(APlayerController* PC);
+
+	/* 이 맵이 HUD를 쓰면(World Settings bShowHUD) Game 층에 올림 */
+	void PushHUD(APlayerController* PC, const UJY_GameData& GameData);
+
+	/* 화면 틀을 화면에서 떼고 버림 */
+	void DestroyPrimaryLayout();
 
 private:
 	UPROPERTY(Transient)
-	TObjectPtr<UJY_HealthViewModel> HealthViewModel;
+	TObjectPtr<UJY_PrimaryLayout> PrimaryLayout;
 
+	/* 틀을 만든 PC — 맵 이동 후엔 위젯의 GetOwningPlayer가 새 PC를 돌려줘 비교에 못 쓴다 */
+	TWeakObjectPtr<APlayerController> LayoutOwner;
+
+	/* 지금 켜져 있는 정지 화면들 */
+	TSet<TWeakObjectPtr<UJY_ScreenWidget>> PauseScreens;
+
+	/* 만든 ViewModel 보관 — 키 = ViewModel 클래스, 클래스당 1개 */
 	UPROPERTY(Transient)
-	TObjectPtr<UJY_ScreenWidget> HUDWidget;
+	TMap<TObjectPtr<UClass>, TObjectPtr<UMVVMViewModelBase>> ViewModels;
 };

@@ -1,6 +1,6 @@
-# JY_Roguelike
+# JY_Roguelike (현재 진행 중)
 
-## 마일스톤
+## Milestones
 
 **Player Character**
 - [x] 쿼터뷰 카메라 · 이동 ✅

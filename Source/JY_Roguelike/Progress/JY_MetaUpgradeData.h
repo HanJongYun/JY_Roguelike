@@ -62,7 +62,6 @@ public:
 	const TArray<FJY_MetaUpgradeDefinition>& GetUpgrades() const { return Upgrades; }
 	const FText& GetRankFormat() const { return RankFormat; }
 	const FText& GetMaxedCostText() const { return MaxedCostText; }
-	const FText& GetPurchaseToastFormat() const { return PurchaseToastFormat; }
 
 private:
 	/* 설정값 — DA_JY_MetaUpgrades 에셋에서 수정. 항목 추가 = 행 1개 + Config/DefaultGameplayTags.ini에 Meta.* 태그 1줄 (코드 수정 없음) */
@@ -78,8 +77,4 @@ private:
 	/* 최대 단계일 때 가격 자리에 보일 글자 (예: 최대) */
 	UPROPERTY(EditDefaultsOnly, Category = "JY|Meta")
 	FText MaxedCostText;
-
-	/* 구매 성공 토스트 형식 — {0} 이름, {1} 새 단계 (예: {0} {1}단계) */
-	UPROPERTY(EditDefaultsOnly, Category = "JY|Meta")
-	FText PurchaseToastFormat;
 };

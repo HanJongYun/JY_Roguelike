@@ -1,28 +1,25 @@
 #include "Interaction/JY_InteractionComponent.h"
-#include "Interaction/JY_InteractableActor.h"
-#include "GameFramework/Pawn.h"
-#include "GameFramework/PlayerController.h"
-#include "Components/SphereComponent.h"
-#include "Engine/LocalPlayer.h"
+#include "Interfaces/JY_InteractableTarget.h"
+#include "System/JY_GameplayTags.h"
 #include "UI/JY_UIManagerSubsystem.h"
 #include "UI/ViewModels/JY_InteractionViewModel.h"
-#include "UI/Foundation/JY_ScreenWidget.h"
-#include "System/JY_GameplayTags.h"
+#include "AbilitySystemComponent.h"
+#include "AbilitySystemGlobals.h"
+#include "Components/PrimitiveComponent.h"
+#include "Engine/LocalPlayer.h"
+#include "GameFramework/Pawn.h"
+#include "GameFramework/PlayerController.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(JY_InteractionComponent)
 
-/* Server RPC를 보내려면 복제되는 컴포넌트여야 한다 (주인 = 내 폰 → 내 연결로 전송) */
 UJY_InteractionComponent::UJY_InteractionComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
-	SetIsReplicatedByDefault(true);
 }
 
 /*
  * 가장 가까운 대상을 매 프레임 계산하지 않고 "마지막으로 들어온 대상"을 초점으로 둔다.
- * 허브 대상은 3개이고 범위가 겹치지 않게 배치 — 거리 폴링(Tick)은 비용만 든다. 겹치게 늘어나면 그때 거리 비교를 추가.
- */
-/*
+ * 로비 대상은 3개이고 범위가 겹치지 않게 배치 — 거리 폴링(Tick)은 비용만 든다. 겹치게 늘어나면 그때 거리 비교를 추가.
  * 범위(구)는 물체가 갖고, 겹침은 폰 몸체(루트 캡슐) 쪽에서 받는다 — 감지부터 E까지 이 컴포넌트 한곳에서 흐른다.
  * 겹침은 양쪽 컴포넌트에 모두 알려진다(PrimitiveComponent.cpp BeginComponentOverlap·EndComponentOverlap).
  * 초기 겹침(UpdateInitialOverlaps)은 BeginPlay 뒤에 계산되므로 여기서 구독하면 놓치지 않는다(Actor.cpp:4801).
@@ -39,19 +36,19 @@ void UJY_InteractionComponent::BeginPlay() //override
 
 /*
  * 겹침은 서버·남의 클라에서도 일어난다 — 내가 조종하는 폰일 때만 후보에 넣는다 (대상 고르기는 로컬 일).
- * 물체의 메시 등 다른 부품과의 겹침은 제외 — "범위 안"은 그 물체의 InteractionRange와 겹친 것만.
+ * 물체의 메시 등 다른 부품과의 겹침은 제외 — 상호작용 인터페이스를 구현한 범위 컴포넌트와 겹친 것만.
  */
 // [Server] [OwnClient] [SimulatedProxy]
 void UJY_InteractionComponent::HandleOwnerBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
-	AJY_InteractableActor* InteractableActor = Cast<AJY_InteractableActor>(OtherActor);
-	if (InteractableActor == nullptr || OtherComp != InteractableActor->GetInteractionRange())
+	if (Cast<IJY_InteractableTarget>(OtherComp) == nullptr)
 		return;
 
 	if (CastChecked<APawn>(GetOwner())->IsLocallyControlled() == false)
 		return;
 
-	AddCandidate(InteractableActor);
+	Candidates.Add(OtherComp);
+	RefreshFocus();
 }
 
 /*
@@ -61,34 +58,20 @@ void UJY_InteractionComponent::HandleOwnerBeginOverlap(UPrimitiveComponent* Over
 // [Server] [OwnClient] [SimulatedProxy]
 void UJY_InteractionComponent::HandleOwnerEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
 {
-	AJY_InteractableActor* InteractableActor = Cast<AJY_InteractableActor>(OtherActor);
-	if (InteractableActor == nullptr || OtherComp != InteractableActor->GetInteractionRange())
+	if (Cast<IJY_InteractableTarget>(OtherComp) == nullptr)
 		return;
 
-	RemoveCandidate(InteractableActor);
-}
-
-// [OwnClient]
-void UJY_InteractionComponent::AddCandidate(AJY_InteractableActor* InteractableActor)
-{
-	Candidates.Add(InteractableActor);
-	RefreshFocus();
-}
-
-// [OwnClient]
-void UJY_InteractionComponent::RemoveCandidate(AJY_InteractableActor* InteractableActor)
-{
-	Candidates.Remove(InteractableActor);
+	Candidates.Remove(OtherComp);
 	RefreshFocus();
 }
 
 // [OwnClient]
 void UJY_InteractionComponent::RefreshFocus()
 {
-	auto IsInvalidCandidate = [](const TWeakObjectPtr<AJY_InteractableActor>& Candidate) { return Candidate.IsValid() == false; };
+	auto IsInvalidCandidate = [](const TWeakObjectPtr<UPrimitiveComponent>& Candidate) { return Candidate.IsValid() == false; };
 	Candidates.RemoveAll(IsInvalidCandidate);
 
-	AJY_InteractableActor* NewFocus = Candidates.Num() > 0 ? Candidates.Last().Get() : nullptr;
+	UPrimitiveComponent* NewFocus = Candidates.Num() > 0 ? Candidates.Last().Get() : nullptr;
 	if (NewFocus == FocusTarget.Get())
 		return;
 
@@ -106,7 +89,8 @@ void UJY_InteractionComponent::RefreshFocus()
 		UIManager = PromptUIManager.Get();
 	}
 
-	SetPromptName(UIManager, NewFocus != nullptr ? NewFocus->GetDisplayName() : FText::GetEmpty());
+	const IJY_InteractableTarget* Target = Cast<IJY_InteractableTarget>(NewFocus);
+	SetPromptName(UIManager, Target != nullptr ? Target->GetInteractionName() : FText::GetEmpty());
 }
 
 /* "지금 초점"은 복제 값이 아니라 내 컴퓨터에서만 정해지는 상태 → 가진 쪽이 ViewModel에 직접 넣는다 */
@@ -129,77 +113,55 @@ UJY_UIManagerSubsystem* UJY_InteractionComponent::GetUIManager() const
 	return PC != nullptr ? ULocalPlayer::GetSubsystem<UJY_UIManagerSubsystem>(PC->GetLocalPlayer()) : nullptr;
 }
 
-/*
- * 화면형(기록판·제단): 내 화면만 바뀌므로 서버에 묻지 않고 바로 연다. 값을 바꾸는 행동(구매)은 그 화면이 서버에 요청한다.
- * 서버형(포털): 클라의 "가까이 있다" 판정을 믿지 않고 반드시 서버를 거친다.
- */
+/* 확인 문구가 있는 대상(포털)은 내 화면에 팝업을 먼저 띄운다 — 팝업은 내 화면 일이라 GA 밖에서 */
 // [OwnClient]
 void UJY_InteractionComponent::Interact()
 {
-	AJY_InteractableActor* Target = FocusTarget.Get();
+	UPrimitiveComponent* TargetComponent = FocusTarget.Get();
+	const IJY_InteractableTarget* Target = Cast<IJY_InteractableTarget>(TargetComponent);
 	if (Target == nullptr)
 		return;
 
-	switch (Target->GetInteractionType())
+	if (Target->GetConfirmText().IsEmpty() == true)
 	{
-	case EJY_InteractionType::OpenScreen:
-	{
-		/* 기획 실수(화면 미지정)를 조용히 넘기지 않는다 — 에디터에 어느 물체인지 띄우고 아무것도 안 함 */
-		if (ensureMsgf(Target->GetScreenClass().IsNull() == false, TEXT("%s: InteractionType이 OpenScreen인데 ScreenClass가 비어 있음"), *Target->GetName()) == false)
-			return;
-
-		UJY_UIManagerSubsystem* UIManager = GetUIManager();
-		if (UIManager == nullptr)
-			return;
-
-		/* BeginPlay에서 미리 로드해 둬 여기선 바로 돌려받는다 */
-		TSubclassOf<UJY_ScreenWidget> ScreenClass = Target->GetScreenClass().LoadSynchronous();
-
-		/* 화면이 켜지기 전에 "누가 열었나"를 넣는다 — 켜질 때(NativeOnActivated) 화면이 바로 쓸 수 있게 */
-		auto SetSourceBeforeActivate = [Target](UJY_ScreenWidget& Screen) { Screen.SetSourceActor(Target); };
-		UIManager->PushScreen(JYGameplayTags::UI_Layer_GameMenu, ScreenClass, SetSourceBeforeActivate);
+		TriggerInteraction(TargetComponent);
 		return;
 	}
-	case EJY_InteractionType::ServerAction:
-	{
-		if (Target->GetConfirmText().IsEmpty() == true)
-		{
-			Server_Interact(Target);
-			return;
-		}
 
-		UJY_UIManagerSubsystem* UIManager = GetUIManager();
-		if (UIManager == nullptr)
-			return;
-
-		/* 팝업이 떠 있는 동안 물체가 사라질 수 있어 weak로 넘긴다 — 결과가 올 때 살아 있는지 확인 */
-		FJY_OnConfirmResult OnResult = FJY_OnConfirmResult::CreateUObject(this, &UJY_InteractionComponent::HandleConfirmResult, TWeakObjectPtr<AJY_InteractableActor>(Target));
-		UIManager->ShowConfirm(Target->GetDisplayName(), Target->GetConfirmText(), MoveTemp(OnResult));
+	UJY_UIManagerSubsystem* UIManager = GetUIManager();
+	if (UIManager == nullptr)
 		return;
-	}
-	}
+
+	/* 팝업이 떠 있는 동안 물체가 사라질 수 있어 weak로 넘긴다 — 결과가 올 때 살아 있는지 확인 */
+	FJY_OnConfirmResult OnResult = FJY_OnConfirmResult::CreateUObject(this, &UJY_InteractionComponent::HandleConfirmResult, TWeakObjectPtr<UPrimitiveComponent>(TargetComponent));
+	UIManager->ShowConfirm(Target->GetInteractionName(), Target->GetConfirmText(), MoveTemp(OnResult));
 }
 
-/* 확인 팝업 결과 — 확인일 때만 서버에 요청 */
+/* 확인 팝업 결과 — 확인일 때만 사용 */
 // [OwnClient]
-void UJY_InteractionComponent::HandleConfirmResult(bool bConfirmed, TWeakObjectPtr<AJY_InteractableActor> Target)
+void UJY_InteractionComponent::HandleConfirmResult(bool bConfirmed, TWeakObjectPtr<UPrimitiveComponent> Target)
 {
 	if (bConfirmed == false || Target.IsValid() == false)
 		return;
 
-	Server_Interact(Target.Get());
+	TriggerInteraction(Target.Get());
 }
 
-/* 개조 클라가 먼 대상을 보내도 여기서 거절된다 */
-// [Server]
-void UJY_InteractionComponent::Server_Interact_Implementation(AJY_InteractableActor* Target)
+/*
+ * Lyra와 같은 흐름(LyraGameplayAbility_Interact.cpp:114 TriggerInteraction) — 이벤트 데이터에 대상 액터를 실어 GA를 발동.
+ * 조종 클라에서 이벤트로 발동한 예측 GA는 이벤트 데이터째 서버에도 발동을 요청한다 (AbilitySystemComponent_Abilities.cpp:1937 ServerTryActivateAbilityWithEventData)
+ */
+// [OwnClient]
+void UJY_InteractionComponent::TriggerInteraction(UPrimitiveComponent* Target) const
 {
-	if (Target == nullptr)
-		return;
-
 	APawn* Pawn = GetOwner<APawn>();
-	if (Pawn == nullptr || Target->IsWithinInteractRange(Pawn) == false)
+	UAbilitySystemComponent* ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Pawn);
+	if (ASC == nullptr)
 		return;
 
-	Target->OnServerInteract(Pawn->GetController<APlayerController>());
+	FGameplayEventData Payload;
+	Payload.EventTag = JYGameplayTags::Event_Interact;
+	Payload.Instigator = Pawn;
+	Payload.Target = Target->GetOwner();
+	ASC->HandleGameplayEvent(Payload.EventTag, &Payload);
 }

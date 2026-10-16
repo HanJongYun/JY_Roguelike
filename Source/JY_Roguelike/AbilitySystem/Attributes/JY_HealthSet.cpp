@@ -80,7 +80,15 @@ void UJY_HealthSet::PostGameplayEffectExecute(const FGameplayEffectModCallbackDa
 {
 	Super::PostGameplayEffectExecute(Data);
 
-	const float MinimumHealth = 0.0f;
+	float MinimumHealth = 0.0f;
+
+#if !UE_BUILD_SHIPPING
+	/* 안 죽는 치트 — LyraHealthSet::PostGameplayEffectExecute(LyraHealthSet.cpp:118)와 같음 */
+	if (Data.Target.HasMatchingGameplayTag(JYGameplayTags::Cheat_UnlimitedHealth) == true)
+	{
+		MinimumHealth = 1.0f;
+	}
+#endif
 
 	const FGameplayEffectContextHandle& EffectContext = Data.EffectSpec.GetEffectContext();
 	AActor* Instigator = EffectContext.GetOriginalInstigator();

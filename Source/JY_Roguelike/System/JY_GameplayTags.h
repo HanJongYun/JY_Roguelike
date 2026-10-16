@@ -37,16 +37,20 @@ namespace JYGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Type_Jump);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Start_Air);
 
-	/* Event — 몽타주 노티파이가 어빌리티로 보내는 이벤트 */
+	/* Event — 몽타주 노티파이·상호작용이 어빌리티로 보내는 이벤트 */
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Melee_Hit);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Melee_StepStart);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Skill_Hit);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Skill_DiveStart);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Skill_SlamPose);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Interact);
 
 	/* State — 어빌리티가 실행 중에 붙이는 태그 */
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Dashing);
 
 	/* Gameplay — 데미지 규칙 */
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Gameplay_DamageImmunity);
+
+	/* Cheat — 개발용 (출시 빌드에선 무시) */
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cheat_UnlimitedHealth);
 }

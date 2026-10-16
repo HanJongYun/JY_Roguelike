@@ -2,7 +2,6 @@
 #include "UI/Foundation/JY_ButtonBase.h"
 #include "UI/ViewModels/JY_MetaEntryViewModel.h"
 #include "Player/JY_PlayerController.h"
-#include "Interaction/JY_InteractableActor.h"
 #include "View/MVVMView.h"
 #include "Components/Image.h"
 
@@ -22,7 +21,7 @@ void UJY_MetaEntryWidget::NativeOnInitialized() //override
  * 넣는 순간 이 위젯의 MVVM View가 바인딩 5개를 그 ViewModel 값으로 한 번 실행하고, 이후엔 알림이 올 때마다 갱신.
  */
 // [OwnClient]
-void UJY_MetaEntryWidget::SetEntry(UJY_MetaEntryViewModel* InEntryViewModel, AJY_InteractableActor* InAltar)
+void UJY_MetaEntryWidget::SetEntry(UJY_MetaEntryViewModel* InEntryViewModel, AActor* InAltar)
 {
 	EntryViewModel = InEntryViewModel;
 	Altar = InAltar;

@@ -2,6 +2,8 @@
 #include "AbilitySystem/JY_AbilitySystemComponent.h"
 #include "AbilitySystem/Effects/JY_CombatGameplayEffects.h"
 #include "Enemy/JY_EnemyCharacter.h"
+#include "Interfaces/JY_HitReactable.h"
+#include "Interfaces/JY_InterfaceUtils.h"
 #include "System/JY_GameplayTags.h"
 #include "AbilitySystemGlobals.h"
 #include "DrawDebugHelpers.h"
@@ -57,6 +59,21 @@ namespace JY_CombatQuery
 		}
 		return false;
 	}
+
+	/* 높이 허용치 안이고 2D 모양에 걸치는지 — 대상 크기는 단순 충돌 원기둥 */
+	bool IsActorInsideShape(const FJY_HitShape& Shape, const FVector& Center, const FVector& Forward, const AActor* Actor)
+	{
+		float TargetRadius = 0.0f;
+		float TargetHalfHeight = 0.0f;
+		Actor->GetSimpleCollisionCylinder(OUT TargetRadius, OUT TargetHalfHeight);
+
+		const FVector TargetLocation = Actor->GetActorLocation();
+		const float HeightDifference = FMath::Abs(TargetLocation.Z - Center.Z);
+		if (HeightDifference > Shape.HalfHeight + TargetHalfHeight)
+			return false;
+
+		return IsInsideShape2D(Shape, Center, Forward, TargetLocation, TargetRadius);
+	}
 }
 
 bool UJY_CombatQuerySubsystem::DoesSupportWorldType(const EWorldType::Type WorldType) const //override
@@ -85,7 +102,9 @@ void UJY_CombatQuerySubsystem::FindTargets(const FJY_HitShape& Shape, const FTra
 		QueryRadius = FarCorner.Size();
 	}
 
-	const FCollisionObjectQueryParams ObjectQueryParams(ECC_Pawn);
+	/* 맞으면 발동하는 물체(IJY_HitReactable — 항아리 등)는 WorldDynamic */
+	FCollisionObjectQueryParams ObjectQueryParams(ECC_Pawn);
+	ObjectQueryParams.AddObjectTypesToQuery(ECC_WorldDynamic);
 	const FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(JY_FindTargets), false, Attacker);
 	const FCollisionShape QuerySphere = FCollisionShape::MakeSphere(QueryRadius);
 	TArray<FOverlapResult> Overlaps;
@@ -101,6 +120,19 @@ void UJY_CombatQuerySubsystem::FindTargets(const FJY_HitShape& Shape, const FTra
 		if (bAlreadyChecked == true)
 			continue;
 
+		/* 맞으면 발동하는 물체는 팀·체력 없이 모양만 본다 — 적 공격도 부순다 */
+		const IJY_HitReactable* HitReactable = JY_FindInterface<IJY_HitReactable>(Actor);
+		if (HitReactable != nullptr)
+		{
+			if (HitReactable->CanReceiveHit() == true && JY_CombatQuery::IsActorInsideShape(Shape, Center, Forward, Actor) == true)
+			{
+				FJY_CombatTarget& Target = OutTargets.AddDefaulted_GetRef();
+				Target.Actor = Actor;
+				Target.Location = Actor->GetActorLocation();
+			}
+			continue;
+		}
+
 		if (FGenericTeamId::GetAttitude(Attacker, Actor) != ETeamAttitude::Hostile)
 			continue;
 
@@ -112,21 +144,12 @@ void UJY_CombatQuerySubsystem::FindTargets(const FJY_HitShape& Shape, const FTra
 		if (TargetASC->HasMatchingGameplayTag(JYGameplayTags::Status_Death) == true)
 			continue;
 
-		float TargetRadius = 0.0f;
-		float TargetHalfHeight = 0.0f;
-		Actor->GetSimpleCollisionCylinder(OUT TargetRadius, OUT TargetHalfHeight);
-
-		const FVector TargetLocation = Actor->GetActorLocation();
-		const float HeightDifference = FMath::Abs(TargetLocation.Z - Center.Z);
-		if (HeightDifference > Shape.HalfHeight + TargetHalfHeight)
-			continue;
-
-		if (JY_CombatQuery::IsInsideShape2D(Shape, Center, Forward, TargetLocation, TargetRadius) == false)
+		if (JY_CombatQuery::IsActorInsideShape(Shape, Center, Forward, Actor) == false)
 			continue;
 
 		FJY_CombatTarget& Target = OutTargets.AddDefaulted_GetRef();
 		Target.Actor = Actor;
-		Target.Location = TargetLocation;
+		Target.Location = Actor->GetActorLocation();
 	}
 
 	if (JY_CombatQuery::CVarDrawHitShapes.GetValueOnGameThread() != 0)
@@ -149,6 +172,16 @@ void UJY_CombatQuerySubsystem::ApplyHit(const FJY_CombatTarget& Target, const FJ
 		return;
 
 	AActor* InstigatorActor = Payload.Instigator.Get();
+
+	/* 맞으면 발동하는 물체는 맞은 뒤 일을 스스로 정한다(항아리는 부서짐) — 밀어내기 속도가 파편이 튀는 방향·세기 */
+	IJY_HitReactable* HitReactable = JY_FindInterface<IJY_HitReactable>(TargetActor);
+	if (HitReactable != nullptr)
+	{
+		const FVector HitVelocity(Payload.KnockbackImpulse.X, Payload.KnockbackImpulse.Y, 0.0f);
+		HitReactable->ReceiveHit(InstigatorActor, Payload.Damage, HitVelocity);
+		return;
+	}
+
 	UAbilitySystemComponent* TargetASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(TargetActor);
 	UAbilitySystemComponent* SourceASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(InstigatorActor);
 	UJY_AbilitySystemComponent* TargetJYASC = CastChecked<UJY_AbilitySystemComponent>(TargetASC);
@@ -184,6 +217,38 @@ void UJY_CombatQuerySubsystem::ApplyHit(const FJY_CombatTarget& Target, const FJ
 		/* 서버가 부르면 모든 클라로 멀티캐스트, 데디 서버 자신은 연출 생략(GameplayCueManager.cpp:178~183) */
 		TargetJYASC->ExecuteGameplayCue(Payload.HitCueTag, CueParameters);
 	}
+}
+
+// [Server]
+/*
+ * 피해 원인 ASC = 부순 쪽(있으면) — 폭발 통 처치 기록이 부순 플레이어에게 남는다.
+ * 부순 쪽이 없거나(함정) ASC가 없으면 맞는 쪽 ASC로 만든다. 대시 무적 등은 UJY_HealthSet이 똑같이 막는다.
+ */
+bool UJY_CombatQuerySubsystem::ApplyEnvironmentDamage(AActor* TargetActor, float Damage, AActor* InstigatorActor, const FVector& Origin) const
+{
+	UAbilitySystemComponent* TargetASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(TargetActor);
+	if (TargetASC == nullptr)
+		return false;
+
+	if (TargetASC->HasMatchingGameplayTag(JYGameplayTags::Status_Death) == true)
+		return false;
+
+	UJY_AbilitySystemComponent* TargetJYASC = CastChecked<UJY_AbilitySystemComponent>(TargetASC);
+	UJY_AbilitySystemComponent* SourceJYASC = TargetJYASC;
+	UAbilitySystemComponent* InstigatorASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(InstigatorActor);
+	if (InstigatorASC != nullptr)
+	{
+		SourceJYASC = CastChecked<UJY_AbilitySystemComponent>(InstigatorASC);
+	}
+
+	FGameplayEffectContextHandle EffectContext = SourceJYASC->MakeEffectContext();
+	EffectContext.AddOrigin(Origin);
+
+	const FGameplayEffectSpecHandle DamageSpecHandle = SourceJYASC->MakeOutgoingSpec(UJY_GameplayEffect_Damage::StaticClass(), 1.0f, EffectContext);
+	FGameplayEffectSpec* DamageSpec = DamageSpecHandle.Data.Get();
+	DamageSpec->SetSetByCallerMagnitude(JYGameplayTags::SetByCaller_Damage, Damage);
+	SourceJYASC->ApplyGameplayEffectSpecToTarget(*DamageSpec, TargetJYASC);
+	return true;
 }
 
 void UJY_CombatQuerySubsystem::DrawHitShape(const UWorld* World, const FJY_HitShape& Shape, const FTransform& Origin, bool bHitAny)

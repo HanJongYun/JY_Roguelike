@@ -39,8 +39,6 @@ public:
 
 	const TArray<FJY_SkillSlotEntry>& GetSlots() const { return Slots; }
 
-	const TArray<TObjectPtr<const UJY_SkillUpgradeCard>>& GetPendingCardChoices() const { return PendingCardChoices; }
-
 private:
 	/* [Server] 이 슬롯 스킬의 카드 후보를 섞어 선택지 만들기 */
 	void DrawUpgradeCards(int32 SlotIndex);

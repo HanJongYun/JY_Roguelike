@@ -105,11 +105,13 @@ void UJY_GameplayAbility_Plunge::OnDirectionReceived(const FGameplayAbilityTarge
 	const FVector AvatarLocation = AvatarActor->GetActorLocation();
 	PlungeStartHeight = AvatarLocation.Z;
 
-	/* 땅 — 평지면 LeapDuration 뒤 착지하므로 그때 칼이 땅에 닿게 처음부터 속도를 맞춤 (서버·조종 클라 같은 값) */
+	/* 땅 — 도약 경로로 착지 시각을 예측해 그때 칼이 땅에 닿게 처음부터 속도를 맞춤. 바닥이 안 보이면 평지 기준(LeapDuration). 서버·조종 클라가 같은 지형으로 같은 값을 얻어 RPC가 필요 없다 */
 	float MontagePlayRate = PlayRate;
 	if (bAirPlunge == false)
 	{
-		MontagePlayRate = SlamPoseTime / LeapDuration;
+		float LandingTime = LeapDuration;
+		PredictLeapLandingTime(Direction, OUT LandingTime);
+		MontagePlayRate = ComputeSlamPlayRate(SlamPoseTime, LandingTime);
 	}
 
 	UAbilityTask_PlayMontageAndWait* MontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(this, NAME_None, PlungeMontage, MontagePlayRate, NAME_None, true);
@@ -187,9 +189,70 @@ void UJY_GameplayAbility_Plunge::MatchSlamToLanding(const FVector& DiveVelocity)
 	if (SlamTimeLeft <= 0.0f || FallTime <= UE_KINDA_SMALL_NUMBER)
 		return;
 
-	const float SlamPlayRate = FMath::Max(SlamTimeLeft / FallTime, MinSlamPlayRate);
+	const float SlamPlayRate = ComputeSlamPlayRate(SlamTimeLeft, FallTime);
 	UJY_AbilitySystemComponent* JYASC = GetJYAbilitySystemComponentFromActorInfo();
 	JYASC->CurrentMontageSetPlayRate(SlamPlayRate);
+}
+
+// [Server] [OwnClient]
+/*
+ * 엔진 점프 루트모션 경로를 그대로 따라간다 — 높이 = LeapHeight × (1 - (2f-1)²)(RootMotionSource.cpp FRootMotionSource_JumpForce::GetPathOffset),
+ * LeapDuration이 지나면 끝 속도로 직선 낙하(같은 파일 PrepareRootMotion, 시간 넘어가면 마지막 구간을 다시 씀).
+ * 오르는 동안은 착지할 수 없으므로 정점부터 토막으로 나눠 발밑 레이를 쏜다 (공중 하강 MatchSlamToLanding과 같은 발밑·WorldStatic 기준)
+ */
+bool UJY_GameplayAbility_Plunge::PredictLeapLandingTime(const FVector& Direction, float& OutLandingTime) const
+{
+	/* 포물선 하강 구간을 나누는 토막 수 — 많을수록 곡선에 가깝지만 레이가 늘어남 (8토막이면 기본값에서 한 토막 약 0.03초) */
+	constexpr int32 DescentSegmentCount = 8;
+
+	const ACharacter* Character = CastChecked<ACharacter>(GetAvatarActorFromActorInfo());
+	const UCapsuleComponent* Capsule = Character->GetCapsuleComponent();
+	const FVector AvatarLocation = Character->GetActorLocation();
+	const FVector FeetLocation = AvatarLocation - FVector::UpVector * Capsule->GetScaledCapsuleHalfHeight();
+	const FVector Forward = Direction.GetSafeNormal2D();
+
+	auto GetLeapFeetLocation = [this, &FeetLocation, &Forward](float MoveFraction)
+	{
+		const float Phi = 2.0f * MoveFraction - 1.0f;
+		const float HeightOffset = LeapHeight * (1.0f - Phi * Phi);
+		return FeetLocation + Forward * LeapDistance * MoveFraction + FVector::UpVector * HeightOffset;
+	};
+
+	const FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(JYPlungeLeapGround), false, Character);
+	const FCollisionObjectQueryParams ObjectQueryParams(ECC_WorldStatic);
+	FHitResult GroundHit;
+
+	/* 정점 → 도약 끝 */
+	const float ApexTime = LeapDuration * 0.5f;
+	const float SegmentDuration = ApexTime / DescentSegmentCount;
+	for (int32 SegmentIndex = 0; SegmentIndex < DescentSegmentCount; ++SegmentIndex)
+	{
+		const float SegmentStartTime = ApexTime + SegmentDuration * SegmentIndex;
+		const float SegmentEndTime = SegmentStartTime + SegmentDuration;
+		const FVector SegmentStart = GetLeapFeetLocation(SegmentStartTime / LeapDuration);
+		const FVector SegmentEnd = GetLeapFeetLocation(SegmentEndTime / LeapDuration);
+		if (GetWorld()->LineTraceSingleByObjectType(OUT GroundHit, SegmentStart, SegmentEnd, ObjectQueryParams, QueryParams) == true)
+		{
+			OutLandingTime = SegmentStartTime + SegmentDuration * GroundHit.Time;
+			return true;
+		}
+	}
+
+	/* 도약 끝 → 끝 속도로 직선 낙하. 끝 속도 = 포물선 끝 기울기 (앞 LeapDistance, 아래 4 × LeapHeight, 둘 다 LeapDuration당) */
+	const FVector EndVelocity = (Forward * LeapDistance - FVector::UpVector * 4.0f * LeapHeight) / LeapDuration;
+	const FVector FallStart = GetLeapFeetLocation(1.0f);
+	const FVector FallEnd = FallStart + EndVelocity * FallTraceSeconds;
+	if (GetWorld()->LineTraceSingleByObjectType(OUT GroundHit, FallStart, FallEnd, ObjectQueryParams, QueryParams) == false)
+		return false;
+
+	OutLandingTime = LeapDuration + FallTraceSeconds * GroundHit.Time;
+	return true;
+}
+
+/* 아주 높은 곳이면 동작이 너무 느려지지 않게 MinSlamPlayRate에서 멈춘다 */
+float UJY_GameplayAbility_Plunge::ComputeSlamPlayRate(float SlamTimeLeft, float FallTime) const
+{
+	return FMath::Max(SlamTimeLeft / FallTime, MinSlamPlayRate);
 }
 
 // [Server] [OwnClient] 각자 자기 CMC 착지
@@ -222,20 +285,19 @@ void UJY_GameplayAbility_Plunge::OnLanded(const FHitResult& Hit)
 }
 
 // [Server] [OwnClient]
-/* 낙하 높이는 타격 시점 Z로 계산 — 서버는 섹션 이동 RPC가 자기 착지보다 먼저 올 수 있다(캐릭터 이동 RPC와 ASC RPC는 순서 보장 없음) */
+/*
+ * 낙하 높이는 타격 시점 Z로 계산 — 서버는 섹션 이동 RPC가 자기 착지보다 먼저 올 수 있다(캐릭터 이동 RPC와 ASC RPC는 순서 보장 없음).
+ * 땅 도약도 시작 높이 기준이라 평지·오르막은 1배, 높은 곳에서 뛰어내려야 넓어진다 (도약 높이 자체는 치지 않음)
+ */
 void UJY_GameplayAbility_Plunge::OnHitEvent(FGameplayEventData Payload)
 {
 	const FJY_SkillStats Stats = GetSkillStats();
 	const FTransform HitOrigin = GetAvatarHitOrigin();
 
-	float FallRadiusScale = 1.0f;
-	if (bAirPlunge == true)
-	{
-		const FVector HitLocation = HitOrigin.GetLocation();
-		const float FallHeight = PlungeStartHeight - HitLocation.Z;
-		const float FallAlpha = FMath::Clamp(FallHeight / FallHeightForMaxRadius, 0.0f, 1.0f);
-		FallRadiusScale = FMath::Lerp(1.0f, MaxFallRadiusScale, FallAlpha);
-	}
+	const FVector HitLocation = HitOrigin.GetLocation();
+	const float FallHeight = PlungeStartHeight - HitLocation.Z;
+	const float FallAlpha = FMath::Clamp(FallHeight / FallHeightForMaxRadius, 0.0f, 1.0f);
+	const float FallRadiusScale = FMath::Lerp(1.0f, MaxFallRadiusScale, FallAlpha);
 
 	const FJY_HitShape ScaledShape = ScaleHitShape(HitShape, Stats.RadiusScale * FallRadiusScale);
 	const float ScaledDamage = Damage * Stats.DamageScale;

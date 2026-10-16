@@ -94,8 +94,6 @@ void UJY_HealthComponent::StartDeath()
 	AActor* Owner = GetOwner();
 	check(Owner);
 
-	UE_LOG(LogJY, Log, TEXT("[%s] JYHealth DeathStarted %s"), JY_GetNetRoleTag(Owner), *GetNameSafe(Owner));
-
 	/* 모든 어빌리티 차단 (LyraHealthComponent::StartDeath와 같음). 서버·클라 모두 여기를 지나 클라 예측도 막힌다.
 	   시뮬 프록시는 죽음 복제가 PlayerState(ASC)보다 먼저 올 수 있어 ASC가 아직 없을 수 있다 */
 	if (AbilitySystemComponent != nullptr)

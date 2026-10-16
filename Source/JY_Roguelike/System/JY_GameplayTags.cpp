@@ -40,10 +40,12 @@ namespace JYGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Skill_Hit,         "Event.Skill.Hit",         "스킬 타격 시점.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Skill_DiveStart,   "Event.Skill.DiveStart",   "공중 내려찍기 하강 시작.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Skill_SlamPose,    "Event.Skill.SlamPose",    "내려찍기 칼이 땅을 치는 순간 — 착지에 맞춰 재생 속도를 정하는 기준 시각.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Interact,          "Event.Interact",          "E키 상호작용 — 대상 액터를 실어 상호작용 GA를 발동.");
 
 	/* State */
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Dashing,           "State.Dashing",           "대시 중. 점프를 막는다.");
 
 	/* Gameplay */
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Gameplay_DamageImmunity, "Gameplay.DamageImmunity", "데미지 무시 (UJY_HealthSet::PreGameplayEffectExecute).");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cheat_UnlimitedHealth,   "Cheat.UnlimitedHealth",   "체력이 1 밑으로 안 내려감 — 안 죽음 (UJY_HealthSet::PostGameplayEffectExecute, 출시 빌드 제외).");
 }

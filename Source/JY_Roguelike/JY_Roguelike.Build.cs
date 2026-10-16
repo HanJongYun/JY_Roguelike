@@ -31,7 +31,12 @@ public class JY_Roguelike : ModuleRules
 			"AnimationLocomotionLibraryRuntime"
 		});
 
-		PrivateDependencyModuleNames.AddRange(new string[] { });
+		PrivateDependencyModuleNames.AddRange(new string[] {
+			"Chaos",
+			"PhysicsCore",
+			"GeometryCollectionEngine",
+			"FieldSystemEngine"
+		});
 
 		PublicIncludePaths.AddRange(new string[] {
 			"JY_Roguelike"

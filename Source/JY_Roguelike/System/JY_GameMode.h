@@ -6,7 +6,6 @@
 #include "Progress/JY_ProgressTypes.h"
 #include "JY_GameMode.generated.h"
 
-class AJY_InteractableActor;
 class AJY_PlayerState;
 
 /* 진행을 바꿀 때 메타 효과(최대 체력 등)도 다시 걸지 */
@@ -30,20 +29,26 @@ public:
 
 public:
 	virtual void HandleStartingNewPlayer_Implementation(APlayerController* NewPlayer) override;
+	virtual bool PlayerCanRestart_Implementation(APlayerController* Player) override;
+	virtual AActor* ChoosePlayerStart_Implementation(AController* Player) override;
+
+protected:
+	virtual bool ShouldSpawnAtStartSpot(AController* Player) override;
+	virtual bool UpdatePlayerStartSpot(AController* Player, const FString& Portal, FString& OutErrorMessage) override;
 
 public:
 	/* 메타 강화 1단계 구매 — 제단·가격·최대 단계·보유 영혼석 검증 */
-	void TryBuyMetaUpgrade(APlayerController* Buyer, FGameplayTag UpgradeTag, AJY_InteractableActor* Altar);
+	void TryBuyMetaUpgrade(APlayerController* Buyer, FGameplayTag UpgradeTag, AActor* Altar);
 
 	/* 산 메타 강화를 전부 되돌리고 쓴 영혼석을 돌려줌 (제단 검증) */
-	void RefundAllMetaUpgrades(APlayerController* Requester, AJY_InteractableActor* Altar);
+	void RefundAllMetaUpgrades(APlayerController* Requester, AActor* Altar);
 
 	/* 영혼석 더하기 (치트·보상) */
 	void AddSoulStones(APlayerController* Receiver, int32 Amount);
 
 private:
 	/* 요청한 플레이어가 제단 옆에 있나 — 화면은 클라에서만 열려 서버가 모르므로 요청마다 확인 */
-	bool IsUsableMetaAltar(const APlayerController* Requester, const AJY_InteractableActor* Altar) const;
+	bool IsUsableMetaAltar(const APlayerController* Requester, AActor* Altar) const;
 
 	/* 진행을 바꾸고 → 복제 → 즉시 저장 (단계가 바뀌었으면 메타 효과도 갱신) */
 	void CommitProgress(AJY_PlayerState* PlayerState, const FJY_PlayerProgress& NewProgress, EJY_ProgressCommitScope Scope);

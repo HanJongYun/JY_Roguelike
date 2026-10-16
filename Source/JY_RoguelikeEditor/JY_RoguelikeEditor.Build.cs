@@ -22,7 +22,12 @@ public class JY_RoguelikeEditor : ModuleRules
 			"AssetTools",
 			"Fab",
 			"Json",
-			"NavigationSystem"
+			"NavigationSystem",
+			"Chaos",
+			"GeometryCollectionEngine",
+			"DataflowCore",
+			"PlanarCut",
+			"FractureEngine"
 		});
 
 		PublicIncludePaths.AddRange(new string[] {

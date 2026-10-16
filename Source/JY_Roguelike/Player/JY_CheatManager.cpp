@@ -2,6 +2,8 @@
 #include "Player/JY_PlayerState.h"
 #include "AbilitySystem/JY_AbilitySystemComponent.h"
 #include "AbilitySystem/Effects/JY_DebugGameplayEffects.h"
+#include "Interfaces/JY_HitReactable.h"
+#include "Interfaces/JY_InterfaceUtils.h"
 #include "Room/JY_RoomFlowSubsystem.h"
 #include "Skill/JY_SkillDefinition.h"
 #include "Skill/JY_SkillLoadoutComponent.h"
@@ -11,6 +13,7 @@
 #include "System/JY_GameplayTags.h"
 #include "GameFramework/PlayerController.h"
 #include "HAL/IConsoleManager.h"
+#include "EngineUtils.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(JY_CheatManager)
 
@@ -139,6 +142,41 @@ void UJY_CheatManager::JYClearRoom()
 {
 	UJY_RoomFlowSubsystem* RoomFlow = GetWorld()->GetSubsystem<UJY_RoomFlowSubsystem>();
 	RoomFlow->ClearCurrentRoom();
+}
+
+/* 실제 공격과 같은 서버 진입점(IJY_HitReactable::ReceiveHit)으로 부숨 — 복제·클라 연출 경로가 그대로 시험된다 */
+// [Server]
+void UJY_CheatManager::JYBreakProps(float Radius)
+{
+	APawn* Pawn = GetOuterAPlayerController()->GetPawn();
+	if (Pawn == nullptr || Radius <= 0.0f)
+		return;
+
+	const FVector PawnLocation = Pawn->GetActorLocation();
+	const float RadiusSquared = Radius * Radius;
+	for (TActorIterator<AActor> It(GetWorld()); It; ++It)
+	{
+		AActor* Actor = *It;
+		if (Actor == Pawn || FVector::DistSquared(Actor->GetActorLocation(), PawnLocation) > RadiusSquared)
+			continue;
+
+		IJY_HitReactable* HitReactable = JY_FindInterface<IJY_HitReactable>(Actor);
+		if (HitReactable == nullptr || HitReactable->CanReceiveHit() == false)
+			continue;
+
+		/* 밀어내기 없는 타격과 같음 — 플레이어 → 물체 방향 최소 세기 */
+		HitReactable->ReceiveHit(Pawn, 0.0f, FVector::ZeroVector);
+	}
+}
+
+// [Server]
+void UJY_CheatManager::JYUnlimitedHealth(bool bEnable)
+{
+	AJY_PlayerState* JYPlayerState = GetJYPlayerState();
+	if (JYPlayerState == nullptr)
+		return;
+
+	JYPlayerState->GetJYAbilitySystemComponent()->SetLooseGameplayTagCount(JYGameplayTags::Cheat_UnlimitedHealth, bEnable == true ? 1 : 0);
 }
 
 /* 접속 직후엔 PlayerState가 아직 없을 수 있다 */

@@ -127,7 +127,7 @@ void AJY_PlayerController::PostProcessInput(const float DeltaTime, const bool bG
 
 /* 값 검증(제단·거리·가격)은 전부 GameMode — PC는 요청을 전달만 한다 */
 // [Server]
-void AJY_PlayerController::Server_BuyMetaUpgrade_Implementation(FGameplayTag UpgradeTag, AJY_InteractableActor* Altar)
+void AJY_PlayerController::Server_BuyMetaUpgrade_Implementation(FGameplayTag UpgradeTag, AActor* Altar)
 {
 	AJY_GameMode* GameMode = GetWorld()->GetAuthGameMode<AJY_GameMode>();
 	if (GameMode == nullptr)
@@ -137,7 +137,7 @@ void AJY_PlayerController::Server_BuyMetaUpgrade_Implementation(FGameplayTag Upg
 }
 
 // [Server]
-void AJY_PlayerController::Server_RefundAllMetaUpgrades_Implementation(AJY_InteractableActor* Altar)
+void AJY_PlayerController::Server_RefundAllMetaUpgrades_Implementation(AActor* Altar)
 {
 	AJY_GameMode* GameMode = GetWorld()->GetAuthGameMode<AJY_GameMode>();
 	if (GameMode == nullptr)

@@ -4,7 +4,8 @@
 #include "System/JY_GameplayTags.h"
 #include "System/JY_LogChannels.h"
 #include "System/JY_WorldSettings.h"
-#include "Interaction/JY_InteractableActor.h"
+#include "Interfaces/JY_InteractableTarget.h"
+#include "Interfaces/JY_InterfaceUtils.h"
 #include "Character/JY_Character.h"
 #include "Player/JY_PlayerController.h"
 #include "Player/JY_PlayerState.h"
@@ -163,20 +164,21 @@ void AJY_GameMode::LoadProgress(AJY_PlayerState* PlayerState)
  * 개조 클라가 던전에서·멀리서 구매 요청을 보내도 여기서 거절된다. 상점·축복 NPC는 같은 방식으로 자기 서비스 태그를 쓴다.
  */
 // [Server]
-bool AJY_GameMode::IsUsableMetaAltar(const APlayerController* Requester, const AJY_InteractableActor* Altar) const
+bool AJY_GameMode::IsUsableMetaAltar(const APlayerController* Requester, AActor* Altar) const
 {
-	if (Requester == nullptr || Altar == nullptr)
+	const IJY_InteractableTarget* AltarTarget = JY_FindInterface<IJY_InteractableTarget>(Altar);
+	if (Requester == nullptr || AltarTarget == nullptr)
 		return false;
 
-	if (Altar->GetServiceTag() != JYGameplayTags::Service_MetaAltar)
+	if (AltarTarget->GetServiceTag() != JYGameplayTags::Service_MetaAltar)
 		return false;
 
-	return Altar->IsWithinInteractRange(Requester->GetPawn());
+	return AltarTarget->IsWithinInteractRange(Requester->GetPawn());
 }
 
 /* 연타해도 요청이 서버에서 하나씩 처리되고, 매번 현재 값으로 다시 검증 → 영혼석이 음수가 되거나 최대를 넘지 않는다 */
 // [Server]
-void AJY_GameMode::TryBuyMetaUpgrade(APlayerController* Buyer, FGameplayTag UpgradeTag, AJY_InteractableActor* Altar)
+void AJY_GameMode::TryBuyMetaUpgrade(APlayerController* Buyer, FGameplayTag UpgradeTag, AActor* Altar)
 {
 	if (IsUsableMetaAltar(Buyer, Altar) == false)
 		return;
@@ -207,7 +209,7 @@ void AJY_GameMode::TryBuyMetaUpgrade(APlayerController* Buyer, FGameplayTag Upgr
 }
 
 // [Server]
-void AJY_GameMode::RefundAllMetaUpgrades(APlayerController* Requester, AJY_InteractableActor* Altar)
+void AJY_GameMode::RefundAllMetaUpgrades(APlayerController* Requester, AActor* Altar)
 {
 	if (IsUsableMetaAltar(Requester, Altar) == false)
 		return;

@@ -157,6 +157,17 @@ void AJY_Character::InitializeAbilitySystem()
 
 	JYASC->InitAbilityActorInfo(JYPlayerState, this);
 	HealthComponent->InitializeWithAbilitySystem(JYASC);
+
+#if !UE_BUILD_SHIPPING
+	/*
+	 * [임시] 사망 후 다시 시작(로비 복귀)이 생기기 전까지 플레이어는 안 죽는다 — 끄려면 치트 JYUnlimitedHealth 0.
+	 * 체력 판정은 서버만 하므로 서버 ASC에만 붙인다. 폰이 바뀌어 다시 불려도 1개로 맞춘다
+	 */
+	if (HasAuthority() == true)
+	{
+		JYASC->SetLooseGameplayTagCount(JYGameplayTags::Cheat_UnlimitedHealth, 1);
+	}
+#endif
 }
 
 void AJY_Character::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) //override

@@ -5,7 +5,6 @@
 #include "Player/JY_PlayerController.h"
 #include "UI/ViewModels/JY_MetaUpgradeViewModel.h"
 #include "UI/ViewModels/JY_MetaEntryViewModel.h"
-#include "Interaction/JY_InteractableActor.h"
 #include "Components/DynamicEntryBox.h"
 #include "Engine/LocalPlayer.h"
 
@@ -35,7 +34,7 @@ void UJY_MetaAltarScreen::NativeOnActivated() //override
 	const TArray<TObjectPtr<UJY_MetaEntryViewModel>>& EntryViewModels = MetaUpgradeViewModel->GetEntries();
 
 	/* 구매 요청에 실을 제단 — Interact가 켜지기 전에 넣어 둠(SetSourceActor) */
-	AJY_InteractableActor* Altar = Cast<AJY_InteractableActor>(GetSourceActor());
+	AActor* Altar = GetSourceActor();
 
 	EntryBox->Reset(false);
 	for (UJY_MetaEntryViewModel* EntryViewModel : EntryViewModels)
@@ -62,8 +61,7 @@ void UJY_MetaAltarScreen::HandleRefundConfirmResult(bool bConfirmed)
 		return;
 
 	AJY_PlayerController* PC = GetOwningPlayer<AJY_PlayerController>();
-	AJY_InteractableActor* Altar = Cast<AJY_InteractableActor>(GetSourceActor());
-	PC->Server_RefundAllMetaUpgrades(Altar);
+	PC->Server_RefundAllMetaUpgrades(GetSourceActor());
 }
 
 /* 마우스로 닫기 — Tab(뒤로가기)과 같은 길: 스택이 이 화면을 끄고 아래 화면(HUD) 입력 모드로 돌아간다 */

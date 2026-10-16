@@ -108,7 +108,7 @@ void UJY_RoomFlowSubsystem::EnterRoom(const ULevel* RoomLevel)
 		}
 	}
 
-	SetExitDoorsOpen(RoomLevel, bCurrentRoomCleared);
+	OnRoomClearChanged.Broadcast(RoomLevel, bCurrentRoomCleared);
 }
 
 // [Server]
@@ -119,21 +119,13 @@ void UJY_RoomFlowSubsystem::ClearCurrentRoom()
 
 	bCurrentRoomCleared = true;
 
-	const ULevelStreaming* StreamingLevel = JY_RoomFlow::FindStreamingLevel(GetWorld(), CurrentRoom);
-	SetExitDoorsOpen(StreamingLevel->GetLoadedLevel(), true);
+	OnRoomClearChanged.Broadcast(GetCurrentRoomLevel(), true);
 }
 
 // [Server]
-void UJY_RoomFlowSubsystem::SetExitDoorsOpen(const ULevel* RoomLevel, bool bOpen) const
+bool UJY_RoomFlowSubsystem::IsRoomCleared(const ULevel* RoomLevel) const
 {
-	for (AActor* Actor : RoomLevel->Actors)
-	{
-		AJY_RoomExitDoor* ExitDoor = Cast<AJY_RoomExitDoor>(Actor);
-		if (ExitDoor != nullptr)
-		{
-			ExitDoor->SetOpen(bOpen);
-		}
-	}
+	return bCurrentRoomCleared == true && RoomLevel != nullptr && RoomLevel == GetCurrentRoomLevel();
 }
 
 // [Server]

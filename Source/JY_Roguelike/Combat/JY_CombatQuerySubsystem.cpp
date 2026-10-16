@@ -1,8 +1,9 @@
 #include "Combat/JY_CombatQuerySubsystem.h"
 #include "AbilitySystem/JY_AbilitySystemComponent.h"
 #include "AbilitySystem/Effects/JY_CombatGameplayEffects.h"
-#include "Breakable/JY_BreakableProp.h"
 #include "Enemy/JY_EnemyCharacter.h"
+#include "Interfaces/JY_HitReactable.h"
+#include "Interfaces/JY_InterfaceUtils.h"
 #include "System/JY_GameplayTags.h"
 #include "AbilitySystemGlobals.h"
 #include "DrawDebugHelpers.h"
@@ -101,7 +102,7 @@ void UJY_CombatQuerySubsystem::FindTargets(const FJY_HitShape& Shape, const FTra
 		QueryRadius = FarCorner.Size();
 	}
 
-	/* 부서지는 물체(AJY_BreakableProp)는 WorldDynamic */
+	/* 맞으면 발동하는 물체(IJY_HitReactable — 항아리 등)는 WorldDynamic */
 	FCollisionObjectQueryParams ObjectQueryParams(ECC_Pawn);
 	ObjectQueryParams.AddObjectTypesToQuery(ECC_WorldDynamic);
 	const FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(JY_FindTargets), false, Attacker);
@@ -119,11 +120,11 @@ void UJY_CombatQuerySubsystem::FindTargets(const FJY_HitShape& Shape, const FTra
 		if (bAlreadyChecked == true)
 			continue;
 
-		/* 부서지는 물체는 팀·체력 없이 모양만 본다 — 적 공격도 부순다 */
-		const AJY_BreakableProp* BreakableProp = Cast<AJY_BreakableProp>(Actor);
-		if (BreakableProp != nullptr)
+		/* 맞으면 발동하는 물체는 팀·체력 없이 모양만 본다 — 적 공격도 부순다 */
+		const IJY_HitReactable* HitReactable = JY_FindInterface<IJY_HitReactable>(Actor);
+		if (HitReactable != nullptr)
 		{
-			if (BreakableProp->IsIntact() == true && JY_CombatQuery::IsActorInsideShape(Shape, Center, Forward, Actor) == true)
+			if (HitReactable->CanReceiveHit() == true && JY_CombatQuery::IsActorInsideShape(Shape, Center, Forward, Actor) == true)
 			{
 				FJY_CombatTarget& Target = OutTargets.AddDefaulted_GetRef();
 				Target.Actor = Actor;
@@ -172,11 +173,12 @@ void UJY_CombatQuerySubsystem::ApplyHit(const FJY_CombatTarget& Target, const FJ
 
 	AActor* InstigatorActor = Payload.Instigator.Get();
 
-	/* 부서지는 물체는 피해 대신 부서짐 */
-	AJY_BreakableProp* BreakableProp = Cast<AJY_BreakableProp>(TargetActor);
-	if (BreakableProp != nullptr)
+	/* 맞으면 발동하는 물체는 맞은 뒤 일을 스스로 정한다(항아리는 부서짐) — 밀어내기 속도가 파편이 튀는 방향·세기 */
+	IJY_HitReactable* HitReactable = JY_FindInterface<IJY_HitReactable>(TargetActor);
+	if (HitReactable != nullptr)
 	{
-		BreakableProp->BreakBy(InstigatorActor);
+		const FVector HitVelocity(Payload.KnockbackImpulse.X, Payload.KnockbackImpulse.Y, 0.0f);
+		HitReactable->ReceiveHit(InstigatorActor, Payload.Damage, HitVelocity);
 		return;
 	}
 
@@ -214,31 +216,6 @@ void UJY_CombatQuerySubsystem::ApplyHit(const FJY_CombatTarget& Target, const FJ
 
 		/* 서버가 부르면 모든 클라로 멀티캐스트, 데디 서버 자신은 연출 생략(GameplayCueManager.cpp:178~183) */
 		TargetJYASC->ExecuteGameplayCue(Payload.HitCueTag, CueParameters);
-	}
-}
-
-// [Server]
-/* 팀을 가리지 않는 환경 피해(폭발·독구름·함정) — 범위 안 폰마다 ApplyEnvironmentDamage */
-void UJY_CombatQuerySubsystem::ApplyAreaDamage(const FVector& Center, float Radius, float Damage, AActor* InstigatorActor, AActor* DamageCauser) const
-{
-	const UWorld* World = GetWorld();
-	const FCollisionObjectQueryParams ObjectQueryParams(ECC_Pawn);
-	const FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(JY_AreaDamage), false, DamageCauser);
-	const FCollisionShape QuerySphere = FCollisionShape::MakeSphere(Radius);
-	TArray<FOverlapResult> Overlaps;
-	World->OverlapMultiByObjectType(OUT Overlaps, Center, FQuat::Identity, ObjectQueryParams, QuerySphere, QueryParams);
-
-	/* 캡슐·메시가 둘 다 Pawn 채널이라 같은 액터가 여러 번 걸린다 */
-	TSet<const AActor*> CheckedActors;
-	for (const FOverlapResult& Overlap : Overlaps)
-	{
-		AActor* Actor = Overlap.GetActor();
-		bool bAlreadyChecked = false;
-		CheckedActors.Add(Actor, &bAlreadyChecked);
-		if (bAlreadyChecked == true)
-			continue;
-
-		ApplyEnvironmentDamage(Actor, Damage, InstigatorActor, Center);
 	}
 }
 

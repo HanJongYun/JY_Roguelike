@@ -7,6 +7,9 @@
 class UJY_RegionData;
 class ULevel;
 
+/* 방을 깼거나(true) 새 방에 들어와 잠겼다(false) — 출구 문이 듣고 스스로 열고 닫는다 (서버) */
+DECLARE_MULTICAST_DELEGATE_TwoParams(FJY_OnRoomClearChanged, const ULevel* /*RoomLevel*/, bool /*bCleared*/);
+
 /* 던전 지역 맵에서 방을 차례로 잇는다 — 방을 깨면 출구 문이 열리고, 지나가면 다음 칸 방을 켜고 모두를 그 방 PlayerStart로 옮김 (서버) */
 UCLASS()
 class UJY_RoomFlowSubsystem : public UWorldSubsystem
@@ -32,8 +35,14 @@ public:
 	/* 출구 문을 지났다 — 방을 깬 뒤면 다음 칸 방을 켜고 옮김. 마지막 칸이면 허브로 */
 	void RequestNextRoom();
 
-	/* 지금 방을 깸 — 출구 문을 연다 (웨이브 진행이 부름, 지금은 치트 JYClearRoom) */
+	/* 지금 방을 깸 — 출구 문이 열린다 (웨이브 진행이 부름, 지금은 치트 JYClearRoom) */
 	void ClearCurrentRoom();
+
+	/* 이 방 레벨이 지금 방이고 깬 상태인가 */
+	bool IsRoomCleared(const ULevel* RoomLevel) const;
+
+	/* 방을 깼거나 새 방에 들어옴 */
+	FJY_OnRoomClearChanged OnRoomClearChanged;
 
 private:
 	/* 이 칸의 방을 골라 켜기 시작 — 다 켜지면 TryEnterNextRoom */
@@ -41,9 +50,6 @@ private:
 
 	/* 방에 들어옴 — 적 스폰 지점이 없는 방(상점)은 바로 깬 것으로 친다 */
 	void EnterRoom(const ULevel* RoomLevel);
-
-	/* 이 방의 출구 문을 모두 열거나 잠금 */
-	void SetExitDoorsOpen(const ULevel* RoomLevel, bool bOpen) const;
 
 	/* 다음 칸 후보 중 하나 — 이번 런에 이미 나온 방은 뺌 */
 	TSoftObjectPtr<UWorld> PickNextRoom(int32 SlotIndex) const;

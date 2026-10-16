@@ -7,7 +7,6 @@
 class UJY_ButtonBase;
 class UImage;
 class UJY_MetaEntryViewModel;
-class AJY_InteractableActor;
 
 /* 제단 목록의 강화 한 줄 — 아이콘·이름·설명·단계·가격·강화 버튼 */
 UCLASS(Abstract, Blueprintable, meta = (DisableNativeTick))
@@ -20,7 +19,7 @@ protected:
 
 public:
 	/* 이 줄이 보여 줄 ViewModel(WBP의 ViewModel "MetaEntry", Creation Type = Manual)과 구매 요청에 실을 제단 지정 + 아이콘 */
-	void SetEntry(UJY_MetaEntryViewModel* InEntryViewModel, AJY_InteractableActor* InAltar);
+	void SetEntry(UJY_MetaEntryViewModel* InEntryViewModel, AActor* InAltar);
 
 private:
 	/* 강화 클릭 → 서버에 구매 요청 */
@@ -43,5 +42,5 @@ private:
 	TObjectPtr<UJY_MetaEntryViewModel> EntryViewModel;
 
 	/* 이 화면을 연 제단 — 화면이 떠 있는 동안 사라질 수 있어 약한 참조 */
-	TWeakObjectPtr<AJY_InteractableActor> Altar;
+	TWeakObjectPtr<AActor> Altar;
 };

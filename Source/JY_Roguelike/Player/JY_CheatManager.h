@@ -41,6 +41,14 @@ public:
 	UFUNCTION(Exec, BlueprintAuthorityOnly)
 	void JYClearRoom();
 
+	/* 내 주변 부서지는 물체를 모두 부수기 (예: JYBreakProps 500) — 파편·폭발 연출 시험용 */
+	UFUNCTION(Exec, BlueprintAuthorityOnly)
+	void JYBreakProps(float Radius);
+
+	/* 안 죽기 켜기·끄기 (예: JYUnlimitedHealth 0) — 체력이 1 밑으로 안 내려감. 사망 처리가 생기기 전까지 기본 켜짐 */
+	UFUNCTION(Exec, BlueprintAuthorityOnly)
+	void JYUnlimitedHealth(bool bEnable);
+
 private:
 	/* 음수=데미지, 양수=회복 */
 	void ApplyHealthDelta(float Delta);

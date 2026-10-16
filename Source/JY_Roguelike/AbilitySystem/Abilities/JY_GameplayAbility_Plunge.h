@@ -22,6 +22,12 @@ private:
 	/* [OwnClient] 공중 하강 — 땅까지 걸릴 시간을 재서 착지 순간 SlamPoseTime이 되게 재생 속도 조절 */
 	void MatchSlamToLanding(const FVector& DiveVelocity);
 
+	/* [Server] [OwnClient] 땅 도약 — 도약 경로를 따라 바닥에 닿기까지 걸리는 시간 (바닥이 안 보이면 false) */
+	bool PredictLeapLandingTime(const FVector& Direction, float& OutLandingTime) const;
+
+	/* 칼이 땅을 치는 자세까지 남은 몽타주 시간을 착지까지 걸리는 시간에 맞추는 재생 속도 */
+	float ComputeSlamPlayRate(float SlamTimeLeft, float FallTime) const;
+
 	/* [Server] [OwnClient] 방향 도착 — 땅/공중 결정·비용·몽타주·땅 도약 */
 	void OnDirectionReceived(const FGameplayAbilityTargetDataHandle& DirectionDataHandle, FGameplayTag ApplicationTag);
 
@@ -93,11 +99,11 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "JY|Skill", Meta = (ClampMin = "0"))
 	float DiveForwardSpeed = 900.0f;
 
-	/* 공중 하강 — 바닥을 찾는 거리 = 하강 속도 × 이 시간 (초) */
+	/* 바닥을 찾는 거리 = 하강 속도 × 이 시간 (초) — 공중 하강, 땅 도약이 끝난 뒤 낙하 공용 */
 	UPROPERTY(EditDefaultsOnly, Category = "JY|Skill", Meta = (ClampMin = "0.1"))
 	float FallTraceSeconds = 2.0f;
 
-	/* 이 높이(cm)에서 떨어지면 범위가 최대 배율 */
+	/* 시작 높이보다 이만큼(cm) 낮은 곳에 착지하면 범위가 최대 배율 (땅·공중 공용) */
 	UPROPERTY(EditDefaultsOnly, Category = "JY|Skill", Meta = (ClampMin = "1"))
 	float FallHeightForMaxRadius = 1000.0f;
 

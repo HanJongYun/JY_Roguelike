@@ -67,9 +67,17 @@ bool UJY_LevelToolset::IsNavigationBuilding()
 	return NavigationSystem->IsNavigationBuildInProgress();
 }
 
-TArray<FString> UJY_LevelToolset::CheckNavPaths(const FVector& Start, const TArray<FVector>& Ends)
+TArray<FString> UJY_LevelToolset::CheckNavPaths(int32 PIEInstance, const FVector& Start, const TArray<FVector>& Ends)
 {
 	UWorld* World = GEditor->GetEditorWorldContext().World();
+	if (PIEInstance >= 0)
+	{
+		const FWorldContext* PIEWorldContext = GEditor->GetPIEWorldContext(PIEInstance);
+		if (PIEWorldContext == nullptr)
+			return { TEXT("PIE 월드 없음") };
+
+		World = PIEWorldContext->World();
+	}
 
 	TArray<FString> Lines;
 	for (const FVector& End : Ends)

@@ -47,12 +47,13 @@ public:
 
 	/**
 	 * 시작점에서 각 도착점까지 네비 경로가 끝까지 이어지는지 검사한다.
+	 * @param PIEInstance -1 = 에디터 월드, 0 이상 = 그 번호의 PIE 월드 (Play As Client면 0 = 서버) — 실행 중 하위 레벨 네비 조각이 붙었는지 볼 때
 	 * @param Start 시작 위치 (보통 입장 지점)
 	 * @param Ends 도착 위치들 (스폰·보상·출구 지점)
 	 * @return 도착점마다 "OK 길이" 또는 "PARTIAL 길이" 또는 "NONE"
 	 */
 	UFUNCTION(meta = (AICallable), Category = "JY|Level")
-	static TArray<FString> CheckNavPaths(const FVector& Start, const TArray<FVector>& Ends);
+	static TArray<FString> CheckNavPaths(int32 PIEInstance, const FVector& Start, const TArray<FVector>& Ends);
 
 	/**
 	 * PIE 월드에서 콘솔 명령을 실행한다 — 클라면 플레이어 컨트롤러로(JYClearRoom 등 치트), 데디 서버면 월드에 직접(servertravel 등).

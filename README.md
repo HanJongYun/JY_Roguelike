@@ -77,3 +77,17 @@
 - 사망 · 클리어 → 허브 복귀
 - 골드 · 상점
 - 소모품 인벤토리
+
+## 진행 상황 참고자료 (스크린샷)
+
+> 2026-10-16 기준 PIE(Play As Client) 화면
+
+| 타이틀 | 로비 도착 배너 |
+|---|---|
+| ![타이틀](Docs/Screenshots/01_title.png) | ![로비 도착 배너](Docs/Screenshots/02_lobby_banner.png) |
+| **영혼의 제단 (메타 강화)** | **던전 전투 (스킬)** |
+| ![영혼의 제단](Docs/Screenshots/03_soul_altar.png) | ![던전 전투](Docs/Screenshots/07_dungeon_skill.png) |
+| **포털 확인 팝업** | **정지 메뉴** |
+| ![포털 확인 팝업](Docs/Screenshots/06_portal_confirm.png) | ![정지 메뉴](Docs/Screenshots/04_pause_menu.png) |
+| **종료 확인 팝업** | |
+| ![종료 확인 팝업](Docs/Screenshots/05_quit_confirm.png) | |

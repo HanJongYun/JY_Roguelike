@@ -18,8 +18,8 @@
 #include UE_INLINE_GENERATED_CPP_BY_NAME(JY_CheatManager)
 
 /*
- * BlueprintAuthorityOnly 명령은 클라에서 치면 엔진이 ServerExec로 서버에 보내고(CheatManager.cpp:125) 서버 PC의 CheatManager가 실행한다(Player.cpp:145).
- * 서버 PC의 CheatManager는 GameMode AllowCheats일 때만 생긴다(PlayerController.cpp:1162, PIE는 허용) — 개발 빌드 전용 서버에서 개조 클라가 무한 회복하는 것을 막는 관문.
+ * BlueprintAuthorityOnly 명령은 클라에서 치면 엔진이 서버로 보낸다 (CheatManager.cpp:125).
+ * 서버 PC의 CheatManager는 AllowCheats일 때만 생겨 개조 클라의 치트를 막는다
  */
 
 // [Server]
@@ -45,7 +45,6 @@ void UJY_CheatManager::JYHeal(float Amount)
 // [Server]
 void UJY_CheatManager::ApplyHealthDelta(float Delta)
 {
-	/* NaN·무한대 차단 */
 	if (FMath::IsFinite(Delta) == false)
 		return;
 
@@ -120,8 +119,8 @@ void UJY_CheatManager::JYUnlockSkillSlot()
 }
 
 /*
- * 엔진 치트 변수 AbilitySystem.IgnoreCooldowns(AbilitySystemGlobals.cpp:39)를 켠다 — 발동 검사·커밋 검사에서 쿨타임을 건너뜀(GameplayAbility.cpp:508·613·671).
- * 발동 검사는 조종 클라 예측에서도 돌므로 내 쪽에 켜고 서버에도 같은 명령을 보낸다 (PIE 한 프로세스면 같은 변수)
+ * 엔진 치트 변수 AbilitySystem.IgnoreCooldowns를 켠다 (GameplayAbility.cpp:508).
+ * 발동 검사는 조종 클라 예측에서도 돌므로 내 쪽에 켜고 서버에도 같은 명령을 보낸다
  */
 // [Server] [OwnClient]
 void UJY_CheatManager::JYNoCooldown(bool bEnable)

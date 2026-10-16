@@ -59,7 +59,7 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category = "JY|Locomotion")
 	bool bShouldStop = false;
 
-	/* 아직 미끄러지는 중이라 멈춤 애니를 남은 거리에 맞출 때 (속도는 있고 입력은 없음, Lyra ShouldDistanceMatchStop) */
+	/* 아직 미끄러지는 중이라 멈춤 애니를 남은 거리에 맞출 때 (속도는 있고 입력은 없음) */
 	UPROPERTY(BlueprintReadOnly, Category = "JY|Locomotion")
 	bool bShouldDistanceMatchStop = false;
 
@@ -105,23 +105,23 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "JY|Locomotion")
 	FName DistanceCurveName = TEXT("Distance");
 
-	/* 출발 애니 거리 맞추기 재생 속도 한계 (Lyra PlayRateClampStartsPivots) */
+	/* 출발 애니 거리 맞추기 재생 속도 한계 */
 	UPROPERTY(EditDefaultsOnly, Category = "JY|Locomotion")
 	FVector2D StartPlayRateClamp = FVector2D(0.6f, 5.0f);
 
-	/* 달리기 루프 재생 속도 한계 — 나머지 속도 차이는 보폭 조절이 맡는다 (Lyra PlayRateClampCycle) */
+	/* 달리기 루프 재생 속도 한계 */
 	UPROPERTY(EditDefaultsOnly, Category = "JY|Locomotion")
 	FVector2D CyclePlayRateClamp = FVector2D(0.8f, 1.2f);
 
-	/* 출발 애니 이 시간(초)부터 보폭 조절을 섞기 시작 (Lyra StrideWarpingBlendInStartOffset) */
+	/* 출발 애니 이 시간(초)부터 보폭 조절을 섞기 시작 */
 	UPROPERTY(EditDefaultsOnly, Category = "JY|Locomotion")
 	float StrideWarpingBlendInStartOffset = 0.15f;
 
-	/* 보폭 조절을 다 섞는 데 걸리는 출발 애니 시간(초) (Lyra StrideWarpingBlendInDurationScaled) */
+	/* 보폭 조절을 다 섞는 데 걸리는 출발 애니 시간(초) */
 	UPROPERTY(EditDefaultsOnly, Category = "JY|Locomotion")
 	float StrideWarpingBlendInDuration = 0.2f;
 
-	/* Cycle 보폭 조절 Alpha가 1로 따라가는 보간 속도 (Lyra FInterpTo 10) */
+	/* Cycle 보폭 조절 Alpha가 1로 따라가는 보간 속도 */
 	UPROPERTY(EditDefaultsOnly, Category = "JY|Locomotion")
 	float StrideWarpingCycleAlphaInterpSpeed = 10.0f;
 
@@ -129,7 +129,7 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "JY|Locomotion")
 	float StartSkipSpeed = 300.0f;
 
-	/* 시뮬 프록시용: 공중에서 한 업데이트 사이 위쪽 속도가 이만큼 늘면 2단 점프로 본다 (중력은 줄이기만 한다) */
+	/* 시뮬 프록시용: 공중에서 한 업데이트 사이 위쪽 속도가 이만큼 늘면 2단 점프로 본다 */
 	UPROPERTY(EditDefaultsOnly, Category = "JY|Jump")
 	float DoubleJumpSpeedGain = 200.0f;
 

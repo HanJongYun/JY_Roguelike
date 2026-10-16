@@ -26,10 +26,8 @@ public:
 	void SetupDialog(const FText& Title, const FText& Body, FJY_OnConfirmResult InOnResult);
 
 private:
-	/* 확인 버튼 클릭 */
 	void HandleConfirmClicked();
 
-	/* 취소 버튼 클릭 */
 	void HandleCancelClicked();
 
 	/* 팝업을 닫고 결과를 연 쪽에 전달 */

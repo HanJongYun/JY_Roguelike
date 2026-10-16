@@ -8,7 +8,7 @@ class UAnimMontage;
 class UAbilityTask_ApplyRootMotionConstantForce;
 class UAbilityTask_ApplyRootMotionJumpForce;
 
-/* 내려찍기 — 땅: 앞으로 높이 도약, 공중: 앞+아래 대각선 돌진 → 둘 다 착지 순간 원형 충격(높을수록 넓음). 데이터는 GA_JY_Skill_Plunge */
+/* 내려찍기 — 땅은 도약, 공중은 대각선 돌진 후 착지 순간 원형 충격 */
 UCLASS(Abstract)
 class UJY_GameplayAbility_Plunge : public UJY_GameplayAbility_Skill
 {
@@ -51,7 +51,7 @@ private:
 protected:
 	/* 설정값 — GA_JY_Skill_Plunge 의 Class Defaults */
 
-	/* 땅·공중 공용 (AM_JY_Plunge_Air) — 섹션 Start → Loop(반복) / LandSectionName. 노티파이: Event.Skill.DiveStart(Start, 공중만 사용), Event.Skill.SlamPose(칼이 땅을 치는 프레임, 착지와 맞춤), Event.Skill.Hit(착지 섹션) */
+	/* 땅·공중 공용 몽타주 — 노티파이 DiveStart(공중), SlamPose(칼이 땅 치는 프레임), Hit(착지 섹션) */
 	UPROPERTY(EditDefaultsOnly, Category = "JY|Skill")
 	TObjectPtr<UAnimMontage> PlungeMontage;
 

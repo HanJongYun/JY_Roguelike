@@ -18,11 +18,8 @@ UJY_InteractionComponent::UJY_InteractionComponent()
 }
 
 /*
- * 가장 가까운 대상을 매 프레임 계산하지 않고 "마지막으로 들어온 대상"을 초점으로 둔다.
- * 로비 대상은 3개이고 범위가 겹치지 않게 배치 — 거리 폴링(Tick)은 비용만 든다. 겹치게 늘어나면 그때 거리 비교를 추가.
- * 범위(구)는 물체가 갖고, 겹침은 폰 몸체(루트 캡슐) 쪽에서 받는다 — 감지부터 E까지 이 컴포넌트 한곳에서 흐른다.
- * 겹침은 양쪽 컴포넌트에 모두 알려진다(PrimitiveComponent.cpp BeginComponentOverlap·EndComponentOverlap).
- * 초기 겹침(UpdateInitialOverlaps)은 BeginPlay 뒤에 계산되므로 여기서 구독하면 놓치지 않는다(Actor.cpp:4801).
+ * 범위가 겹치지 않게 배치해 거리 폴링 없이 "마지막으로 들어온 대상"을 초점으로 둔다.
+ * 초기 겹침은 BeginPlay 뒤에 계산되므로 여기서 구독해도 놓치지 않는다 (Actor.cpp:4801)
  */
 // [Server] [OwnClient] [SimulatedProxy]
 void UJY_InteractionComponent::BeginPlay() //override
@@ -34,10 +31,7 @@ void UJY_InteractionComponent::BeginPlay() //override
 	OwnerBody->OnComponentEndOverlap.AddDynamic(this, &UJY_InteractionComponent::HandleOwnerEndOverlap);
 }
 
-/*
- * 겹침은 서버·남의 클라에서도 일어난다 — 내가 조종하는 폰일 때만 후보에 넣는다 (대상 고르기는 로컬 일).
- * 물체의 메시 등 다른 부품과의 겹침은 제외 — 상호작용 인터페이스를 구현한 범위 컴포넌트와 겹친 것만.
- */
+/* 겹침은 서버·남의 클라에서도 일어난다 — 내가 조종하는 폰이 범위 컴포넌트와 겹친 것만 후보 */
 // [Server] [OwnClient] [SimulatedProxy]
 void UJY_InteractionComponent::HandleOwnerBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
@@ -51,10 +45,7 @@ void UJY_InteractionComponent::HandleOwnerBeginOverlap(UPrimitiveComponent* Over
 	RefreshFocus();
 }
 
-/*
- * 나갈 때는 조종 여부를 묻지 않는다 — 폰이 죽거나 맵 이동으로 컨트롤러가 먼저 떨어진 뒤 나가도 후보·안내가 남지 않게
- * (후보에 없으면 아무 일 없음).
- */
+/* 나갈 때는 조종 여부를 묻지 않는다 — 컨트롤러가 먼저 떨어진 뒤(사망·맵 이동) 나가도 후보·안내가 남지 않게 */
 // [Server] [OwnClient] [SimulatedProxy]
 void UJY_InteractionComponent::HandleOwnerEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
 {
@@ -78,10 +69,8 @@ void UJY_InteractionComponent::RefreshFocus()
 	FocusTarget = NewFocus;
 
 	/*
-	 * 맵 이동 때 폰은 컨트롤러가 먼저 떨어진 뒤 겹침이 끝난다:
-	 * LoadMap → DestroyActor(폰)(UnrealEngine.cpp:16247) → APawn::Destroyed에서 컨트롤러 해제(Pawn.cpp:552)
-	 * → 그다음 겹침 정리(LevelActor.cpp:981) → 여기. 이때 GetUIManager()는 nullptr이라 안내를 띄운 관리자로 지운다.
-	 * ViewModel은 LocalPlayer에 남아 다음 맵 HUD로 넘어가므로, 못 지우면 던전에 "[E] 포털"이 남는다.
+	 * 맵 이동 땐 컨트롤러가 먼저 떨어진 뒤 겹침이 끝나 GetUIManager()가 nullptr (Pawn.cpp:552) — 안내를 띄운 관리자로 지운다.
+	 * 못 지우면 LocalPlayer의 ViewModel이 다음 맵으로 넘어가 던전에 "[E] 포털"이 남는다
 	 */
 	UJY_UIManagerSubsystem* UIManager = GetUIManager();
 	if (UIManager == nullptr)
@@ -147,10 +136,7 @@ void UJY_InteractionComponent::HandleConfirmResult(bool bConfirmed, TWeakObjectP
 	TriggerInteraction(Target.Get());
 }
 
-/*
- * Lyra와 같은 흐름(LyraGameplayAbility_Interact.cpp:114 TriggerInteraction) — 이벤트 데이터에 대상 액터를 실어 GA를 발동.
- * 조종 클라에서 이벤트로 발동한 예측 GA는 이벤트 데이터째 서버에도 발동을 요청한다 (AbilitySystemComponent_Abilities.cpp:1937 ServerTryActivateAbilityWithEventData)
- */
+/* 이벤트로 발동한 예측 GA는 이벤트 데이터째 서버에도 발동된다 (AbilitySystemComponent_Abilities.cpp:1937) */
 // [OwnClient]
 void UJY_InteractionComponent::TriggerInteraction(UPrimitiveComponent* Target) const
 {

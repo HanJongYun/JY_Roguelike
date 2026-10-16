@@ -4,7 +4,7 @@
 #include "AbilitySystem/Abilities/JY_GameplayAbility_SkillMontage.h"
 #include "JY_GameplayAbility_DashStrike.generated.h"
 
-/* 돌진 공격 (발도 돌진·찌르기) — 몽타주 루트모션으로 돌진, 타격은 시작 위치~현재 위치 경로 상자. 무적이 필요하면 몽타주 노티파이 상태 JY Grant Tags */
+/* 돌진 공격 (발도 돌진·찌르기) — 루트모션으로 돌진하며 지나간 경로를 상자로 벤다 */
 UCLASS(Abstract)
 class UJY_GameplayAbility_DashStrike : public UJY_GameplayAbility_SkillMontage
 {

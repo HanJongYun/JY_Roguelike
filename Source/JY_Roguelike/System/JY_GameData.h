@@ -22,7 +22,7 @@ class UJY_GameData : public UPrimaryDataAsset
 	GENERATED_BODY()
 
 public:
-	/* 설정값 — DA_JY_GameData 에셋에서 지정. UI 클래스는 Soft 참조(서버에서 로드 안 됨) */
+	/* 설정값 — DA_JY_GameData 에셋에서 지정 */
 
 	/* 화면 전체 틀 위젯 (WBP_JY_PrimaryLayout) */
 	UPROPERTY(EditDefaultsOnly, Category = "UI")
@@ -48,7 +48,7 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "UI")
 	TSoftClassPtr<UJY_ScreenWidget> TitleScreenClass;
 
-	/* 허브 맵 (Lvl_JY_Hub_MD) — 타이틀 시작, 나중에 사망·클리어 후 복귀 */
+	/* 로비 맵 (Lvl_JY_Hub_MD) — 타이틀에서 시작하면 이동 */
 	UPROPERTY(EditDefaultsOnly, Category = "Map")
 	TSoftObjectPtr<UWorld> HubMap;
 

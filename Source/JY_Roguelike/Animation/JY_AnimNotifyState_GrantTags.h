@@ -5,7 +5,7 @@
 #include "GameplayTagContainer.h"
 #include "JY_AnimNotifyState_GrantTags.generated.h"
 
-/* 노티파이 구간 동안 메시 주인 ASC에 태그 (무적 등). 서버·조종 클라 각자 붙임 — 서버 값이 피해 판정에 쓰임 */
+/* 노티파이 구간 동안 메시 주인 ASC에 태그 (무적 등) */
 UCLASS(Const, HideCategories = Object, CollapseCategories, Meta = (DisplayName = "JY Grant Tags"))
 class UJY_AnimNotifyState_GrantTags : public UAnimNotifyState
 {

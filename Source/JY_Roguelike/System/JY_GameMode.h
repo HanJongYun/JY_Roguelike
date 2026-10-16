@@ -47,7 +47,7 @@ public:
 	void AddSoulStones(APlayerController* Receiver, int32 Amount);
 
 private:
-	/* 요청한 플레이어가 제단 옆에 있나 — 화면은 클라에서만 열려 서버가 모르므로 요청마다 확인 */
+	/* 요청한 플레이어가 제단 옆에 있나 */
 	bool IsUsableMetaAltar(const APlayerController* Requester, AActor* Altar) const;
 
 	/* 진행을 바꾸고 → 복제 → 즉시 저장 (단계가 바뀌었으면 메타 효과도 갱신) */

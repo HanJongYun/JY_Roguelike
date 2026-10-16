@@ -7,7 +7,7 @@
 class UJY_ScreenWidget;
 struct FStreamableHandle;
 
-/* 화면 열기 — E키를 쓴 플레이어 화면에만 창을 연다 (기록판·제단). 값을 바꾸는 행동(구매)은 그 화면이 서버에 요청한다 */
+/* E키를 쓴 플레이어 화면에만 창을 연다 (기록판·제단) */
 UCLASS(meta = (DisplayName = "Open Screen"))
 class UJY_OpenScreenAction : public UJY_Action
 {

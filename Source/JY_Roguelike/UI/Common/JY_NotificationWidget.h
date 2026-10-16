@@ -8,7 +8,7 @@
 
 class UCommonTextBlock;
 
-/* 글자를 잠깐 보여 주는 알림 칸 — 틀 안에 미리 배치해 두고 재사용, 여러 개가 오면 차례대로 */
+/* 글자를 잠깐 보여 주는 알림 칸 — 여러 개가 오면 차례대로 */
 UCLASS(Abstract, Blueprintable, meta = (DisableNativeTick))
 class UJY_NotificationWidget : public UCommonUserWidget
 {

@@ -19,10 +19,8 @@ AJY_EnemyCharacter::AJY_EnemyCharacter(const FObjectInitializer& ObjectInitializ
 	/* 매 프레임 할 일이 없음. 이동은 CMC, 피격·죽음은 이벤트 */
 	PrimaryActorTick.bCanEverTick = false;
 
-	/*
-	 * 행동 없는 허수아비도 컨트롤러가 있어야 서버 CMC가 물리를 돈다(밀려남·중력) — bRunPhysicsWithNoController 기본 false(CharacterMovementComponent.cpp:5662).
-	 * 기본값 PlacedInWorld는 다시 생성한 적에 빙의하지 않는다(Pawn.cpp:53)
-	 */
+	/* 컨트롤러가 없으면 서버 CMC가 물리(밀려남·중력)를 안 돈다 (CharacterMovementComponent.cpp:5662) */
+	/* 기본값 PlacedInWorld는 다시 생성한 적에 빙의하지 않는다 */
 	AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
 	AIControllerClass = AAIController::StaticClass();
 
@@ -32,7 +30,7 @@ AJY_EnemyCharacter::AJY_EnemyCharacter(const FObjectInitializer& ObjectInitializ
 	/* 적 GE는 남에게 보일 필요가 없다 — 태그·큐·속성만 복제 */
 	AbilitySystemComponent->SetReplicationMode(EGameplayEffectReplicationMode::Minimal);
 
-	/* ASC가 InitializeComponent에서 같은 주인의 속성 세트를 찾아 등록한다 (PlayerState와 같은 방식) */
+	/* ASC가 InitializeComponent에서 같은 주인의 속성 세트를 찾아 등록한다 */
 	HealthSet = CreateDefaultSubobject<UJY_HealthSet>(TEXT("HealthSet"));
 
 	HealthComponent = CreateDefaultSubobject<UJY_HealthComponent>(TEXT("HealthComponent"));
@@ -49,10 +47,7 @@ void AJY_EnemyCharacter::BeginPlay() //override
 	/* 주인 = 아바타 = 자기 */
 	AbilitySystemComponent->InitAbilityActorInfo(this, this);
 
-	/*
-	 * 피격·죽음 애니는 제자리 연출 — 클라에서만 도는 연출(큐)에 루트모션이 있으면 시뮬 프록시만 움직여 서버 위치와 어긋난다.
-	 * 이동은 서버 LaunchCharacter만 (AnimInstance.h:1066)
-	 */
+	/* 클라 전용 연출(큐)에 루트모션이 있으면 시뮬 프록시만 움직여 서버 위치와 어긋난다 */
 	USkeletalMeshComponent* MeshComponent = GetMesh();
 	UAnimInstance* AnimInstance = MeshComponent->GetAnimInstance();
 	if (ensureMsgf(AnimInstance != nullptr, TEXT("%s 메시에 애님 블루프린트가 없음"), *GetNameSafe(this)) == true)
@@ -81,12 +76,8 @@ FGenericTeamId AJY_EnemyCharacter::GetGenericTeamId() const //override
 }
 
 // [Server]
-/*
- * LaunchCharacter(수평만)는 바로 착지해 걷기 마찰(GroundFriction 8 × BrakingFrictionFactor 2)로 0.1초 안에 멈춘다
- * (CharacterMovementComponent.cpp:1237 HandlePendingLaunch → 낙하 → 다음 바닥 검사에서 착지).
- * 루트모션 소스는 정한 시간 동안 속도를 덮어써 마찰과 상관없이 거리가 나온다 — GAS 넉백 태스크(AbilityTask_ApplyRootMotionConstantForce)와 같은 소스.
- * 서버 CMC가 돌리고 시뮬 프록시는 RepRootMotion으로 같은 소스를 받는다(Character.cpp:1759).
- */
+/* 수평 LaunchCharacter는 바로 착지해 마찰로 0.1초 안에 멈춘다 (CharacterMovementComponent.cpp:1237) */
+/* 루트모션 소스는 정한 시간 동안 속도를 덮어써 마찰과 무관하게 거리가 나오고, 시뮬 프록시에도 복제된다 */
 void AJY_EnemyCharacter::ReceiveKnockback(const FVector2f& Impulse)
 {
 	const float KnockbackScale = 1.0f - KnockbackResistance;

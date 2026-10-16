@@ -9,12 +9,12 @@
 
 UJY_CameraOcclusionFadeComponent::UJY_CameraOcclusionFadeComponent()
 {
-	/* 흐림 값을 프레임마다 보간해야 해서 Tick — 타이머 간격으로 바꾸면 계단처럼 끊김. 무거운 스윕은 OccluderCheckInterval마다만 */
+	/* 흐림 값을 프레임마다 보간해야 해서 Tick — 무거운 스윕은 OccluderCheckInterval마다만 */
 	PrimaryComponentTick.bCanEverTick = true;
 	PrimaryComponentTick.bStartWithTickEnabled = false;
 }
 
-// [OwnClient] 화면 연출이라 내 컨트롤러에서만 켬 — 데디 서버의 PC는 IsLocalController가 항상 false (PlayerController.cpp:321)
+// [OwnClient]
 void UJY_CameraOcclusionFadeComponent::BeginPlay() //override
 {
 	Super::BeginPlay();
@@ -43,7 +43,7 @@ void UJY_CameraOcclusionFadeComponent::TickComponent(float DeltaTime, ELevelTick
 
 // [OwnClient]
 /*
- * 오브젝트 타입 멀티 스윕은 막는 물체도 전부 Touch로 돌려줘 앞 벽에서 멈추지 않는다(CollisionQueryFilterCallback.cpp:32~39).
+ * 오브젝트 타입 멀티 스윕은 앞 벽에서 멈추지 않는다 (CollisionQueryFilterCallback.cpp:32).
  * 채널 스윕은 첫 벽에서 멈춰 겹친 벽 뒤쪽을 놓친다
  */
 void UJY_CameraOcclusionFadeComponent::UpdateOccluders()
@@ -84,7 +84,7 @@ void UJY_CameraOcclusionFadeComponent::UpdateOccluders()
 }
 
 // [OwnClient]
-/* SetCustomPrimitiveDataFloat는 값이 바뀔 때만 렌더 쪽에 보낸다(PrimitiveComponent.cpp:2665·2683) — 재질 인스턴스를 벽마다 만들지 않아 같은 벽끼리 묶어 그림 */
+/* 재질 인스턴스 대신 Custom Primitive Data — 벽마다 MID를 만들지 않아 같은 벽끼리 묶어 그린다 */
 void UJY_CameraOcclusionFadeComponent::UpdateFadeAmounts(float DeltaTime)
 {
 	for (auto It = FadeAmounts.CreateIterator(); It; ++It)

@@ -10,7 +10,7 @@ struct FJY_MetaRank
 {
 	GENERATED_BODY()
 
-	/* 강화 종류 (Meta.*) — 세이브에 태그 이름으로 저장된다. 이름을 바꾸면 DefaultGameplayTags.ini에 GameplayTagRedirects 1줄을 남겨야 옛 세이브의 단계가 살아남는다 */
+	/* 강화 종류 (Meta.*) — 세이브에 이름으로 저장돼, 이름을 바꾸면 GameplayTagRedirects를 남겨야 옛 세이브가 산다 */
 	UPROPERTY(BlueprintReadOnly, SaveGame, meta = (Categories = "Meta"))
 	FGameplayTag UpgradeTag;
 
@@ -19,10 +19,7 @@ struct FJY_MetaRank
 	int32 Rank = 0;
 };
 
-/*
- * 런이 끝나도 남는 플레이어 진행 — 세이브 파일과 PlayerState 복제에 같은 구조를 쓴다
- * 넣지 않는 것: 런 값(골드·부활 횟수 — 런이 끝나면 버려져 런 상태에 둔다), 설정(해상도·음량 — 클라 로컬 저장, Lyra ULyraSettingsLocal)
- */
+/* 런이 끝나도 남는 플레이어 진행 (세이브 파일·PlayerState 복제 공용). 런 값·설정은 넣지 않는다 */
 USTRUCT(BlueprintType)
 struct FJY_PlayerProgress
 {
@@ -32,11 +29,11 @@ struct FJY_PlayerProgress
 	UPROPERTY(BlueprintReadOnly, SaveGame)
 	int32 SoulStones = 0;
 
-	/* 던전 도전 횟수 (증가는 던전 조각에서 — 지금은 기록판 표시만) */
+	/* 던전 도전 횟수 (아직 증가 처리 없음) */
 	UPROPERTY(BlueprintReadOnly, SaveGame)
 	int32 RunCount = 0;
 
-	/* 던전 클리어 횟수 (증가는 던전 조각에서) */
+	/* 던전 클리어 횟수 (아직 증가 처리 없음) */
 	UPROPERTY(BlueprintReadOnly, SaveGame)
 	int32 ClearCount = 0;
 

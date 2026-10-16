@@ -26,17 +26,12 @@ AJY_GameMode::AJY_GameMode()
 	PlayerControllerClass = AJY_PlayerController::StaticClass();
 	DefaultPawnClass = AJY_Character::StaticClass();
 
-	/* 맵 이동(허브↔던전) 중 화면이 멈추지 않게 — 접속은 유지하고 도착 맵을 백그라운드로 읽는다 */
+	/* 맵 이동(로비↔던전) 중 화면이 멈추지 않게 */
 	bUseSeamlessTravel = true;
 }
 
-/*
- * 세이브는 서버만 만진다 — 클라가 파일을 고쳐도 영향 없음. GameMode는 서버에만 있어 별도 서브시스템이 필요 없다.
- * 1인 게임 전제 — 슬롯 1개를 접속한 플레이어가 쓴다. 협동을 넣으면 플레이어별 슬롯(계정 ID)으로 나눈다.
- * 맵이 바뀌면 GameMode·PlayerState가 새로 생기므로 들어올 때마다 파일에서 다시 읽는다.
- * PostLogin 대신 여기: 일반 접속(PostLogin)과 Seamless 이동(HandleSeamlessTravelPlayer) 모두 이 함수를 거친다(GameModeBase.cpp:607).
- * 효과는 PlayerState의 ASC에 걸려 순서와 무관하지만, 먼저 읽으면 폰이 생길 때 최대 체력이 이미 정해져 있다.
- */
+/* PostLogin 대신 여기 — 일반 접속과 심리스 이동 모두 거친다 (GameModeBase.cpp:607) */
+/* 맵마다 PlayerState가 새로 생겨 매번 다시 읽는다. Super 전에 읽어 폰 생성 때 최대 체력이 이미 정해져 있게 */
 // [Server]
 void AJY_GameMode::HandleStartingNewPlayer_Implementation(APlayerController* NewPlayer) //override
 {
@@ -44,11 +39,7 @@ void AJY_GameMode::HandleStartingNewPlayer_Implementation(APlayerController* New
 
 	Super::HandleStartingNewPlayer_Implementation(NewPlayer);
 
-	/*
-	 * 도착 배너 문구는 맵(World Settings)이 갖고, 띄우는 시점은 서버가 정한다.
-	 * 심리스 이동도 서버가 도착 맵에서 PC를 새로 만들어 여기가 다시 불린다 → 허브·던전 도착마다 1번.
-	 * 문구가 빈 맵(테스트 맵 등)은 띄우지 않는다.
-	 */
+	/* 심리스 이동도 도착 맵에서 PC를 새로 만들어 여기가 다시 불린다 → 맵 도착마다 배너 1번 */
 	const AJY_WorldSettings* WorldSettings = CastChecked<AJY_WorldSettings>(GetWorldSettings());
 	if (WorldSettings->GetAreaNameText().IsEmpty() == false)
 	{
@@ -56,11 +47,7 @@ void AJY_GameMode::HandleStartingNewPlayer_Implementation(APlayerController* New
 	}
 }
 
-/*
- * 던전 지역 맵은 첫 방이 모든 클라에 뜬 뒤에 캐릭터를 만든다 — 그 전엔 설 바닥이 없다.
- * 엔진 AGameMode가 경기 시작 전 false를 돌려주고(GameMode.cpp:548) 시작할 때 모아서 만드는 것(207)과 같은 방식. 모아서 만드는 쪽은 UJY_RoomFlowSubsystem.
- * HandleStartingNewPlayer(GameModeBase.cpp:1071)와 클라의 다시 시작 요청(PlayerController.cpp:3322)이 모두 여기를 지난다.
- */
+/* 던전은 첫 방이 모든 클라에 뜬 뒤에 캐릭터를 만든다 — 그 전엔 설 바닥이 없다. 모아서 만드는 쪽은 UJY_RoomFlowSubsystem */
 // [Server]
 bool AJY_GameMode::PlayerCanRestart_Implementation(APlayerController* Player) //override
 {
@@ -71,10 +58,7 @@ bool AJY_GameMode::PlayerCanRestart_Implementation(APlayerController* Player) //
 	return RoomFlow->CanStartPlayers();
 }
 
-/*
- * 던전 지역 맵은 방(하위 레벨)마다 PlayerStart가 있다 — 지금 방 것 중에서 고른다.
- * 엔진 기본(GameModeBase.cpp:1093)은 월드 전체를 돌아 아직 꺼지는 중인 이전 방 것도 고를 수 있다. 빈 자리 우선은 엔진과 같다(1115).
- */
+/* 엔진 기본은 월드 전체를 돌아 꺼지는 중인 이전 방 PlayerStart도 고른다 — 지금 방 것만 본다 (GameModeBase.cpp:1093) */
 // [Server]
 AActor* AJY_GameMode::ChoosePlayerStart_Implementation(AController* Player) //override
 {
@@ -103,11 +87,7 @@ AActor* AJY_GameMode::ChoosePlayerStart_Implementation(AController* Player) //ov
 	return OccupiedStart;
 }
 
-/*
- * 엔진은 접속·심리스 도착 때 시작 지점을 미리 정해 컨트롤러에 저장하고(GameModeBase.cpp:816 → 842 UpdatePlayerStartSpot), 스폰 때 그걸 먼저 쓴다(1165).
- * 던전 지역 맵은 그 순간 방이 아직 없어 월드 원점이 저장되고, 방이 바뀌면 이전 방 자리가 남는다 — 스폰 순간 ChoosePlayerStart로만 정한다.
- * Lyra도 같은 이유로 둘 다 끈다(LyraGameMode.cpp:385 · 486).
- */
+/* 엔진이 접속 때 미리 저장한 시작 지점은 방이 없을 때라 월드 원점이 된다 — 스폰 순간 ChoosePlayerStart로만 정한다 (GameModeBase.cpp:1165) */
 // [Server]
 bool AJY_GameMode::ShouldSpawnAtStartSpot(AController* Player) //override
 {
@@ -138,10 +118,7 @@ void AJY_GameMode::LoadProgress(AJY_PlayerState* PlayerState)
 	const bool bSaveExists = UGameplayStatics::DoesSaveGameExist(SaveSlotName, 0);
 	const UJY_ProgressSaveGame* SaveGame = bSaveExists == true ? Cast<UJY_ProgressSaveGame>(UGameplayStatics::LoadGameFromSlot(SaveSlotName, 0)) : nullptr;
 
-	/*
-	 * 파일은 있는데 못 읽음(클래스 이름 변경·파일 손상) → 빈 진행으로 시작하되, 다음 저장이 덮어쓰기 전에 원본 바이트를 "<슬롯>_Broken"에 남긴다.
-	 * 이게 없으면 첫 구매·영혼석 획득 때 몇 시간 치 진행이 조용히 사라진다.
-	 */
+	/* 파일은 있는데 못 읽음 → 다음 저장이 덮어쓰기 전에 원본을 "_Broken"에 남긴다 (없으면 진행이 조용히 사라짐) */
 	if (bSaveExists == true && SaveGame == nullptr)
 	{
 		TArray<uint8> BrokenSaveData;
@@ -159,10 +136,7 @@ void AJY_GameMode::LoadProgress(AJY_PlayerState* PlayerState)
 	PlayerState->RefreshMetaEffects(GameData != nullptr ? GameData->MetaUpgradeData.Get() : nullptr);
 }
 
-/*
- * 쓸 수 있는 제단인가: 메타 제단(Service.MetaAltar)이 맞고, 요청한 플레이어 폰이 그 사용 범위 안에 있어야 한다.
- * 개조 클라가 던전에서·멀리서 구매 요청을 보내도 여기서 거절된다. 상점·축복 NPC는 같은 방식으로 자기 서비스 태그를 쓴다.
- */
+/* 화면은 클라에서만 열려 서버가 모른다 — 개조 클라의 원격 구매 요청을 요청마다 거절 */
 // [Server]
 bool AJY_GameMode::IsUsableMetaAltar(const APlayerController* Requester, AActor* Altar) const
 {
@@ -257,10 +231,7 @@ void AJY_GameMode::AddSoulStones(APlayerController* Receiver, int32 Amount)
 	CommitProgress(PlayerState, NewProgress, EJY_ProgressCommitScope::ValuesOnly);
 }
 
-/*
- * 값이 바뀔 때마다 바로 저장 — 맵 이동·종료 시점 저장에 기대지 않는다 (작은 파일 1개라 비용 무시).
- * 메타 효과는 단계가 바뀔 때만 다시 건다 — 영혼석만 바뀔 때 다시 걸면 최대 체력 복제만 늘어난다.
- */
+/* 맵 이동·종료 시점 저장에 기대지 않고 바로 저장. 효과는 단계가 바뀔 때만 다시 건다 (불필요한 복제 방지) */
 // [Server]
 void AJY_GameMode::CommitProgress(AJY_PlayerState* PlayerState, const FJY_PlayerProgress& NewProgress, EJY_ProgressCommitScope Scope)
 {

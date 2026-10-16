@@ -15,13 +15,13 @@ FString UJY_LevelToolset::AddStreamingLevel(const FString& LevelPackageName, con
 {
 	UWorld* World = GEditor->GetEditorWorldContext().World();
 
-	/* 블루프린트 스트리밍(ULevelStreamingDynamic) — 항상 불림(AlwaysLoaded)이면 방 6개가 한꺼번에 떠서 "방 하나씩 불러오기"(Design_Travel §6)와 어긋남 */
+	/* AlwaysLoaded면 방이 한꺼번에 떠서 방 하나씩 불러오기와 어긋난다 */
 	const FTransform LevelTransform(Location);
 	ULevelStreaming* AddedLevel = UEditorLevelUtils::AddLevelToWorld(World, *LevelPackageName, ULevelStreamingDynamic::StaticClass(), LevelTransform);
 	if (AddedLevel == nullptr)
 		return FString();
 
-	/* 엔진이 추가한 방을 현재 레벨로 바꾼다(EditorLevelUtils.cpp:412) — 이후 배치하는 액터가 방 맵에 들어가지 않게 지역 맵으로 되돌림 */
+	/* 엔진이 추가한 방을 현재 레벨로 바꾼다 — 이후 배치 액터가 방 맵에 들어가지 않게 되돌림 (EditorLevelUtils.cpp:412) */
 	World->SetCurrentLevel(World->PersistentLevel);
 
 	return AddedLevel->GetWorldAssetPackageName();

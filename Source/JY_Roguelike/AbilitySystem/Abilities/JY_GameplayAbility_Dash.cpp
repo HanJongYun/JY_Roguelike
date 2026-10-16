@@ -15,10 +15,7 @@ UJY_GameplayAbility_Dash::UJY_GameplayAbility_Dash(const FObjectInitializer& Obj
 	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalPredicted;
 	CostGameplayEffectClass = UJY_GameplayEffect_DashCost::StaticClass();
 
-	/*
-	 * 발동 태그(ActivationOwnedTags) 대신 실제로 구르기 시작할 때 붙인다 — 서버는 방향이 올 때까지 발동 상태로 기다리므로,
-	 * 발동 태그면 방향을 안 보내는 변조 클라가 무적만 계속 유지할 수 있다. 서버도 어빌리티를 실행하므로 서버 데미지 검사(UJY_HealthSet)에 걸린다
-	 */
+	/* 발동 태그 대신 구르기 시작 때 붙인다 — 발동 태그면 방향을 안 보내는 변조 클라가 무적만 유지할 수 있다 */
 	RollingTags.AddTag(JYGameplayTags::State_Dashing);
 	RollingTags.AddTag(JYGameplayTags::Gameplay_DamageImmunity);
 
@@ -28,9 +25,8 @@ UJY_GameplayAbility_Dash::UJY_GameplayAbility_Dash(const FObjectInitializer& Obj
 
 // [Server] [OwnClient]
 /*
- * 서버는 클라 입력 방향을 모른다 — 이동 RPC(캐릭터)와 어빌리티 RPC(PlayerState의 ASC)는 순서가 보장되지 않아 서버 가속도가 아직 옛 값일 수 있다.
- * 그래서 조종 클라가 방향을 TargetData로 보내고 서버는 도착을 기다린다 (LyraGameplayAbility_RangedWeapon과 같은 방식).
- * 발동 RPC와 TargetData RPC는 같은 ASC로 가는 Reliable이라 순서대로 도착한다.
+ * 이동 RPC와 어빌리티 RPC는 순서 보장이 없어 서버 가속도를 믿을 수 없다
+ * → 조종 클라가 방향을 TargetData로 보내고 서버는 도착을 기다린다 (Lyra RangedWeapon 방식)
  */
 void UJY_GameplayAbility_Dash::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) //override
 {
@@ -110,7 +106,7 @@ void UJY_GameplayAbility_Dash::OnDashDirectionReady(const FGameplayAbilityTarget
 	AbilitySystemComponent->AddLooseGameplayTags(RollingTags);
 	bRollingTagsAdded = true;
 
-	/* 몽타주 루트모션 중엔 CMC가 몸을 돌리지 않는다(bAllowPhysicsRotationDuringAnimRootMotion=false, CharacterMovementComponent.cpp:3044) → 처음 돌린 방향으로 끝까지 */
+	/* 루트모션 중엔 CMC가 몸을 돌리지 않아 처음 돌린 방향으로 끝까지 간다 */
 	FaceDirection(DashDirection);
 
 	if (CurrentActorInfo->IsNetAuthority() == true)
@@ -128,9 +124,8 @@ void UJY_GameplayAbility_Dash::OnDashDirectionReady(const FGameplayAbilityTarget
 
 // [Server]
 /*
- * 쓸 때마다 따로 충전 — 두 번 연속 쓰면 1초 뒤 1회, 그 직후 1회.
- * 항상 걸린 주기 GE 대신 타이머: 주기 GE는 "쓴 직후 충전까지 시간"이 0~1초로 들쭉날쭉하다.
- * 타이머가 끝나기 전에 플레이어가 나가면 ASC가 사라질 수 있어 약한 참조로 잡는다.
+ * 주기 GE 대신 쓸 때마다 타이머 — 주기 GE는 쓴 직후 충전까지 시간이 들쭉날쭉하다
+ * 타이머 전에 플레이어가 나가면 ASC가 사라질 수 있어 약한 참조
  */
 void UJY_GameplayAbility_Dash::ScheduleRecharge()
 {

@@ -7,10 +7,7 @@
 class UPrimitiveComponent;
 class UJY_UIManagerSubsystem;
 
-/*
- * 플레이어 캐릭터에 붙어 가까운 상호작용 대상(IJY_InteractableTarget)을 고르고 E 입력을 처리 — 내 화면 일(안내·확인 팝업)까지.
- * 실제 사용은 상호작용 GA(UJY_GameplayAbility_Interact)가 서버와 함께 한다
- */
+/* 플레이어에 붙어 상호작용 대상을 고르고 E 입력·안내·확인 팝업을 처리 */
 UCLASS(ClassGroup = (JY), meta = (BlueprintSpawnableComponent))
 class UJY_InteractionComponent : public UActorComponent
 {
@@ -47,7 +44,7 @@ private:
 	/* 확인 팝업 결과 — 확인이면 사용 */
 	void HandleConfirmResult(bool bConfirmed, TWeakObjectPtr<UPrimitiveComponent> Target);
 
-	/* [OwnClient] 상호작용 GA를 이벤트로 발동 — 대상 액터를 실어 서버에도 같이 발동된다 */
+	/* [OwnClient] 상호작용 GA를 이벤트로 발동 */
 	void TriggerInteraction(UPrimitiveComponent* Target) const;
 
 private:
@@ -57,6 +54,6 @@ private:
 	/* 지금 초점인 대상 (E를 누르면 쓰일 대상) */
 	TWeakObjectPtr<UPrimitiveComponent> FocusTarget;
 
-	/* 안내를 띄운 화면 관리자 — 컨트롤러가 먼저 떨어진 뒤(맵 이동)에도 안내를 지울 수 있게 */
+	/* 안내를 띄운 화면 관리자 */
 	TWeakObjectPtr<UJY_UIManagerSubsystem> PromptUIManager;
 };

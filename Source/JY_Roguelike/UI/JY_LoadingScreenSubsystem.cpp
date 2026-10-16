@@ -25,10 +25,8 @@ bool UJY_LoadingScreenSubsystem::ShouldCreateSubsystem(UObject* Outer) const //o
 	return GameInstance->IsDedicatedServerInstance() == false;
 }
 
-/*
- * 하드 이동(LoadMap)은 게임 스레드를 막아 Tick이 안 돈다 → PreLoadMap 순간에 직접 켠다.
- * 심리스는 PreLoadMap이 오지 않는다 → 시작 방송을 따로 받는다.
- */
+/* 하드 이동은 게임 스레드를 막아 Tick이 안 돈다 → PreLoadMap에서 직접 켠다 */
+/* 심리스는 PreLoadMap이 오지 않아 시작 방송을 따로 받는다 */
 // [OwnClient]
 void UJY_LoadingScreenSubsystem::Initialize(FSubsystemCollectionBase& Collection) //override
 {
@@ -51,10 +49,7 @@ void UJY_LoadingScreenSubsystem::Deinitialize() //override
 	Super::Deinitialize();
 }
 
-/*
- * 매 프레임 조건을 다시 본다 — 조건이 여러 곳(엔진 이동 상태·복제 도착)에서 바뀌어 이벤트 하나로 못 잡는다 (Lyra와 같은 방식).
- * 새 PC 대기: 심리스 직전 PC와 지금 로컬 PC가 달라지면 서버의 새 PC가 도착한 것.
- */
+/* 조건이 여러 곳(이동 상태·복제 도착)에서 바뀌어 이벤트 하나로 못 잡으므로 매 프레임 검사 (Lyra 방식) */
 // [OwnClient]
 void UJY_LoadingScreenSubsystem::Tick(float DeltaTime) //override
 {
@@ -110,11 +105,7 @@ void UJY_LoadingScreenSubsystem::UpdateLoadingScreen()
 	}
 }
 
-/*
- * 위에서부터: 엔진 이동 상태 → 월드 준비 → 내 PC 준비. 예:
- *   처음 접속 = PendingNetGame / 하드 이동 = bLoadingMap / 허브→던전 = IsInSeamlessTravel → 새 PC 대기
- *   허브 도착 직후 = GameState·PC·PlayerState·캐릭터가 복제돼 오는 중
- */
+/* 순서: 엔진 이동 상태 → 월드 준비 → 내 PC 준비 (복제 도착 대기) */
 // [OwnClient]
 bool UJY_LoadingScreenSubsystem::IsLoading() const
 {
@@ -145,11 +136,8 @@ bool UJY_LoadingScreenSubsystem::IsLoading() const
 	return LoadingProcess != nullptr && LoadingProcess->ShouldShowLoadingScreen() == true;
 }
 
-/*
- * 위젯 Outer = GameInstance — 맵이 바뀌어도 살아 있다. 뷰포트에 직접 붙여 LoadMap에서도 안 떨어진다(GameViewportClient.cpp:472,480).
- * 에디터 밖에서는 Slate를 한 번 돌려 바로 그린다 — 다음 줄이 LoadMap이라 게임 스레드가 막히기 때문(Lyra LoadingScreenManager.cpp:530).
- * 에디터(PIE)에서는 Lyra처럼 생략 — 다음 프레임에 그려진다.
- */
+/* Outer = GameInstance, 뷰포트에 직접 붙여 LoadMap에도 안 떨어진다 (GameViewportClient.cpp:472) */
+/* 곧 LoadMap이 게임 스레드를 막으므로 Slate를 한 번 돌려 바로 그린다 (PIE는 생략) */
 // [OwnClient]
 void UJY_LoadingScreenSubsystem::ShowLoadingScreen()
 {

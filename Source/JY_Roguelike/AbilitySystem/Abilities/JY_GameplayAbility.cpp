@@ -54,7 +54,7 @@ FVector UJY_GameplayAbility::ComputeCursorDirection() const
 	return CursorDirection;
 }
 
-/* 방향만 필요해 회전만 담은 변환을 LocationInfo에 넣는다 (대시가 쓰던 형식) */
+/* 방향만 필요해 회전만 담은 변환을 LocationInfo에 넣는다 */
 FGameplayAbilityTargetDataHandle UJY_GameplayAbility::MakeDirectionTargetData(const FVector& Direction)
 {
 	const FRotator DirectionRotation = Direction.Rotation();
@@ -79,10 +79,7 @@ FVector UJY_GameplayAbility::GetDirectionFromTargetData(const FGameplayAbilityTa
 }
 
 // [OwnClient]
-/*
- * 원래 키 = 실행 키(실행 동안 고정) — 서버는 이 키로 구독하므로 같은 실행의 방향은 모두 같은 구독으로 받는다.
- * 현재 키 = 지금 예측 창의 키 — 서버가 같은 예측 창에서 처리한다.
- */
+/* 실행 키 = 서버 구독 키(실행 동안 고정), 현재 키 = 서버가 같은 예측 창에서 처리하게 함 */
 void UJY_GameplayAbility::SendTargetDataToServer(const FGameplayAbilityTargetDataHandle& DataHandle, FGameplayTag ApplicationTag) const
 {
 	const bool bShouldNotifyServer = CurrentActorInfo->IsLocallyControlled() == true && CurrentActorInfo->IsNetAuthority() == false;

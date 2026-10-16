@@ -15,7 +15,7 @@ AJY_RoomMarker::AJY_RoomMarker()
 	SpriteComponent = CreateEditorOnlyDefaultSubobject<UBillboardComponent>(TEXT("Sprite"));
 	ArrowComponent = CreateEditorOnlyDefaultSubobject<UArrowComponent>(TEXT("Arrow"));
 
-	/* 커맨들릿(쿠킹 등)은 에디터 아이콘 에셋을 못 찾을 수 있어 건너뜀 — 엔진 TargetPoint.cpp:23과 같음 */
+	/* 커맨들릿(쿠킹 등)은 에디터 아이콘 에셋을 못 찾을 수 있어 건너뜀 */
 	if (IsRunningCommandlet() == false)
 	{
 		static ConstructorHelpers::FObjectFinderOptional<UTexture2D> TargetIcon(TEXT("/Engine/EditorResources/S_TargetPoint"));

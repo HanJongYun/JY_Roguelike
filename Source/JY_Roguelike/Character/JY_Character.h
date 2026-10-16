@@ -43,14 +43,12 @@ protected:
 	virtual bool ShouldReplicateAcceleration() const override;
 
 public:
-	/* PlayerState의 ASC. 클라는 PlayerState가 복제로 늦게 올 수 있어 없으면 nullptr */
+	/* PlayerState의 ASC (아직 없으면 nullptr) */
 	UJY_AbilitySystemComponent* GetJYAbilitySystemComponent() const;
 
 protected:
-	/* 이동 입력 처리 */
 	void Move(const FInputActionValue& Value);
 
-	/* 상호작용 입력 처리 */
 	void Interact();
 
 	/* 어빌리티 입력 눌림 → ASC */
@@ -88,7 +86,7 @@ private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "JY|Weapon", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UStaticMeshComponent> WeaponMesh;
 
-	/* 어두운 맵에서 캐릭터 주변을 밝히는 조명. 밝기·반경·색은 BP_JY_Character의 이 컴포넌트에서 조정 */
+	/* 어두운 맵에서 캐릭터 주변을 밝히는 조명 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "JY|Light", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UPointLightComponent> CharacterLight;
 
@@ -103,7 +101,7 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "JY|Camera")
 	float CameraBoomLength = 1400.0f;
 
-	/* 무기를 붙일 캐릭터 메시 소켓. GhostSamurai 애니가 움직이는 weapon_r 뼈의 소켓 */
+	/* 무기를 붙일 캐릭터 메시 소켓 (weapon_r 뼈) */
 	UPROPERTY(EditDefaultsOnly, Category = "JY|Weapon")
 	FName WeaponSocketName = TEXT("weapon_rSocket");
 

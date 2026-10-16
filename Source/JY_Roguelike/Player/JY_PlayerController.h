@@ -10,7 +10,7 @@
 class UInputMappingContext;
 class UJY_CameraOcclusionFadeComponent;
 
-/* 클라 → 서버 요청 창구(구매·카드) + 입력 매핑 등록. 키 입력 처리 자체는 폰(AJY_Character)이 하고, 어빌리티 입력은 프레임 끝에 ASC로 넘긴다 */
+/* 클라 → 서버 요청 창구(구매·카드)와 입력 매핑 등록 */
 UCLASS()
 class AJY_PlayerController : public APlayerController, public IJY_LoadingProcessInterface
 {
@@ -38,7 +38,7 @@ public:
 	UFUNCTION(Server, Reliable)
 	void Server_ChooseSkillCard(int32 ChoiceIndex);
 
-	/* 메타 강화 1단계 구매 요청 — Altar = 제단 화면을 연 제단. 서버 GameMode가 검증 */
+	/* 메타 강화 1단계 구매 요청 — Altar = 제단 화면을 연 제단 */
 	UFUNCTION(Server, Reliable)
 	void Server_BuyMetaUpgrade(FGameplayTag UpgradeTag, AActor* Altar);
 
@@ -55,7 +55,7 @@ public:
 	void Client_ShowNotification(EJY_NotificationType Type, const FText& Message);
 
 private:
-	/* 복제 상태(체력·영혼석) 원본을 화면용 ViewModel에 연결 — 로컬 PC만. 여러 번 불려도 안전 */
+	/* 복제 상태(체력·영혼석) 원본을 화면용 ViewModel에 연결 (로컬 PC만) */
 	void InitializeLocalUI();
 
 private:

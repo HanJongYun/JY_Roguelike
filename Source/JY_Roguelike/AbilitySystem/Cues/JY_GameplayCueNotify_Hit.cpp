@@ -5,7 +5,7 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(JY_GameplayCueNotify_Hit)
 
-// [OwnClient] [SimulatedProxy] — 데디 서버에선 큐가 돌지 않는다(GameplayCueManager.cpp:178~183)
+// [OwnClient] [SimulatedProxy] — 데디 서버에선 큐가 돌지 않는다(GameplayCueManager.cpp:178)
 /* C++ 정적 큐는 큐 매니저가 경로의 BP 에셋만 찾으므로 GCN_JY_Hit_* BP 껍데기가 큐 태그를 갖는다 */
 bool UJY_GameplayCueNotify_Hit::OnExecute_Implementation(AActor* MyTarget, const FGameplayCueParameters& Parameters) const //override
 {
@@ -23,7 +23,7 @@ bool UJY_GameplayCueNotify_Hit::OnExecute_Implementation(AActor* MyTarget, const
 		UGameplayStatics::PlaySoundAtLocation(World, HitSounds[SoundIndex], HitLocation);
 	}
 
-	/* 맞은 쪽이 Actor 적이면 반응 몽타주 (플레이어가 맞는 큐는 나중에 같은 클래스) */
+	/* 맞은 쪽이 적이면 반응 몽타주 */
 	AJY_EnemyCharacter* Enemy = Cast<AJY_EnemyCharacter>(MyTarget);
 	if (Enemy != nullptr)
 	{

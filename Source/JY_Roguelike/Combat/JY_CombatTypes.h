@@ -76,7 +76,7 @@ struct FJY_HitPayload
 	TWeakObjectPtr<AActor> Instigator;
 };
 
-/* 판정에 걸린 대상 하나 (Mass M2에서 FMassEntityHandle Entity 추가) */
+/* 판정에 걸린 대상 하나 */
 USTRUCT()
 struct FJY_CombatTarget
 {

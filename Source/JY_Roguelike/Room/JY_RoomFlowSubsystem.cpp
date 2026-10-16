@@ -27,7 +27,7 @@ namespace JY_RoomFlow
 		return UGameplayStatics::GetStreamingLevel(World, PackageName);
 	}
 
-	/* 허브·타이틀은 비어 있음 — 방 진행 없음 */
+	/* 로비·타이틀은 비어 있음 — 방 진행 없음 */
 	const UJY_RegionData* FindRegionData(const UWorld* World)
 	{
 		const AJY_WorldSettings* WorldSettings = Cast<AJY_WorldSettings>(World->GetWorldSettings());
@@ -38,17 +38,14 @@ namespace JY_RoomFlow
 	}
 }
 
-/* 에디터 월드에선 돌지 않게 — 게임·PIE만 */
 bool UJY_RoomFlowSubsystem::DoesSupportWorldType(const EWorldType::Type WorldType) const //override
 {
 	return WorldType == EWorldType::Game || WorldType == EWorldType::PIE;
 }
 
 /*
- * 방 진행은 서버가 정한다. 클라는 LoadStreamLevel이 보내는 알림(LevelStreaming.cpp:368)으로 같은 방을 따라 켠다.
- * 첫 방도 다음 방과 같은 길로 켠다 — 지역 맵에 Initially Loaded로 켜 두면 심리스 이동 도착 땐 안 올라온다
- * (도착 처리는 로드 요청을 받지 않는 Visibility 플러시만 함, World.cpp:9014 · EngineTypes.h:1407).
- * 플레이어 캐릭터는 첫 방에 들어간 뒤 만든다(AJY_GameMode::PlayerCanRestart).
+ * 클라는 LoadStreamLevel이 보내는 알림으로 같은 방을 따라 켠다.
+ * 첫 방도 같은 길로 켠다 — Initially Loaded로 두면 심리스 이동 도착 땐 안 올라온다 (World.cpp:9014)
  */
 // [Server]
 void UJY_RoomFlowSubsystem::OnWorldBeginPlay(UWorld& InWorld) //override
@@ -68,14 +65,14 @@ void UJY_RoomFlowSubsystem::OnWorldBeginPlay(UWorld& InWorld) //override
 	LoadRoom(0);
 }
 
-/* 심리스 이동은 BeginPlay 전에 플레이어를 받는다(World.cpp:9094 PostSeamlessTravel → 9098 BeginPlay) — RegionData를 아직 못 읽었을 수 있어 맵 설정을 직접 본다 */
+/* 심리스 이동은 BeginPlay 전에 플레이어를 받아(World.cpp:9094) RegionData가 아직 없을 수 있다 — 맵 설정을 직접 본다 */
 // [Server]
 bool UJY_RoomFlowSubsystem::IsRegionMap() const
 {
 	return JY_RoomFlow::FindRegionData(GetWorld()) != nullptr;
 }
 
-/* 엔진 AGameMode가 경기 시작 전 캐릭터를 막는 것(GameMode.cpp:548)과 같은 관문 — 첫 방이 모든 클라에 뜨기 전엔 설 바닥이 없다 */
+/* 첫 방이 모든 클라에 뜨기 전엔 설 바닥이 없다 */
 // [Server]
 bool UJY_RoomFlowSubsystem::CanStartPlayers() const
 {
@@ -131,11 +128,11 @@ bool UJY_RoomFlowSubsystem::IsRoomCleared(const ULevel* RoomLevel) const
 // [Server]
 void UJY_RoomFlowSubsystem::RequestNextRoom()
 {
-	/* 지역 맵이 아니거나(허브 등) 첫 방에 들어가기 전 */
+	/* 지역 맵이 아니거나(로비 등) 첫 방에 들어가기 전 */
 	if (CurrentRoom.IsNull() == true)
 		return;
 
-	/* 방을 깨기 전엔 못 넘어간다 — 출구 문은 잠겨 있으면 통과 감지를 꺼 두지만, 규칙은 여기서 정한다 */
+	/* 방을 깨기 전엔 못 넘어간다 — 규칙은 문이 아닌 여기서 정한다 */
 	if (bCurrentRoomCleared == false)
 		return;
 
@@ -159,7 +156,7 @@ void UJY_RoomFlowSubsystem::LoadRoom(int32 SlotIndex)
 	PendingRoom = PickNextRoom(SlotIndex);
 	PendingSlotIndex = SlotIndex;
 
-	/* 로딩과 화면 어두워짐을 동시에 — 둘 다 끝나야 옮긴다. 첫 방은 캐릭터가 없고 로딩 화면이 덮고 있어 어둡게 할 게 없다 */
+	/* 로딩과 화면 어두워짐을 동시에 — 둘 다 끝나야 옮긴다. 첫 방은 로딩 화면이 덮고 있어 생략 */
 	const bool bHasCurrentRoom = CurrentRoom.IsNull() == false;
 	const float FadeSeconds = bHasCurrentRoom == true ? RegionData->GetTransitionFadeSeconds() : 0.0f;
 	if (bHasCurrentRoom == true)
@@ -197,8 +194,8 @@ void UJY_RoomFlowSubsystem::HandleNextRoomLoaded()
 }
 
 /*
- * 클라가 방을 아직 못 띄웠는데 옮기면 바닥이 없어 떨어진다 — 모두 띄우고 화면도 다 어두워질 때까지 0.1초마다 다시 확인.
- * 클라가 띄웠다는 알림(ServerUpdateLevelVisibility)은 SealedEvent라 덮어 받을 수 없고(PlayerController.h:1532) 서버 쪽 이벤트도 없다.
+ * 클라가 방을 못 띄웠는데 옮기면 바닥이 없어 떨어진다 — 모두 띄우고 화면도 어두워질 때까지 0.1초마다 확인.
+ * 클라 알림(ServerUpdateLevelVisibility)은 SealedEvent라 받을 수 없다 (PlayerController.h:1532)
  */
 // [Server]
 void UJY_RoomFlowSubsystem::TryEnterNextRoom()
@@ -218,7 +215,7 @@ void UJY_RoomFlowSubsystem::TryEnterNextRoom()
 	const bool bFirstRoom = CurrentRoom.IsNull() == true;
 	if (bFirstRoom == false)
 	{
-		/* 끄는 건 콜백이 필요 없다 — Linkage 기본값(INDEX_NONE)이면 완료 때 아무것도 안 부름(LatentActionManager.cpp:360) */
+		/* 끄는 건 콜백이 필요 없다 — Linkage 기본값이면 완료 때 아무것도 안 부름 (LatentActionManager.cpp:360) */
 		FLatentActionInfo UnloadLatentInfo;
 		UnloadLatentInfo.CallbackTarget = this;
 		UnloadLatentInfo.UUID = ++NextLatentUUID;
@@ -260,10 +257,7 @@ bool UJY_RoomFlowSubsystem::HaveAllClientsInitializedLevel(const ULevel* Level) 
 	return true;
 }
 
-/*
- * 캐릭터 이동은 서버가 정하면 조종 클라에 위치 보정으로 내려간다.
- * PlayerStart 위치는 캡슐 가운데 높이(엔진 기본 배치)라 그대로 세운다. 여러 명이면 방의 PlayerStart를 돌아가며 쓴다.
- */
+/* PlayerStart 위치는 캡슐 가운데 높이라 그대로 세운다. 여러 명이면 돌아가며 쓴다 */
 // [Server]
 void UJY_RoomFlowSubsystem::MovePlayersToStart(const ULevel* Level) const
 {
@@ -294,7 +288,7 @@ void UJY_RoomFlowSubsystem::MovePlayersToStart(const ULevel* Level) const
 	}
 }
 
-/* 엔진 AGameMode::HandleMatchHasStarted(GameMode.cpp:207)와 같은 방식 — 막아 두었던 캐릭터 만들기를 이제 한다. 서는 곳은 AJY_GameMode::ChoosePlayerStart */
+/* 첫 방 전까지 막아 두었던 캐릭터 만들기를 이제 한다 (서는 곳은 AJY_GameMode::ChoosePlayerStart) */
 // [Server]
 void UJY_RoomFlowSubsystem::StartWaitingPlayers() const
 {
@@ -312,7 +306,7 @@ void UJY_RoomFlowSubsystem::StartWaitingPlayers() const
 	}
 }
 
-/* 엔진 카메라 페이드(APlayerController::ClientSetCameraFade, 클라 RPC) — 어두워진 채 유지했다가 옮긴 뒤 걷는다 */
+/* 어두워진 채 유지했다가 옮긴 뒤 걷는다 */
 // [Server]
 void UJY_RoomFlowSubsystem::FadePlayerScreens(bool bFadeOut) const
 {

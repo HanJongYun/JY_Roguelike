@@ -83,9 +83,8 @@ bool UJY_CombatQuerySubsystem::DoesSupportWorldType(const EWorldType::Type World
 
 // [Server] [OwnClient]
 /*
- * 넓은 구 겹침으로 후보를 모으고 수평 2D 모양으로 거른다.
- * 칼 궤적 추적 대신 모양 판정 — Mass 적도 같은 모양으로 공간 격자에서 찾게 된다(Design_Mass.md §6-1).
- * 조종 클라는 연출(화면 흔들림)용으로만 부른다.
+ * 넓은 구 겹침으로 후보를 모으고 수평 2D 모양으로 거른다 — 칼 궤적 대신 모양이라 Mass 적에도 같은 판정을 쓴다
+ * 조종 클라는 연출(화면 흔들림)용으로만 부른다
  */
 void UJY_CombatQuerySubsystem::FindTargets(const FJY_HitShape& Shape, const FTransform& Origin, const AActor* Attacker, TArray<FJY_CombatTarget>& OutTargets) const
 {
@@ -160,10 +159,7 @@ void UJY_CombatQuerySubsystem::FindTargets(const FJY_HitShape& Shape, const FTra
 }
 
 // [Server]
-/*
- * 피해는 GE(SetByCaller.Damage → HealthSet.Damage 메타 속성), 밀어내기는 적 LaunchCharacter, 연출은 큐 태그.
- * 큐를 피해 GE에 묶지 않는 이유: 스킬마다 다른 피격 연출을 GE를 늘리지 않고 데이터(큐 태그)로 바꾼다.
- */
+/* 큐를 피해 GE에 묶지 않는다 — 스킬마다 다른 피격 연출을 GE를 늘리지 않고 큐 태그로 바꾼다 */
 void UJY_CombatQuerySubsystem::ApplyHit(const FJY_CombatTarget& Target, const FJY_HitPayload& Payload) const
 {
 	AActor* TargetActor = Target.Actor.Get();
@@ -214,15 +210,15 @@ void UJY_CombatQuerySubsystem::ApplyHit(const FJY_CombatTarget& Target, const FJ
 		CueParameters.EffectContext = EffectContext;
 		CueParameters.RawMagnitude = Payload.Damage;
 
-		/* 서버가 부르면 모든 클라로 멀티캐스트, 데디 서버 자신은 연출 생략(GameplayCueManager.cpp:178~183) */
+		/* 서버가 부르면 모든 클라로 멀티캐스트, 데디 서버 자신은 연출 생략(GameplayCueManager.cpp:178) */
 		TargetJYASC->ExecuteGameplayCue(Payload.HitCueTag, CueParameters);
 	}
 }
 
 // [Server]
 /*
- * 피해 원인 ASC = 부순 쪽(있으면) — 폭발 통 처치 기록이 부순 플레이어에게 남는다.
- * 부순 쪽이 없거나(함정) ASC가 없으면 맞는 쪽 ASC로 만든다. 대시 무적 등은 UJY_HealthSet이 똑같이 막는다.
+ * 원인 ASC = 부순 쪽 — 폭발 통 처치 기록이 부순 플레이어에게 남는다
+ * 부순 쪽 ASC가 없으면(함정) 맞는 쪽 ASC로 만든다
  */
 bool UJY_CombatQuerySubsystem::ApplyEnvironmentDamage(AActor* TargetActor, float Damage, AActor* InstigatorActor, const FVector& Origin) const
 {

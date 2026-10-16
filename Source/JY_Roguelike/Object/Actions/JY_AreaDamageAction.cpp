@@ -39,8 +39,8 @@ FVector UJY_AreaDamageAction::GetCenter() const
 }
 
 /*
- * 피해 원인 = 발동시킨 쪽(부순 플레이어) — 폭발 통 처치 기록이 그 플레이어에게 남는다. 함정은 없음.
- * 피해 자체는 전투 창구의 환경 피해(UJY_CombatQuerySubsystem::ApplyEnvironmentDamage)로 — 대시 무적 등 같은 규칙이 적용된다
+ * 피해 원인 = 발동시킨 쪽 — 폭발 통 처치 기록이 부순 플레이어에게 남는다.
+ * 전투 창구의 환경 피해로 보내 대시 무적 등 같은 규칙을 적용
  */
 // [Server]
 void UJY_AreaDamageAction::ApplyDamage()

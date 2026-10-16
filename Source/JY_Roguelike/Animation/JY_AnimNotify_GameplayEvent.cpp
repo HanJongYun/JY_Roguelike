@@ -6,11 +6,7 @@
 #include UE_INLINE_GENERATED_CPP_BY_NAME(JY_AnimNotify_GameplayEvent)
 
 // [Server] [OwnClient] [SimulatedProxy] — 몽타주가 도는 모든 곳
-/*
- * 엔진엔 GameplayCue용 노티파이만 있고 이벤트용은 없다(Lyra도 C++ 없음).
- * 데디 서버에서도 돈다 — FAnimNotifyEvent::bTriggerOnDedicatedServer 기본 true(AnimTypes.h:383) + 캐릭터 메시 AlwaysTickPose.
- * 듣는 어빌리티가 없으면(적·시뮬 프록시) 아무 일도 없다.
- */
+/* 데디 서버에서도 돈다 — bTriggerOnDedicatedServer 기본 true + 메시 AlwaysTickPose (AnimTypes.h:383) */
 void UJY_AnimNotify_GameplayEvent::Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference) //override
 {
 	Super::Notify(MeshComp, Animation, EventReference);
@@ -29,7 +25,7 @@ void UJY_AnimNotify_GameplayEvent::Notify(USkeletalMeshComponent* MeshComp, UAni
 	OwnerJYASC->HandleGameplayEvent(EventTag, &EventData);
 }
 
-/* 시각을 미리 알아야 할 때(재생 속도 맞춤 등) 쓴다 — 노티파이가 몽타주 시간축에 저장된 값(FAnimNotifyEvent::GetTriggerTime)을 읽기만 함 */
+/* 재생 속도 맞춤처럼 시각을 미리 알아야 할 때 */
 bool UJY_AnimNotify_GameplayEvent::FindEventTime(const UAnimSequenceBase* Animation, FGameplayTag Tag, float& OutEventTime)
 {
 	for (const FAnimNotifyEvent& NotifyEvent : Animation->Notifies)

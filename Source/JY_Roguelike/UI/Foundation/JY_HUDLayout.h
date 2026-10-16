@@ -4,7 +4,7 @@
 #include "UI/Foundation/JY_ScreenWidget.h"
 #include "JY_HUDLayout.generated.h"
 
-/* 게임 중 항상 떠 있는 HUD 화면 — 틀의 Game 층에 올라간다. 체력·영혼석 표시는 WBP View Binding이 ViewModel 값으로 채운다 */
+/* 게임 중 항상 떠 있는 HUD 화면 (Game 층) */
 UCLASS(Abstract, Blueprintable)
 class UJY_HUDLayout : public UJY_ScreenWidget
 {
@@ -26,7 +26,7 @@ private:
 protected:
 	/* WBP_JY_HUD 안의 같은 이름 위젯과 연결 (BindWidget) */
 
-	/* 좌하단 체력 구슬 묶음 칸 — 허브에선 숨김 (AJY_WorldSettings::bShowCombatHUD) */
+	/* 좌하단 체력 구슬 묶음 칸 — 로비에선 숨김 (AJY_WorldSettings::bShowCombatHUD) */
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UWidget> CombatPanel;
 

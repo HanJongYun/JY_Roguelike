@@ -9,27 +9,23 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(JY_PlayerState)
 
-/*
- * ASC를 PlayerState에 두는 이유 (Lyra LyraPlayerState.cpp:34~44 답습)
- * - 캐릭터가 죽거나 바뀌어도 PlayerState는 남아 속성·능력이 유지된다.
- * - UI도 폰 없이 PlayerState만 있으면 연결 가능.
- */
+/* ASC·스킬 슬롯을 PlayerState에 둔다 — 캐릭터가 죽거나 바뀌어도 속성·능력이 유지된다 (Lyra와 같음) */
 AJY_PlayerState::AJY_PlayerState(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	AbilitySystemComponent = ObjectInitializer.CreateDefaultSubobject<UJY_AbilitySystemComponent>(this, TEXT("AbilitySystemComponent"));
 	AbilitySystemComponent->SetIsReplicated(true);
 
-	/* Mixed — GE는 소유 클라에만 전체 복제, 남에겐 태그·큐만 (플레이어용 권장 모드) */
+	/* Mixed — GE는 소유 클라에만 전체 복제, 남에겐 태그·큐만 */
 	AbilitySystemComponent->SetReplicationMode(EGameplayEffectReplicationMode::Mixed);
 
-	/* 서브오브젝트로 만들어 두면 ASC InitializeComponent가 자동 등록. 참조를 들고 있어 GC 방지 */
+	/* 서브오브젝트로 만들면 ASC InitializeComponent가 자동 등록 */
 	HealthSet = CreateDefaultSubobject<UJY_HealthSet>(TEXT("HealthSet"));
 	DashSet = CreateDefaultSubobject<UJY_DashSet>(TEXT("DashSet"));
 
 	SkillLoadoutComponent = CreateDefaultSubobject<UJY_SkillLoadoutComponent>(TEXT("SkillLoadoutComponent"));
 
-	/* PlayerState 기본 업데이트 빈도는 낮아 체력 복제가 늦게 보임 → Lyra처럼 100 */
+	/* PlayerState 기본 업데이트 빈도는 낮아 체력 복제가 늦게 보인다 */
 	SetNetUpdateFrequency(100.0f);
 }
 
@@ -64,10 +60,8 @@ void AJY_PlayerState::OnRep_Progress()
 }
 
 /*
- * 단계가 바뀔 때만 불린다(접속·구매·환불 — 영혼석만 바뀔 때는 안 부름). 효과는 PlayerState의 ASC에 걸려 폰이 바뀌어도 유지된다.
- * 크기 = 단계 × 단계당 값 → SetByCaller.MetaValue.
- * 이미 걸린 종류는 지웠다 다시 걸지 않고 크기만 바꾼다(UpdateActiveGameplayEffectSetByCallerMagnitude) —
- * 최대 체력이 140 → 160으로 한 번만 바뀌어 증가분(+20)만큼 정확히 반영된다.
+ * 이미 걸린 종류는 지웠다 다시 걸지 않고 크기만 바꾼다 —
+ * 최대 체력이 한 번만 바뀌어 증가분만큼 정확히 반영된다
  */
 // [Server]
 void AJY_PlayerState::RefreshMetaEffects(const UJY_MetaUpgradeData* MetaUpgradeData)
@@ -116,10 +110,8 @@ void AJY_PlayerState::RefreshMetaEffects(const UJY_MetaUpgradeData* MetaUpgradeD
 	}
 
 	/*
-	 * 메타로 최대 체력이 늘면 늘어난 만큼 현재 체력도 채운다 — 예: 140/140 → 강인함 +20 → 160/160, 맵 이동 뒤 재적용 100/100 → 160/160.
-	 * 게임 전체 규칙(HealthSet)이 아니라 여기서만 하는 이유: 전역으로 두면 임시 버프가 켜졌다 꺼질 때마다 회복돼 무한 회복이 된다.
-	 * 줄어드는 쪽(환불)은 HealthSet이 현재 체력을 새 최대치로 자른다.
-	 * 주의: 저장된 체력을 복원하는 기능이 생기면 이 함수 뒤에 복원해야 한다 (먼저 복원하면 여기서 증가분이 더해진다).
+	 * 늘어난 최대 체력만큼 현재 체력도 채운다 — HealthSet 전역 규칙이면 임시 버프마다 회복돼 무한 회복.
+	 * 주의: 저장된 체력 복원이 생기면 이 함수 뒤에 해야 한다 (먼저 하면 증가분이 더해진다)
 	 */
 	const float NewMaxHealth = AbilitySystemComponent->GetNumericAttribute(UJY_HealthSet::GetMaxHealthAttribute());
 	if (NewMaxHealth > OldMaxHealth)

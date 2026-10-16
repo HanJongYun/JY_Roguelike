@@ -15,10 +15,7 @@ namespace JY_RoomExit
 	static const FName OpenLightTag(TEXT("OpenLight"));
 }
 
-/*
- * 문은 레벨에 놓인 물체라 처음엔 잠긴 상태로 서버·클라 양쪽에 같이 로드된다.
- * 열림 상태만 복제 — 물체(AJY_Object)가 처음부터 휴면이라 바꿀 때만 FlushNetDormancy
- */
+/* 열림 상태만 복제 — 물체가 처음부터 휴면이라 바꿀 때만 FlushNetDormancy */
 UJY_RoomExitComponent::UJY_RoomExitComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
@@ -40,7 +37,7 @@ T* UJY_RoomExitComponent::FindPart(FName PartTag) const
 	return Parts.Num() > 0 ? Cast<T>(Parts[0]) : nullptr;
 }
 
-/* 방 레벨은 보이게 된 뒤(BeginPlay 끝) 방 흐름이 들어온다 → 알림을 먼저 구독하고, 이미 깬 방(재접속 등)이면 바로 연다 */
+/* 방 흐름은 문 BeginPlay 뒤에 방에 들어온다 — 알림을 먼저 구독하고, 이미 깬 방이면 바로 연다 */
 // [Server] [Client]
 void UJY_RoomExitComponent::BeginPlay() //override
 {
@@ -112,6 +109,7 @@ void UJY_RoomExitComponent::HandlePassBeginOverlap(UPrimitiveComponent* Overlapp
 	RoomFlow->RequestNextRoom();
 }
 
+/* 클라도 벽을 켜고 꺼야 이동 예측이 서버와 맞는다 */
 // [Client]
 void UJY_RoomExitComponent::OnRep_Open()
 {
@@ -119,9 +117,8 @@ void UJY_RoomExitComponent::OnRep_Open()
 }
 
 /*
- * 통과 감지는 열렸을 때만 켠다 — 잠긴 문에 붙어 서 있다가 열리면, 켜는 순간 겹침을 다시 계산해 이미 안에 있는 캐릭터도 "들어옴"으로 잡힌다
- * (SetCollisionEnabled → OnComponentCollisionSettingsChanged → UpdateOverlaps, PrimitiveComponentPhysics.cpp:1385·1446).
- * 계속 켜 두면 잠겼을 때 받은 "들어옴"이 무시된 뒤 다시 오지 않아, 열린 뒤 그대로 문 밖 허공으로 걸어 나간다.
+ * 통과 감지는 열렸을 때만 켠다 — 켜는 순간 겹침을 다시 계산해 문에 붙어 있던 캐릭터도 잡힌다 (PrimitiveComponentPhysics.cpp:1385).
+ * 계속 켜 두면 잠겼을 때 무시한 "들어옴"이 다시 오지 않는다
  */
 // [Server] [Client]
 void UJY_RoomExitComponent::ApplyOpenState()

@@ -25,7 +25,7 @@ void UJY_HittableComponent::ReceiveHit(AActor* InstigatorActor, float Damage, co
 	Object->RequestActivate(InstigatorActor, ComputePushVelocity(InstigatorActor, HitVelocity));
 }
 
-/* 세기·최소값은 BP 설정값이라 서버가 최종 속도까지 계산해 보낸다 — 밀어내기 0인 타격의 방향(때린 쪽 위치)은 서버만 안다 */
+/* 밀어내기 0인 타격은 때린 쪽 → 물체 방향 — 때린 위치는 서버만 알아 서버가 최종 속도까지 계산 */
 // [Server]
 FVector UJY_HittableComponent::ComputePushVelocity(const AActor* InstigatorActor, const FVector& HitVelocity) const
 {

@@ -3,10 +3,7 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(JY_MetaEntryViewModel)
 
-/*
- * FText는 새로 만들면 항상 "다른 값"이라(5-7) 단계 숫자가 바뀔 때만 설명·단계·가격 글자를 만든다 — 영혼석만 바뀌면 bCanBuy만 알림.
- * 이름은 표의 FText를 그대로 복사해 같은 글자 데이터를 가리키므로 두 번째부터는 알림이 없다.
- */
+/* FText는 새로 만들면 항상 "다른 값"으로 비교돼 알림이 나가므로 단계가 바뀔 때만 글자를 만든다 */
 // [OwnClient]
 void UJY_MetaEntryViewModel::Refresh(const UJY_MetaUpgradeData& MetaUpgradeData, const FJY_MetaUpgradeDefinition& Definition, int32 CurrentRank, int32 SoulStones)
 {

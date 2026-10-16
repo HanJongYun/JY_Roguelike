@@ -25,16 +25,13 @@ public:
 	const UJY_RegionData* GetRegionData() const { return RegionData; }
 
 private:
-	/*
-	 * 설정값 — 맵을 연 뒤 World Settings 패널 > JY|UI에서 수정 (맵 파일에 저장)
-	 * 퍼시스턴트 맵 것만 쓰인다 — 서브레벨의 World Settings는 엔진이 무시한다
-	 */
+	/* 설정값 — World Settings 패널 > JY에서 수정 (퍼시스턴트 맵 것만 쓰임) */
 
-	/* HUD(체력·영혼석·안내)를 올림 (타이틀 false — 게임 화면이 아님) */
+	/* HUD(체력·영혼석·안내)를 올림 (타이틀 false) */
 	UPROPERTY(EditAnywhere, Category = "JY|UI")
 	bool bShowHUD = true;
 
-	/* 체력 구슬 등 전투 표시를 보임 (허브 false — 싸우지 않는 곳) */
+	/* 체력 구슬 등 전투 표시를 보임 (로비 false) */
 	UPROPERTY(EditAnywhere, Category = "JY|UI")
 	bool bShowCombatHUD = true;
 
@@ -42,7 +39,7 @@ private:
 	UPROPERTY(EditAnywhere, Category = "JY|UI")
 	FText AreaNameText;
 
-	/* 이 맵이 던전 지역이면 방 순서 데이터 (DA_JY_Region01). 허브·타이틀은 비움 — 비면 방 진행이 꺼진다 */
+	/* 던전 지역 맵의 방 순서 데이터 (DA_JY_Region01). 비우면 방 진행이 꺼진다 */
 	UPROPERTY(EditAnywhere, Category = "JY|Room")
 	TObjectPtr<const UJY_RegionData> RegionData;
 };

@@ -7,7 +7,7 @@
 #include UE_INLINE_GENERATED_CPP_BY_NAME(JY_GameplayAbility_SkillMontage)
 
 // [Server] [OwnClient]
-/* 대시·기본 공격과 같은 구조 — 조종 클라가 커서 방향을 TargetData로 보내고 서버는 도착하면 시작 */
+/* 조종 클라가 커서 방향을 TargetData로 보내고 서버는 도착하면 시작 */
 void UJY_GameplayAbility_SkillMontage::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) //override
 {
 	UJY_AbilitySystemComponent* JYASC = GetJYAbilitySystemComponentFromActorInfo();

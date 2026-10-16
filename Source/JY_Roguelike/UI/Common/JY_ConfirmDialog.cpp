@@ -4,10 +4,8 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(JY_ConfirmDialog)
 
-/*
- * 떠 있는 동안 정지 — 정지 메뉴 위에 떠도 정지 화면 목록이 2개라 팝업만 닫아선 풀리지 않는다. 뒤로가기로 닫힘·메뉴 입력은 부모 기본값.
- * 팝업은 누가 열었는지 모른다 — 결과만 OnResult로 돌려준다 (Lyra UCommonMessagingSubsystem::ShowConfirmation과 같은 방식).
- */
+/* 떠 있는 동안 정지 — 정지 메뉴 위에 떠도 정지 목록이 따로 잡혀 팝업만 닫아선 풀리지 않는다 */
+/* 팝업은 연 쪽을 모르고 결과만 OnResult로 돌려준다 (Lyra ShowConfirmation 방식) */
 UJY_ConfirmDialog::UJY_ConfirmDialog(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -52,10 +50,8 @@ void UJY_ConfirmDialog::HandleCancelClicked()
 	FinishDialog(false);
 }
 
-/*
- * 닫기를 먼저 한다 — 결과 함수가 같은 층에 새 팝업을 올리면, 이 팝업은 스택이 가린 채 꺼 두고(CommonActivatableWidgetContainer.cpp:163)
- * 이후 DeactivateWidget은 이미 꺼져 있어 무시된다(CommonActivatableWidget.cpp:144) → 새 팝업을 닫으면 이 팝업이 다시 켜진다(:302).
- */
+/* 닫기를 먼저 — 결과 함수가 같은 층에 새 팝업을 올리면 이 팝업은 가려진 채 꺼져 이후 Deactivate가 무시되고,
+   새 팝업을 닫을 때 다시 켜진다 (CommonActivatableWidgetContainer.cpp:163) */
 // [OwnClient]
 void UJY_ConfirmDialog::FinishDialog(bool bConfirmed)
 {

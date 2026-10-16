@@ -6,7 +6,7 @@
 
 class UJY_MeleeComboData;
 
-/* 기본 공격 — 지상·공중 콤보. 타 입력 섹션 안에서 누르면 분기 시점에 커서 방향으로 다음 타, 피해는 서버. 데이터는 GA_JY_MeleeCombo */
+/* 기본 공격 — 지상·공중 콤보. 입력 구간에 누르면 커서 방향으로 다음 타 */
 UCLASS(Abstract)
 class UJY_GameplayAbility_MeleeCombo : public UJY_GameplayAbility
 {

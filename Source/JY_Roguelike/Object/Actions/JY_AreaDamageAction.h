@@ -18,7 +18,7 @@ private:
 	// [Server]
 	void ApplyDamage();
 
-	/* [Server] 범위 안 부서지는 물체 등(IJY_HitReactable)을 중심 바깥으로 밀며 때림 — 폭발 통 연쇄 */
+	/* [Server] 범위 안 부서지는 물체(IJY_HitReactable)를 중심 바깥으로 밀며 때림 */
 	void HitObjects(const FVector& Center) const;
 
 	FVector GetCenter() const;
@@ -38,7 +38,7 @@ private:
 	UPROPERTY(EditAnywhere, Category = "JY|AreaDamage", Meta = (ClampMin = "0.0"))
 	float IntervalSeconds = 0.0f;
 
-	/* 같은 대상을 다시 때리기까지 (초) — 0이면 간격마다 모두 맞음. 도끼 날이 한 번 지나가는 동안 여러 번 맞지 않게 */
+	/* 같은 대상을 다시 때리기까지 (초) — 0이면 간격마다 모두 맞음 */
 	UPROPERTY(EditAnywhere, Category = "JY|AreaDamage", Meta = (ClampMin = "0.0", EditCondition = "IntervalSeconds > 0"))
 	float RehitSeconds = 0.0f;
 

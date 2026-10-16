@@ -6,14 +6,14 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(JY_EscapeMenu)
 
-/* 열려 있는 동안 정지 (뒤로가기로 닫힘·메뉴 입력은 부모 기본값) */
+/* 열려 있는 동안 정지 */
 UJY_EscapeMenu::UJY_EscapeMenu(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	bPauseGame = true;
 }
 
-/* 위젯이 처음 만들어질 때 1번만 불림 — 스택이 풀에서 재사용해도 다시 불리지 않아 구독이 두 겹이 되지 않는다 */
+/* 처음 만들 때 1번만 불림 — 풀에서 재사용돼도 구독이 두 겹이 되지 않는다 */
 // [OwnClient]
 void UJY_EscapeMenu::NativeOnInitialized() //override
 {

@@ -6,7 +6,7 @@
 
 class AJY_PlayerState;
 
-/* 시험용 콘솔 명령 — 서버에서 도는 명령은 클라에서 쳐도 엔진이 서버로 보낸다 (치트가 허용된 서버만, 배포 빌드엔 없음) */
+/* 시험용 콘솔 명령 (치트가 허용된 서버만) */
 UCLASS(Within = PlayerController)
 class UJY_CheatManager : public UCheatManager
 {
@@ -37,15 +37,15 @@ public:
 	UFUNCTION(Exec)
 	void JYNoCooldown(bool bEnable);
 
-	/* 지금 방을 깬 것으로 처리해 출구 문 열기 (웨이브가 생기기 전 시험용) */
+	/* 지금 방을 깬 것으로 처리해 출구 문 열기 */
 	UFUNCTION(Exec, BlueprintAuthorityOnly)
 	void JYClearRoom();
 
-	/* 내 주변 부서지는 물체를 모두 부수기 (예: JYBreakProps 500) — 파편·폭발 연출 시험용 */
+	/* 내 주변 부서지는 물체를 모두 부수기 (예: JYBreakProps 500) */
 	UFUNCTION(Exec, BlueprintAuthorityOnly)
 	void JYBreakProps(float Radius);
 
-	/* 안 죽기 켜기·끄기 (예: JYUnlimitedHealth 0) — 체력이 1 밑으로 안 내려감. 사망 처리가 생기기 전까지 기본 켜짐 */
+	/* 안 죽기 켜기·끄기 (예: JYUnlimitedHealth 0) — 기본 켜짐 */
 	UFUNCTION(Exec, BlueprintAuthorityOnly)
 	void JYUnlimitedHealth(bool bEnable);
 

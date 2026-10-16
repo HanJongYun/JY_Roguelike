@@ -6,7 +6,7 @@
 
 class UPrimitiveComponent;
 
-/* 카메라와 내 캐릭터 사이를 가리는 벽을 흐리게 함 (내 화면에서만). 대상 = FadeActorTag 태그 액터 + 재질에 CameraFade(Custom Primitive Data) 파라미터 */
+/* 카메라와 내 캐릭터 사이를 가리는 벽(FadeActorTag 액터)을 내 화면에서 흐리게 함 */
 UCLASS()
 class UJY_CameraOcclusionFadeComponent : public UActorComponent
 {

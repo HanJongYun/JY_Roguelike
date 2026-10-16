@@ -46,9 +46,8 @@ void UJY_BreakAction::HideBody(AJY_Object* Object) const
 }
 
 /*
- * 파편은 클라 연출 전용(GameDesign_Final.md §10-3) — 복제하지 않는 컴포넌트를 각 클라가 만든다 (GC 컴포넌트 복제 bEnableReplication 기본 꺼짐).
- * 한 프레임에 등록 → 묶음 풀기 → 바깥 속도: 물리 스레드가 새 프록시 초기화 → 명령(CrumbleActiveClusters) → 필드 순으로 처리해 풀린 조각마다 속도가 붙는다
- * (PBDRigidsSolver.cpp ProcessPushedData_Internal 2153 다음 명령 실행, AdvanceOneTimeStepTask 505~518 필드)
+ * 파편은 복제하지 않는 클라 연출 — 각 클라가 만든다.
+ * 등록 → 묶음 풀기 → 속도 필드를 한 프레임에 해야 풀린 조각마다 속도가 붙는다 (PBDRigidsSolver.cpp:2153)
  */
 // [Client]
 void UJY_BreakAction::SpawnDebris(AJY_Object* Object)
@@ -71,14 +70,14 @@ void UJY_BreakAction::SpawnDebris(AJY_Object* Object)
 	DebrisComponent->RegisterComponent();
 	DebrisComponent->CrumbleActiveClusters();
 
-	/* 몸체 바닥 중심에서 바깥으로 — 아래쪽 조각은 옆으로, 위쪽 조각은 위로 흩어짐. 필드 노드는 넘기는 순간 평가 그래프로 복사됨 */
+	/* 몸체 바닥 중심에서 바깥으로 — 아래 조각은 옆으로, 위 조각은 위로 흩어짐 */
 	const FBoxSphereBounds& BodyBounds = Body->Bounds;
 	const FVector BurstCenter = BodyBounds.Origin - FVector::UpVector * BodyBounds.BoxExtent.Z;
 	URadialVector* BurstVelocity = NewObject<URadialVector>(this);
 	BurstVelocity->SetRadialVector(DebrisSpeed, BurstCenter);
 	DebrisComponent->ApplyPhysicsField(true, EGeometryCollectionPhysicsTypeEnum::Chaos_LinearVelocity, nullptr, BurstVelocity);
 
-	/* 맞은 방향으로 한 번 더 — 속도 필드는 덮어쓰지 않고 더한다 (FieldSystemProxyHelper.h 613 SetV(GetV() + DeltaV)) */
+	/* 맞은 방향으로 한 번 더 — 속도 필드는 덮어쓰지 않고 더한다 (FieldSystemProxyHelper.h:613) */
 	const FVector& PushVelocity = Object->GetActivationImpulse();
 	if (PushVelocity.IsNearlyZero() == false)
 	{

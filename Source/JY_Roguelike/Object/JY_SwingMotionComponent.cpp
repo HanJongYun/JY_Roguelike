@@ -6,8 +6,8 @@
 #include UE_INLINE_GENERATED_CPP_BY_NAME(JY_SwingMotionComponent)
 
 /*
- * Tick 사용: 흔들리는 움직임을 매 프레임 그려야 하고, 방당 0~1개라 비용이 작다.
- * 데디 서버도 돌린다 — 날 위치로 범위 피해(Area Damage의 CenterPartTag)를 판정하므로 서버에도 같은 회전이 필요하다
+ * 각도를 서버 시각으로 계산해 복제 없이 서버·클라가 같은 각도를 그린다.
+ * 데디 서버도 돌린다 — 날 위치로 범위 피해를 판정하므로
  */
 UJY_SwingMotionComponent::UJY_SwingMotionComponent()
 {

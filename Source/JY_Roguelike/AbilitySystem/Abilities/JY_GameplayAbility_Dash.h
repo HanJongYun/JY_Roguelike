@@ -53,7 +53,7 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "JY|Dash")
 	float RootMotionScale = 1.0f;
 
-	/* 쓴 뒤 1회가 다시 차는 시간 (초). 0 이하면 타이머가 실행되지 않아 하한을 둔다 */
+	/* 쓴 뒤 1회가 다시 차는 시간 (초) */
 	UPROPERTY(EditDefaultsOnly, Category = "JY|Dash", Meta = (ClampMin = "0.1"))
 	float RechargeSeconds = 1.0f;
 

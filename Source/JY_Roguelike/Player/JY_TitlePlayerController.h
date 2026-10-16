@@ -17,7 +17,7 @@ protected:
 	virtual void BeginPlay() override;
 
 public:
-	/* 시작 버튼 → 서버가 허브로 이동 */
+	/* 시작 버튼 → 서버가 로비로 이동 */
 	UFUNCTION(Server, Reliable)
 	void Server_StartGame();
 };

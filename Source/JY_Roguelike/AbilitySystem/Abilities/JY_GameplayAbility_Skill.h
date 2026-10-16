@@ -9,7 +9,7 @@
 class UJY_SkillDefinition;
 class UCameraShakeBase;
 
-/* 스킬 GA 공통 — 쿨타임(레벨·카드 반영), 최종 수치, 스킬 정의 찾기. 데이터는 GA_JY_Skill_* */
+/* 스킬 GA 공통 — 쿨타임(레벨·카드 반영), 최종 수치, 스킬 정의 찾기 */
 UCLASS(Abstract)
 class UJY_GameplayAbility_Skill : public UJY_GameplayAbility
 {

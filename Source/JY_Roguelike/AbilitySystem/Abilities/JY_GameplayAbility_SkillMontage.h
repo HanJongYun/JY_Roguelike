@@ -6,7 +6,7 @@
 
 class UAnimMontage;
 
-/* 몽타주 하나 + 타격 이벤트 순서별 판정 모양 (회전베기 등). 커서 방향으로 시작. 데이터는 GA_JY_Skill_* */
+/* 몽타주 하나 + 타격 이벤트 순서별 판정 모양 (회전베기 등). 커서 방향으로 시작 */
 UCLASS(Abstract)
 class UJY_GameplayAbility_SkillMontage : public UJY_GameplayAbility_Skill
 {

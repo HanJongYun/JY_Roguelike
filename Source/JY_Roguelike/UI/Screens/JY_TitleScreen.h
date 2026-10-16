@@ -16,7 +16,7 @@ protected:
 	virtual void NativeOnInitialized() override;
 
 private:
-	/* 시작 클릭 → 서버에 허브 이동 요청 */
+	/* 시작 클릭 → 서버에 로비 이동 요청 */
 	void HandleStartClicked();
 
 	/* 종료 클릭 → 확인 팝업 표시 */

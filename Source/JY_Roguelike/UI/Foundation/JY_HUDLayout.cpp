@@ -18,12 +18,7 @@ UJY_HUDLayout::UJY_HUDLayout(const FObjectInitializer& ObjectInitializer)
 	bIsBackHandler = false;
 }
 
-/*
- * bIsBackHandler를 쓰지 않는 이유: 엔진이 등록하는 뒤로가기 바인딩은 Menu 모드 전용(CommonUIInputTypes.h:62 기본값)이고,
- * 라우터는 현재 입력 모드와 바인딩 모드가 같을 때만 실행한다(UIActionRouterTypes.cpp:851) → Game 모드인 HUD에선 무시된다.
- * 그래서 같은 뒤로가기 액션을 Game 모드로 직접 등록한다.
- * 정지 메뉴가 열려 있으면 입력 모드가 Menu라 이 바인딩은 무시되고, 메뉴의 뒤로가기(닫기)가 받는다.
- */
+/* 뒤로가기를 Game 모드로 직접 등록 — bIsBackHandler 바인딩은 Menu 모드 전용이라 HUD에선 무시된다 (UIActionRouterTypes.cpp:851) */
 // [OwnClient]
 void UJY_HUDLayout::NativeOnInitialized() //override
 {
@@ -37,7 +32,7 @@ void UJY_HUDLayout::NativeOnInitialized() //override
 		RegisterUIActionBinding(BindArgs);
 	}
 
-	/* 정지 메뉴를 처음 열 때 끊기지 않게 지금 비동기로 미리 올려 둔다 — 핸들을 쥐고 있는 동안 로드한 클래스가 메모리에 남는다(StreamableManager.h:195) */
+	/* 정지 메뉴를 처음 열 때 끊기지 않게 미리 로드 — 핸들을 쥐고 있어야 메모리에 남는다 (StreamableManager.h:195) */
 	if (EscapeMenuClass.IsNull() == false)
 	{
 		EscapeMenuPreloadHandle = UAssetManager::GetStreamableManager().RequestAsyncLoad(EscapeMenuClass.ToSoftObjectPath());
@@ -46,11 +41,8 @@ void UJY_HUDLayout::NativeOnInitialized() //override
 	RefreshCombatPanel();
 }
 
-/*
- * 예: 허브 World Settings bShowCombatHUD=false → 체력 구슬 숨김, 던전 true → 표시 (하데스 허브엔 체력바가 없다).
- * World Settings는 맵 파일에 들어 있어 클라도 맵을 여는 순간 갖고 있다 → GameState 복제를 기다릴 필요가 없다.
- * HUD는 맵마다 새로 만들어지므로(도착 맵의 새 PC로 틀을 다시 만듦) 생성 때 한 번만 읽으면 된다.
- */
+/* World Settings는 맵 파일에 있어 클라도 바로 갖고 있다 — 복제를 기다릴 필요 없음 */
+/* HUD는 맵마다 새로 만들어지므로 생성 때 한 번만 읽는다 */
 // [OwnClient]
 void UJY_HUDLayout::RefreshCombatPanel()
 {

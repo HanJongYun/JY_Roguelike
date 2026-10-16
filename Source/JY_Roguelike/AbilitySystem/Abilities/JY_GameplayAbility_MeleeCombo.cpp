@@ -37,8 +37,8 @@ bool UJY_GameplayAbility_MeleeCombo::CanActivateAbility(const FGameplayAbilitySp
 
 // [Server] [OwnClient]
 /*
- * 서버는 클라 커서를 모른다 — 조종 클라가 방향을 TargetData로 보내고 서버는 도착하면 콤보를 시작한다(대시와 같은 구조).
- * 방향 구독은 실행 내내 유지 — 다음 타 방향도 같은 실행 키로 온다.
+ * 서버는 클라 커서를 모른다 — 조종 클라가 방향을 TargetData로 보내고 서버는 도착하면 시작
+ * 방향 구독은 실행 내내 유지 — 다음 타 방향도 같은 실행 키로 온다
  */
 void UJY_GameplayAbility_MeleeCombo::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) //override
 {
@@ -141,9 +141,8 @@ void UJY_GameplayAbility_MeleeCombo::OnDirectionReceived(const FGameplayAbilityT
 
 // [OwnClient] 실행 중 다시 누름 — 엔진이 실행 중 인스턴스에 전달(AbilitySystemComponent_Abilities.cpp:2914~2934)
 /*
- * 입력 구간 = 지금 타의 Attack 섹션. 섹션 연결만 AttackN → AttackN+1로 바꾸면 분기 시점에 엔진이 넘어간다.
- * 서버에는 엔진이 같은 연결 변경을 RPC로 보낸다(AbilitySystemComponent_Abilities.cpp:3576~3594).
- * 방향 TargetData와 연결 RPC는 같은 ASC의 Reliable 서버 RPC라 보낸 순서대로 도착 → 서버는 방향을 먼저 안다.
+ * 섹션 연결만 바꾸면 분기 시점에 엔진이 넘어가고 서버에도 RPC로 전달된다(AbilitySystemComponent_Abilities.cpp:3576)
+ * 방향 TargetData와 연결 RPC는 같은 ASC의 Reliable RPC라 서버는 방향을 먼저 받는다
  */
 void UJY_GameplayAbility_MeleeCombo::InputPressed(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo) //override
 {
@@ -193,7 +192,7 @@ void UJY_GameplayAbility_MeleeCombo::OnStepStartEvent(FGameplayEventData Payload
 }
 
 // [Server] [OwnClient]
-/* 몇 번째 타인지 재생 위치로 구하지 않는다 — 노티파이는 위치가 앞으로 간 뒤 처리돼 이미 다음 섹션일 수 있다(서버 ensure 실제 발생) */
+/* 몇 번째 타인지 재생 위치로 구하지 않는다 — 노티파이는 위치가 앞으로 간 뒤 처리돼 이미 다음 섹션일 수 있다 */
 void UJY_GameplayAbility_MeleeCombo::OnHitEvent(FGameplayEventData Payload)
 {
 	if (ensureMsgf(ActiveCombo->Steps.IsValidIndex(ActiveStepIndex) == true, TEXT("%s 타격 전에 타 시작 노티파이(Event.Melee.StepStart)가 없음"), *GetNameSafe(ActiveCombo)) == false)

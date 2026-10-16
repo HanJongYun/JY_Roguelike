@@ -5,7 +5,7 @@
 #include "Combat/JY_CombatTypes.h"
 #include "JY_CombatQuerySubsystem.generated.h"
 
-/* 전투 판정 창구 — 모양 안 대상 찾기·피해 적용 (Actor 경로, Mass는 M2에서 같은 함수에 추가) */
+/* 전투 판정 창구 — 모양 안 대상 찾기·피해 적용 */
 UCLASS()
 class UJY_CombatQuerySubsystem : public UWorldSubsystem
 {

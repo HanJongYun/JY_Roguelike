@@ -4,7 +4,7 @@
 #include "Object/JY_Action.h"
 #include "JY_MovePartAction.generated.h"
 
-/* 부품 이동 — BP 부품을 상대 위치로 옮김 (가시 숨음·경고·솟음, 화염판 발판 눌림). 화면 연출 전용, 서버 판정은 범위 피해가 한다 */
+/* BP 부품을 상대 위치로 옮기는 화면 연출 (가시 솟음, 화염판 발판 눌림) */
 UCLASS(meta = (DisplayName = "Move Part"))
 class UJY_MovePartAction : public UJY_Action
 {

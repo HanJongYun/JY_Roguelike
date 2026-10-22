@@ -157,7 +157,7 @@ private:
 	FVector WorldVelocity = FVector::ZeroVector;
 	FVector LastUpdateVelocity = FVector::ZeroVector;
 	FVector WorldAcceleration = FVector::ZeroVector;
-	bool bMovingOnGround = true;
+	bool bOnGroundMode = true;
 	bool bUseSeparateBrakingFriction = false;
 	float BrakingFriction = 0.0f;
 	float GroundFriction = 0.0f;

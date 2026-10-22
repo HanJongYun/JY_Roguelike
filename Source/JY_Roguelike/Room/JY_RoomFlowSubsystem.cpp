@@ -10,6 +10,9 @@
 #include "Engine/NetConnection.h"
 #include "Engine/NetDriver.h"
 #include "Engine/World.h"
+#include "Components/CapsuleComponent.h"
+#include "GameFramework/Character.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/GameModeBase.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
@@ -21,6 +24,9 @@
 
 namespace JY_RoomFlow
 {
+	/* 시작 지점에서 이만큼 아래까지 바닥을 찾는다 — 더 떠 있으면 일부러 띄운 것으로 보고 그대로 */
+	static constexpr float StandSnapDistance = 100.0f;
+
 	ULevelStreaming* FindStreamingLevel(const UWorld* World, const TSoftObjectPtr<UWorld>& Room)
 	{
 		const FName PackageName(*Room.GetLongPackageName());
@@ -283,9 +289,30 @@ void UJY_RoomFlowSubsystem::MovePlayersToStart(const ULevel* Level) const
 			continue;
 
 		const APlayerStart* PlayerStart = PlayerStarts[StartIndex % PlayerStarts.Num()];
-		Pawn->TeleportTo(PlayerStart->GetActorLocation(), PlayerStart->GetActorRotation());
+		const ACharacter* Character = Cast<ACharacter>(Pawn);
+		const FVector StandLocation = Character != nullptr ? FindStandLocation(Character, PlayerStart->GetActorLocation()) : PlayerStart->GetActorLocation();
+		Pawn->TeleportTo(StandLocation, PlayerStart->GetActorRotation());
 		++StartIndex;
 	}
+}
+
+/* 순간이동한 뒤 바닥이 2.4cm(MAX_FLOOR_DIST)보다 멀면 이동 컴포넌트가 떨어지는 중으로 바꾼다 (CharacterMovementComponent.cpp:6552) */
+/* 시작 지점을 바닥 높이에 맞춰 두지 않아도 서서 시작하게, 캡슐을 내려 바닥에 닿는 곳을 쓴다 */
+// [Server]
+FVector UJY_RoomFlowSubsystem::FindStandLocation(const ACharacter* Character, const FVector& StartLocation) const
+{
+	const UCapsuleComponent* Capsule = Character->GetCapsuleComponent();
+	const FCollisionShape CapsuleShape = FCollisionShape::MakeCapsule(Capsule->GetScaledCapsuleRadius(), Capsule->GetScaledCapsuleHalfHeight());
+	const FVector TraceEnd = StartLocation - FVector::UpVector * JY_RoomFlow::StandSnapDistance;
+	const FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(JY_StandLocation), false, Character);
+
+	FHitResult Hit;
+	const bool bHit = GetWorld()->SweepSingleByChannel(OUT Hit, StartLocation, TraceEnd, FQuat::Identity, Capsule->GetCollisionObjectType(), CapsuleShape, QueryParams);
+	if (bHit == false || Hit.bStartPenetrating == true)
+		return StartLocation;
+
+	/* 이동 컴포넌트가 걷는 중으로 보는 바닥 거리 안쪽으로 */
+	return Hit.Location + FVector::UpVector * UCharacterMovementComponent::MIN_FLOOR_DIST;
 }
 
 /* 첫 방 전까지 막아 두었던 캐릭터 만들기를 이제 한다 (서는 곳은 AJY_GameMode::ChoosePlayerStart) */

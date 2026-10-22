@@ -6,6 +6,7 @@
 
 class UJY_RegionData;
 class ULevel;
+class ACharacter;
 
 /* 방을 깼거나(true) 새 방에 들어와 잠겼다(false) (서버) */
 DECLARE_MULTICAST_DELEGATE_TwoParams(FJY_OnRoomClearChanged, const ULevel* /*RoomLevel*/, bool /*bCleared*/);
@@ -31,6 +32,9 @@ public:
 
 	/* 지금 방 레벨 (지역 맵이 아니거나 첫 방 전이면 nullptr) */
 	const ULevel* GetCurrentRoomLevel() const;
+
+	/* 시작 지점 바로 아래 바닥에 캐릭터가 딱 서는 위치 (바닥이 없으면 그대로) */
+	FVector FindStandLocation(const ACharacter* Character, const FVector& StartLocation) const;
 
 	/* 출구 문을 지났다 — 방을 깬 뒤면 다음 칸 방을 켜고 옮김. 마지막 칸이면 로비로 */
 	void RequestNextRoom();

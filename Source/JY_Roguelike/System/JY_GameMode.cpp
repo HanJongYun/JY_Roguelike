@@ -14,6 +14,7 @@
 #include "Room/JY_RoomFlowSubsystem.h"
 #include "Engine/Level.h"
 #include "Engine/World.h"
+#include "GameFramework/Character.h"
 #include "GameFramework/PlayerStart.h"
 #include "Kismet/GameplayStatics.h"
 
@@ -85,6 +86,21 @@ AActor* AJY_GameMode::ChoosePlayerStart_Implementation(AController* Player) //ov
 
 	ensureMsgf(OccupiedStart != nullptr, TEXT("%s에 PlayerStart가 없음"), *RoomLevel->GetOuter()->GetName());
 	return OccupiedStart;
+}
+
+/* 시작 지점이 바닥보다 조금 떠 있으면 생기자마자 떨어지는 모션이 나온다 — 바닥에 붙여 만든다 */
+// [Server]
+APawn* AJY_GameMode::SpawnDefaultPawnAtTransform_Implementation(AController* NewPlayer, const FTransform& SpawnTransform) //override
+{
+	const UClass* PawnClass = GetDefaultPawnClassForController(NewPlayer);
+	const ACharacter* CharacterToFit = PawnClass != nullptr ? Cast<ACharacter>(PawnClass->GetDefaultObject()) : nullptr;
+	if (CharacterToFit == nullptr)
+		return Super::SpawnDefaultPawnAtTransform_Implementation(NewPlayer, SpawnTransform);
+
+	const UJY_RoomFlowSubsystem* RoomFlow = GetWorld()->GetSubsystem<UJY_RoomFlowSubsystem>();
+	FTransform StandTransform = SpawnTransform;
+	StandTransform.SetLocation(RoomFlow->FindStandLocation(CharacterToFit, SpawnTransform.GetLocation()));
+	return Super::SpawnDefaultPawnAtTransform_Implementation(NewPlayer, StandTransform);
 }
 
 /* 엔진이 접속 때 미리 저장한 시작 지점은 방이 없을 때라 월드 원점이 된다 — 스폰 순간 ChoosePlayerStart로만 정한다 (GameModeBase.cpp:1165) */

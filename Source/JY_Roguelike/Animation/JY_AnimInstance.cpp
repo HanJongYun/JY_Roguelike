@@ -34,7 +34,8 @@ void UJY_AnimInstance::NativeUpdateAnimation(float DeltaSeconds) //override
 	WorldVelocity = Character->GetVelocity();
 	LastUpdateVelocity = MovementComp->GetLastUpdateVelocity();
 	WorldAcceleration = MovementComp->GetCurrentAcceleration();
-	bMovingOnGround = MovementComp->IsMovingOnGround();
+	/* 막 생겨 아직 빙의 전이면 이동 모드가 None이라 IsMovingOnGround가 false — 떨어지는 중일 때만 공중으로 본다 (Character.cpp:1388 Restart에서 걷기로) */
+	bOnGroundMode = MovementComp->IsFalling() == false;
 	bUseSeparateBrakingFriction = MovementComp->bUseSeparateBrakingFriction;
 	BrakingFriction = MovementComp->BrakingFriction;
 	GroundFriction = MovementComp->GroundFriction;
@@ -76,7 +77,7 @@ void UJY_AnimInstance::NativeThreadSafeUpdateAnimation(float DeltaSeconds) //ove
 		PreviousWorldLocation = WorldLocation;
 		PreviousVelocityZ = WorldVelocity.Z;
 		PreviousJumpCount = JumpCount;
-		bWasOnGround = bMovingOnGround;
+		bWasOnGround = bOnGroundMode;
 		bIsFirstUpdate = false;
 	}
 
@@ -89,7 +90,7 @@ void UJY_AnimInstance::NativeThreadSafeUpdateAnimation(float DeltaSeconds) //ove
 	Speed2D = Velocity2D.Size();
 	bHasAcceleration = Acceleration2D.IsNearlyZero() == false;
 
-	bIsOnGround = bMovingOnGround;
+	bIsOnGround = bOnGroundMode;
 	bIsJumping = bIsOnGround == false && WorldVelocity.Z > 0.0f;
 	bIsFalling = bIsOnGround == false && WorldVelocity.Z <= 0.0f;
 	bShouldMove = bHasAcceleration == true && bIsOnGround == true;

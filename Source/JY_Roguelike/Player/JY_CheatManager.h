@@ -45,6 +45,10 @@ public:
 	UFUNCTION(Exec, BlueprintAuthorityOnly)
 	void JYBreakProps(float Radius);
 
+	/* 내 캐릭터가 맞은 것처럼 피격 반응 보기 (예: JYHitReact F Spike) — 방향 F·B·L·R = 때린 쪽, 이름 = GameplayCue.Hit 끝 이름(비우면 Spike) */
+	UFUNCTION(Exec, BlueprintAuthorityOnly)
+	void JYHitReact(const FString& Direction, const FString& CueName);
+
 	/* 안 죽기 켜기·끄기 (예: JYUnlimitedHealth 0) — 기본 켜짐 */
 	UFUNCTION(Exec, BlueprintAuthorityOnly)
 	void JYUnlimitedHealth(bool bEnable);

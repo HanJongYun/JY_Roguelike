@@ -2,6 +2,7 @@
 #include "Player/JY_PlayerState.h"
 #include "AbilitySystem/JY_AbilitySystemComponent.h"
 #include "AbilitySystem/Effects/JY_DebugGameplayEffects.h"
+#include "Combat/JY_CombatQuerySubsystem.h"
 #include "Interfaces/JY_HitReactable.h"
 #include "Interfaces/JY_InterfaceUtils.h"
 #include "Room/JY_RoomFlowSubsystem.h"
@@ -166,6 +167,45 @@ void UJY_CheatManager::JYBreakProps(float Radius)
 		/* 밀어내기 없는 타격과 같음 — 플레이어 → 물체 방향 최소 세기 */
 		HitReactable->ReceiveHit(Pawn, 0.0f, FVector::ZeroVector);
 	}
+}
+
+/* 함정과 같은 서버 진입점(환경 피해)으로 1 피해 — 무적 검사·피격 큐 복제·클라 반응까지 실제 경로를 그대로 탄다 */
+// [Server]
+void UJY_CheatManager::JYHitReact(const FString& Direction, const FString& CueName)
+{
+	APawn* Pawn = GetOuterAPlayerController()->GetPawn();
+	if (Pawn == nullptr)
+		return;
+
+	/* 때린 쪽 위치 = 내 앞·뒤·왼·오 */
+	const FVector ForwardVector = Pawn->GetActorForwardVector();
+	const FVector RightVector = Pawn->GetActorRightVector();
+	FVector AttackerOffset = ForwardVector;
+	if (Direction.Equals(TEXT("B"), ESearchCase::IgnoreCase) == true)
+	{
+		AttackerOffset = -ForwardVector;
+	}
+	else if (Direction.Equals(TEXT("L"), ESearchCase::IgnoreCase) == true)
+	{
+		AttackerOffset = -RightVector;
+	}
+	else if (Direction.Equals(TEXT("R"), ESearchCase::IgnoreCase) == true)
+	{
+		AttackerOffset = RightVector;
+	}
+
+	const FString CueTagName = FString(TEXT("GameplayCue.Hit.")) + (CueName.IsEmpty() == true ? TEXT("Spike") : CueName);
+	const FGameplayTag CueTag = FGameplayTag::RequestGameplayTag(FName(*CueTagName), false);
+	if (ensureMsgf(CueTag.IsValid() == true, TEXT("JYHitReact: 없는 피격 큐 %s"), *CueTagName) == false)
+		return;
+
+	FJY_HitPayload HitPayload;
+	HitPayload.Damage = 1.0f;
+	HitPayload.HitCueTag = CueTag;
+
+	const FVector Origin = Pawn->GetActorLocation() + AttackerOffset * 100.0f;
+	const UJY_CombatQuerySubsystem* CombatQuery = GetWorld()->GetSubsystem<UJY_CombatQuerySubsystem>();
+	CombatQuery->ApplyEnvironmentDamage(Pawn, HitPayload, Origin);
 }
 
 // [Server]

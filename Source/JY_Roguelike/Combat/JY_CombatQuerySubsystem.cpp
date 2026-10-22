@@ -1,7 +1,7 @@
 #include "Combat/JY_CombatQuerySubsystem.h"
 #include "AbilitySystem/JY_AbilitySystemComponent.h"
 #include "AbilitySystem/Effects/JY_CombatGameplayEffects.h"
-#include "Enemy/JY_EnemyCharacter.h"
+#include "Combat/JY_HitReactionComponent.h"
 #include "Interfaces/JY_HitReactable.h"
 #include "Interfaces/JY_InterfaceUtils.h"
 #include "System/JY_GameplayTags.h"
@@ -159,7 +159,6 @@ void UJY_CombatQuerySubsystem::FindTargets(const FJY_HitShape& Shape, const FTra
 }
 
 // [Server]
-/* 큐를 피해 GE에 묶지 않는다 — 스킬마다 다른 피격 연출을 GE를 늘리지 않고 큐 태그로 바꾼다 */
 void UJY_CombatQuerySubsystem::ApplyHit(const FJY_CombatTarget& Target, const FJY_HitPayload& Payload) const
 {
 	AActor* TargetActor = Target.Actor.Get();
@@ -178,41 +177,13 @@ void UJY_CombatQuerySubsystem::ApplyHit(const FJY_CombatTarget& Target, const FJ
 		return;
 	}
 
+	/* 체력 있는 대상만 판정(FindTargets)을 통과한다 */
 	UAbilitySystemComponent* TargetASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(TargetActor);
 	UAbilitySystemComponent* SourceASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(InstigatorActor);
 	UJY_AbilitySystemComponent* TargetJYASC = CastChecked<UJY_AbilitySystemComponent>(TargetASC);
 	UJY_AbilitySystemComponent* SourceJYASC = CastChecked<UJY_AbilitySystemComponent>(SourceASC);
-
-	/* MakeEffectContext가 가해자(PlayerState)·원인(캐릭터)을 이미 넣는다 — 위치만 더한다 */
-	FGameplayEffectContextHandle EffectContext = SourceJYASC->MakeEffectContext();
 	const FVector InstigatorLocation = InstigatorActor->GetActorLocation();
-	EffectContext.AddOrigin(InstigatorLocation);
-
-	const FGameplayEffectSpecHandle DamageSpecHandle = SourceJYASC->MakeOutgoingSpec(UJY_GameplayEffect_Damage::StaticClass(), 1.0f, EffectContext);
-	FGameplayEffectSpec* DamageSpec = DamageSpecHandle.Data.Get();
-	DamageSpec->SetSetByCallerMagnitude(JYGameplayTags::SetByCaller_Damage, Payload.Damage);
-	SourceJYASC->ApplyGameplayEffectSpecToTarget(*DamageSpec, TargetJYASC);
-
-	if (Payload.KnockbackImpulse.IsNearlyZero() == false)
-	{
-		AJY_EnemyCharacter* Enemy = Cast<AJY_EnemyCharacter>(TargetActor);
-		if (Enemy != nullptr)
-		{
-			Enemy->ReceiveKnockback(Payload.KnockbackImpulse);
-		}
-	}
-
-	if (Payload.HitCueTag.IsValid() == true)
-	{
-		FGameplayCueParameters CueParameters;
-		CueParameters.Location = Target.Location;
-		CueParameters.Instigator = InstigatorActor;
-		CueParameters.EffectContext = EffectContext;
-		CueParameters.RawMagnitude = Payload.Damage;
-
-		/* 서버가 부르면 모든 클라로 멀티캐스트, 데디 서버 자신은 연출 생략(GameplayCueManager.cpp:178) */
-		TargetJYASC->ExecuteGameplayCue(Payload.HitCueTag, CueParameters);
-	}
+	ApplyHitToCharacter(TargetActor, TargetJYASC, SourceJYASC, Payload, InstigatorLocation);
 }
 
 // [Server]
@@ -220,30 +191,65 @@ void UJY_CombatQuerySubsystem::ApplyHit(const FJY_CombatTarget& Target, const FJ
  * 원인 ASC = 부순 쪽 — 폭발 통 처치 기록이 부순 플레이어에게 남는다
  * 부순 쪽 ASC가 없으면(함정) 맞는 쪽 ASC로 만든다
  */
-bool UJY_CombatQuerySubsystem::ApplyEnvironmentDamage(AActor* TargetActor, float Damage, AActor* InstigatorActor, const FVector& Origin) const
+bool UJY_CombatQuerySubsystem::ApplyEnvironmentDamage(AActor* TargetActor, const FJY_HitPayload& Payload, const FVector& Origin) const
 {
 	UAbilitySystemComponent* TargetASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(TargetActor);
 	if (TargetASC == nullptr)
 		return false;
 
-	if (TargetASC->HasMatchingGameplayTag(JYGameplayTags::Status_Death) == true)
-		return false;
-
 	UJY_AbilitySystemComponent* TargetJYASC = CastChecked<UJY_AbilitySystemComponent>(TargetASC);
 	UJY_AbilitySystemComponent* SourceJYASC = TargetJYASC;
+	AActor* InstigatorActor = Payload.Instigator.Get();
 	UAbilitySystemComponent* InstigatorASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(InstigatorActor);
 	if (InstigatorASC != nullptr)
 	{
 		SourceJYASC = CastChecked<UJY_AbilitySystemComponent>(InstigatorASC);
 	}
 
-	FGameplayEffectContextHandle EffectContext = SourceJYASC->MakeEffectContext();
+	return ApplyHitToCharacter(TargetActor, TargetJYASC, SourceJYASC, Payload, Origin);
+}
+
+// [Server]
+/*
+ * 큐를 피해 GE에 묶지 않는다 — 스킬·함정마다 다른 피격 연출을 GE를 늘리지 않고 큐 태그로 바꾼다.
+ * 넉백·반응 몽타주는 맞은 쪽(UJY_HitReactionComponent)이 정한다
+ */
+bool UJY_CombatQuerySubsystem::ApplyHitToCharacter(AActor* TargetActor, UJY_AbilitySystemComponent* TargetASC, UJY_AbilitySystemComponent* SourceASC, const FJY_HitPayload& Payload, const FVector& Origin) const
+{
+	/* 무적이면 HealthSet이 피해만 0으로 만든다(UJY_HealthSet::PreGameplayEffectExecute) — 피격 큐·밀림까지 나가지 않게 여기서 거른다 */
+	if (TargetASC->HasMatchingGameplayTag(JYGameplayTags::Status_Death) == true || TargetASC->HasMatchingGameplayTag(JYGameplayTags::Gameplay_DamageImmunity) == true)
+		return false;
+
+	/* MakeEffectContext가 가해자(PlayerState)·원인(캐릭터)을 이미 넣는다 — 위치만 더한다 */
+	FGameplayEffectContextHandle EffectContext = SourceASC->MakeEffectContext();
 	EffectContext.AddOrigin(Origin);
 
-	const FGameplayEffectSpecHandle DamageSpecHandle = SourceJYASC->MakeOutgoingSpec(UJY_GameplayEffect_Damage::StaticClass(), 1.0f, EffectContext);
+	const FGameplayEffectSpecHandle DamageSpecHandle = SourceASC->MakeOutgoingSpec(UJY_GameplayEffect_Damage::StaticClass(), 1.0f, EffectContext);
 	FGameplayEffectSpec* DamageSpec = DamageSpecHandle.Data.Get();
-	DamageSpec->SetSetByCallerMagnitude(JYGameplayTags::SetByCaller_Damage, Damage);
-	SourceJYASC->ApplyGameplayEffectSpecToTarget(*DamageSpec, TargetJYASC);
+	DamageSpec->SetSetByCallerMagnitude(JYGameplayTags::SetByCaller_Damage, Payload.Damage);
+	SourceASC->ApplyGameplayEffectSpecToTarget(*DamageSpec, TargetASC);
+
+	UJY_HitReactionComponent* HitReaction = TargetActor->FindComponentByClass<UJY_HitReactionComponent>();
+	if (HitReaction != nullptr && Payload.KnockbackImpulse.IsNearlyZero() == false)
+	{
+		HitReaction->ReceiveKnockback(Payload.KnockbackImpulse);
+	}
+
+	if (Payload.HitCueTag.IsValid() == true)
+	{
+		const FVector TargetLocation = TargetActor->GetActorLocation();
+		const FVector FromOrigin = TargetLocation - Origin;
+
+		FGameplayCueParameters CueParameters;
+		CueParameters.Location = TargetLocation;
+		CueParameters.Normal = FromOrigin.GetSafeNormal2D();
+		CueParameters.Instigator = Payload.Instigator.Get();
+		CueParameters.EffectContext = EffectContext;
+		CueParameters.RawMagnitude = Payload.Damage;
+
+		/* 서버가 부르면 모든 클라로 멀티캐스트, 데디 서버 자신은 연출 생략(GameplayCueManager.cpp:178) */
+		TargetASC->ExecuteGameplayCue(Payload.HitCueTag, CueParameters);
+	}
 	return true;
 }
 

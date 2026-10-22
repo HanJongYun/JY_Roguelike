@@ -16,6 +16,7 @@ class UJY_InputConfig;
 class UJY_AbilitySystemComponent;
 class UJY_HealthComponent;
 class UJY_InteractionComponent;
+class UJY_HitReactionComponent;
 struct FInputActionValue;
 
 /* 쿼터뷰 카메라로 움직이는 플레이어 캐릭터 */
@@ -81,6 +82,10 @@ private:
 	/* 가까운 상호작용 대상 고르기 + E 처리 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "JY|Interaction", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UJY_InteractionComponent> InteractionComponent;
+
+	/* 피격 반응 — 몽타주·번쩍임은 BP_JY_Character 컴포넌트 디테일에서 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "JY|Health", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UJY_HitReactionComponent> HitReactionComponent;
 
 	/* 손에 든 무기 외형. 메시 에셋은 BP_JY_Character에서 지정 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "JY|Weapon", meta = (AllowPrivateAccess = "true"))

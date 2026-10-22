@@ -4,6 +4,8 @@
 #include "SequenceEvaluatorLibrary.h"
 #include "SequencePlayerLibrary.h"
 #include "AnimExecutionContextLibrary.h"
+#include "Animation/AnimSequence.h"
+#include "Combat/JY_HitReactionComponent.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
@@ -40,6 +42,28 @@ void UJY_AnimInstance::NativeUpdateAnimation(float DeltaSeconds) //override
 	BrakingDecelerationWalking = MovementComp->BrakingDecelerationWalking;
 	JumpCount = Character->JumpCurrentCount;
 	bIsSimulatedProxy = Character->GetLocalRole() == ROLE_SimulatedProxy;
+
+	UpdateHitAdditive(Character);
+}
+
+/* 움찔은 피격 큐(클라)가 컴포넌트에 기록한다 — 애님은 재생 위치만 읽는다 */
+void UJY_AnimInstance::UpdateHitAdditive(const ACharacter* Character)
+{
+	const UJY_HitReactionComponent* HitReactionComponent = Character->FindComponentByClass<UJY_HitReactionComponent>();
+	if (HitReactionComponent == nullptr)
+		return;
+
+	UAnimSequence* Sequence = nullptr;
+	float Time = 0.0f;
+	if (HitReactionComponent->GetHitAdditivePose(OUT Sequence, OUT Time) == false)
+	{
+		HitAdditiveAlpha = 0.0f;
+		return;
+	}
+
+	HitAdditiveSequence = Sequence;
+	HitAdditiveTime = Time;
+	HitAdditiveAlpha = 1.0f;
 }
 
 void UJY_AnimInstance::NativeThreadSafeUpdateAnimation(float DeltaSeconds) //override

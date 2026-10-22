@@ -6,6 +6,9 @@
 #include "Animation/AnimNodeReference.h"
 #include "JY_AnimInstance.generated.h"
 
+class ACharacter;
+class UAnimSequence;
+
 /* 주인공 애님. 이동·점프 값 계산과 출발·멈춤 거리 맞추기 */
 UCLASS()
 class UJY_AnimInstance : public UAnimInstance
@@ -16,6 +19,9 @@ protected:
 	virtual void NativeInitializeAnimation() override;
 	virtual void NativeUpdateAnimation(float DeltaSeconds) override;
 	virtual void NativeThreadSafeUpdateAnimation(float DeltaSeconds) override;
+
+private:
+	void UpdateHitAdditive(const ACharacter* Character);
 
 protected:
 	/* 출발 애니를 처음부터 */
@@ -98,6 +104,18 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category = "JY|Jump")
 	bool bDoubleJumped = false;
 
+	/* 맞아서 상체에 더하는 움찔 애니 — Sequence Evaluator의 Sequence */
+	UPROPERTY(BlueprintReadOnly, Category = "JY|HitReaction")
+	TObjectPtr<UAnimSequence> HitAdditiveSequence;
+
+	/* 움찔 애니 재생 위치 — Sequence Evaluator의 Explicit Time */
+	UPROPERTY(BlueprintReadOnly, Category = "JY|HitReaction")
+	float HitAdditiveTime = 0.0f;
+
+	/* 움찔 애니를 더하는 중 — Apply Additive의 Alpha */
+	UPROPERTY(BlueprintReadOnly, Category = "JY|HitReaction")
+	float HitAdditiveAlpha = 0.0f;
+
 protected:
 	/* 설정값 — ABP_JY_HeroLoco의 Class Defaults에서 수정 */
 
@@ -154,4 +172,5 @@ private:
 	int32 PreviousJumpCount = 0;
 	bool bWasOnGround = true;
 	bool bIsFirstUpdate = true;
+
 };

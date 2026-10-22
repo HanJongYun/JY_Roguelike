@@ -1,5 +1,5 @@
 #include "AbilitySystem/Cues/JY_GameplayCueNotify_Hit.h"
-#include "Enemy/JY_EnemyCharacter.h"
+#include "Combat/JY_HitReactionComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "NiagaraFunctionLibrary.h"
 
@@ -23,13 +23,17 @@ bool UJY_GameplayCueNotify_Hit::OnExecute_Implementation(AActor* MyTarget, const
 		UGameplayStatics::PlaySoundAtLocation(World, HitSounds[SoundIndex], HitLocation);
 	}
 
-	/* 맞은 쪽이 적이면 반응 몽타주 */
-	AJY_EnemyCharacter* Enemy = Cast<AJY_EnemyCharacter>(MyTarget);
-	if (Enemy != nullptr)
+	/* 반응은 맞은 쪽이 정한다 — 함정은 때린 쪽(Instigator)이 없어 방향은 Normal로 받는다 */
+	UJY_HitReactionComponent* HitReaction = MyTarget->FindComponentByClass<UJY_HitReactionComponent>();
+	if (HitReaction != nullptr)
 	{
-		const AActor* InstigatorActor = Parameters.GetInstigator();
-		const FVector InstigatorLocation = InstigatorActor->GetActorLocation();
-		Enemy->PlayHitReact(InstigatorLocation, Parameters.RawMagnitude);
+		FJY_HitReactionParams ReactionParams;
+		ReactionParams.HitDirection = Parameters.Normal;
+		ReactionParams.ReactionTag = HitReactionTag;
+		ReactionParams.Damage = Parameters.RawMagnitude;
+		ReactionParams.HitStopSeconds = HitStopSeconds;
+		ReactionParams.CameraShake = VictimCameraShake;
+		HitReaction->PlayHitReaction(ReactionParams);
 	}
 	return true;
 }

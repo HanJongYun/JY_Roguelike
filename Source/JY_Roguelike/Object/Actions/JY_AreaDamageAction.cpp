@@ -38,6 +38,14 @@ FVector UJY_AreaDamageAction::GetCenter() const
 	return CenterPart->GetComponentTransform().TransformPosition(CenterOffset);
 }
 
+/* 판은 가로로 놓여 있어 가로(X·Y) 배율 중 큰 쪽을 따른다 — 엔진 구 콜리전도 배율을 곱한다 (SphereComponent.h:71) */
+float UJY_AreaDamageAction::GetScaledRadius() const
+{
+	const FVector ActorScale = OwnerObject->GetActorScale3D();
+	const float HorizontalScale = FMath::Max(FMath::Abs(ActorScale.X), FMath::Abs(ActorScale.Y));
+	return Radius * HorizontalScale;
+}
+
 /*
  * 피해 원인 = 발동시킨 쪽 — 폭발 통 처치 기록이 부순 플레이어에게 남는다.
  * 전투 창구의 환경 피해로 보내 대시 무적 등 같은 규칙을 적용
@@ -55,12 +63,17 @@ void UJY_AreaDamageAction::ApplyDamage()
 
 	const FCollisionObjectQueryParams ObjectQueryParams(ECC_Pawn);
 	const FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(JY_AreaDamage), false, Object);
-	const FCollisionShape QuerySphere = FCollisionShape::MakeSphere(Radius);
+	const FCollisionShape QuerySphere = FCollisionShape::MakeSphere(GetScaledRadius());
 	TArray<FOverlapResult> Overlaps;
 	World->OverlapMultiByObjectType(OUT Overlaps, Center, FQuat::Identity, ObjectQueryParams, QuerySphere, QueryParams);
 
 	const UJY_CombatQuerySubsystem* CombatQuery = World->GetSubsystem<UJY_CombatQuerySubsystem>();
 	const double Now = World->GetTimeSeconds();
+
+	FJY_HitPayload HitPayload;
+	HitPayload.Damage = Damage;
+	HitPayload.HitCueTag = HitCueTag;
+	HitPayload.Instigator = InstigatorActor;
 
 	/* 캡슐·메시가 둘 다 Pawn 채널이라 같은 액터가 여러 번 걸린다 */
 	TSet<const AActor*> CheckedActors;
@@ -73,11 +86,15 @@ void UJY_AreaDamageAction::ApplyDamage()
 			continue;
 
 		const double* LastHitTime = LastHitTimes.Find(Actor);
+		if (bHitEachTargetOnce == true && LastHitTime != nullptr)
+			continue;
+
 		if (RehitSeconds > 0.0f && LastHitTime != nullptr && Now - *LastHitTime < RehitSeconds)
 			continue;
 
-		const bool bDamaged = CombatQuery->ApplyEnvironmentDamage(Actor, Damage, InstigatorActor, Center);
-		if (bDamaged == true && RehitSeconds > 0.0f)
+		/* 무적(대시)으로 못 맞았으면 기록하지 않는다 — 무적이 끝난 뒤 간격에 맞는다 */
+		const bool bDamaged = CombatQuery->ApplyEnvironmentDamage(Actor, HitPayload, Center);
+		if (bDamaged == true && (bHitEachTargetOnce == true || RehitSeconds > 0.0f))
 		{
 			LastHitTimes.Add(Actor, Now);
 		}
@@ -96,7 +113,7 @@ void UJY_AreaDamageAction::HitObjects(const FVector& Center) const
 	AJY_Object* Object = OwnerObject.Get();
 	const FCollisionObjectQueryParams ObjectQueryParams(ECC_WorldDynamic);
 	const FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(JY_AreaDamageObjects), false, Object);
-	const FCollisionShape QuerySphere = FCollisionShape::MakeSphere(Radius);
+	const FCollisionShape QuerySphere = FCollisionShape::MakeSphere(GetScaledRadius());
 	TArray<FOverlapResult> Overlaps;
 	GetWorld()->OverlapMultiByObjectType(OUT Overlaps, Center, FQuat::Identity, ObjectQueryParams, QuerySphere, QueryParams);
 

@@ -179,6 +179,14 @@ public:
 	static TArray<FString> ListAnimNotifies(UAnimSequenceBase* Animation);
 
 	/**
+	 * 상태 머신의 전환을 나열한다 — 출발·도착 상태와 전환 규칙(규칙 그래프를 식으로 풀어 씀). 전환 규칙 그래프는 read_graph_dsl로 안 읽힌다.
+	 * @param StateMachineGraph 상태 머신 그래프 (GetSubGraphs(상태 머신 노드)로 얻음)
+	 * @return "출발 -> 도착 | 규칙=식 | 자동=bool 블렌드=초 우선순위=n" 문자열 목록
+	 */
+	UFUNCTION(meta = (AICallable), Category = "JY|Animation")
+	static TArray<FString> ListStateMachineTransitions(UEdGraph* StateMachineGraph);
+
+	/**
 	 * 애님 블루프린트를 만든다 (콘텐츠 브라우저 '애니메이션 블루프린트 생성'과 같은 팩토리).
 	 * @param Skeleton 대상 스켈레톤
 	 * @param ParentClass 부모 AnimInstance 클래스

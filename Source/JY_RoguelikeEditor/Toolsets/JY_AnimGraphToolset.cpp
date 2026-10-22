@@ -5,6 +5,10 @@
 #include "AnimStateEntryNode.h"
 #include "AnimGraphNode_Base.h"
 #include "AnimStateTransitionNode.h"
+#include "AnimationTransitionGraph.h"
+#include "AnimGraphNode_TransitionResult.h"
+#include "AnimStateNodeBase.h"
+#include "EdGraphSchema_K2.h"
 #include "AnimationModifier.h"
 #include "Animation/AnimMontage.h"
 #include "Animation/AnimSequence.h"
@@ -464,7 +468,72 @@ TArray<FString> UJY_AnimGraphToolset::SampleBoneComponentSpace(UAnimSequence* Se
 	return Result;
 }
 
-/* 노티파이 클래스마다 헤더를 넣지 않고 리플렉션으로 오브젝트·이름 속성만 꺼낸다 (팩 전용 노티파이도 읽힘) */
+namespace JY_AnimGraphToolset
+{
+	/* 입력 핀에 연결된 노드를 "노드 제목(핀=값, ...)" 식으로 풀어 쓴다. 연결이 없으면 핀 기본값 */
+	FString DescribeInputPin(const UEdGraphPin* Pin, int32 Depth)
+	{
+		if (Pin->LinkedTo.Num() == 0)
+			return Pin->DefaultValue.IsEmpty() == true ? TEXT("(비어 있음)") : Pin->DefaultValue;
+
+		const UEdGraphNode* SourceNode = Pin->LinkedTo[0]->GetOwningNode();
+		const FString Title = SourceNode->GetNodeTitle(ENodeTitleType::ListView).ToString();
+		if (Depth >= 8)
+			return Title;
+
+		TArray<FString> Arguments;
+		for (const UEdGraphPin* InputPin : SourceNode->Pins)
+		{
+			const bool bDataInput = InputPin->Direction == EGPD_Input && InputPin->PinType.PinCategory != UEdGraphSchema_K2::PC_Exec && InputPin->bHidden == false;
+			if (bDataInput == false || InputPin->PinName == UEdGraphSchema_K2::PN_Self)
+				continue;
+
+			Arguments.Add(FString::Printf(TEXT("%s=%s"), *InputPin->PinName.ToString(), *DescribeInputPin(InputPin, Depth + 1)));
+		}
+		return Arguments.Num() == 0 ? Title : FString::Printf(TEXT("%s(%s)"), *Title, *FString::Join(Arguments, TEXT(", ")));
+	}
+}
+
+/* 전환 규칙 그래프의 결과 노드 bCanEnterTransition 핀을 거꾸로 따라가 식으로 만든다 */
+TArray<FString> UJY_AnimGraphToolset::ListStateMachineTransitions(UEdGraph* StateMachineGraph)
+{
+	if (StateMachineGraph == nullptr)
+	{
+		UKismetSystemLibrary::RaiseScriptError(TEXT("StateMachineGraph is required."));
+		return {};
+	}
+
+	TArray<FString> Result;
+	for (const UEdGraphNode* Node : StateMachineGraph->Nodes)
+	{
+		const UAnimStateTransitionNode* Transition = Cast<UAnimStateTransitionNode>(Node);
+		if (Transition == nullptr)
+			continue;
+
+		const UAnimStateNodeBase* PreviousState = Transition->GetPreviousState();
+		const UAnimStateNodeBase* NextState = Transition->GetNextState();
+		const FString FromName = PreviousState != nullptr ? PreviousState->GetStateName() : TEXT("?");
+		const FString ToName = NextState != nullptr ? NextState->GetStateName() : TEXT("?");
+
+		FString Rule = TEXT("(규칙 그래프 없음)");
+		UAnimationTransitionGraph* RuleGraph = Cast<UAnimationTransitionGraph>(Transition->BoundGraph);
+		if (RuleGraph != nullptr)
+		{
+			const UAnimGraphNode_TransitionResult* ResultNode = RuleGraph->GetResultNode();
+			const UEdGraphPin* CanEnterPin = ResultNode != nullptr ? ResultNode->FindPin(TEXT("bCanEnterTransition")) : nullptr;
+			if (CanEnterPin != nullptr)
+			{
+				Rule = JY_AnimGraphToolset::DescribeInputPin(CanEnterPin, 0);
+			}
+		}
+
+		Result.Add(FString::Printf(TEXT("%s -> %s | 규칙=%s | 자동=%s 블렌드=%.2f 우선순위=%d"), *FromName, *ToName, *Rule,
+			Transition->bAutomaticRuleBasedOnSequencePlayerInState == true ? TEXT("true") : TEXT("false"), Transition->CrossfadeDuration, Transition->PriorityOrder));
+	}
+	return Result;
+}
+
+/* 노티파이 클래스마다 헤더를 넣지 않고 리플렉션으로 클래스 기본값과 다른 속성을 꺼낸다 (태그·숫자 포함, 팩 전용 노티파이도 읽힘) */
 TArray<FString> UJY_AnimGraphToolset::ListAnimNotifies(UAnimSequenceBase* Animation)
 {
 	if (Animation == nullptr)
@@ -478,27 +547,18 @@ TArray<FString> UJY_AnimGraphToolset::ListAnimNotifies(UAnimSequenceBase* Animat
 		if (Object == nullptr)
 			return TEXT("");
 
+		const UObject* DefaultObject = Object->GetClass()->GetDefaultObject();
 		FString Text = Object->GetClass()->GetName();
 		for (TFieldIterator<FProperty> It(Object->GetClass()); It; ++It)
 		{
 			const FProperty* Property = *It;
+			if (Property->Identical_InContainer(Object, DefaultObject) == true)
+				continue;
+
+			FString ValueText;
 			const void* ValuePtr = Property->ContainerPtrToValuePtr<void>(Object);
-			if (const FObjectPropertyBase* ObjectProperty = CastField<FObjectPropertyBase>(Property))
-			{
-				const UObject* Value = ObjectProperty->GetObjectPropertyValue(ValuePtr);
-				if (Value != nullptr)
-				{
-					Text += FString::Printf(TEXT(" %s=%s"), *Property->GetName(), *Value->GetPathName());
-				}
-			}
-			else if (const FNameProperty* NameProperty = CastField<FNameProperty>(Property))
-			{
-				const FName Value = NameProperty->GetPropertyValue(ValuePtr);
-				if (Value.IsNone() == false)
-				{
-					Text += FString::Printf(TEXT(" %s=%s"), *Property->GetName(), *Value.ToString());
-				}
-			}
+			Property->ExportTextItem_Direct(ValueText, ValuePtr, nullptr, nullptr, PPF_None);
+			Text += FString::Printf(TEXT(" %s=%s"), *Property->GetName(), *ValueText);
 		}
 		return Text;
 	};

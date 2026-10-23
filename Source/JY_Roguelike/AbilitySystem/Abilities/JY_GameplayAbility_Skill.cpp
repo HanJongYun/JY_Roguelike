@@ -1,11 +1,12 @@
 #include "AbilitySystem/Abilities/JY_GameplayAbility_Skill.h"
 #include "AbilitySystem/JY_AbilitySystemComponent.h"
-#include "AbilitySystem/Effects/JY_SkillGameplayEffects.h"
 #include "AbilitySystem/Tasks/JY_AbilityTask_WaitMoveInput.h"
 #include "Animation/JY_AnimNotifyState_CancelWindow.h"
 #include "Player/JY_PlayerState.h"
 #include "Skill/JY_SkillDefinition.h"
 #include "Skill/JY_SkillLoadoutComponent.h"
+#include "System/JY_AssetManager.h"
+#include "System/JY_GameData.h"
 #include "System/JY_GameplayTags.h"
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimMontage.h"
@@ -50,9 +51,14 @@ const FGameplayTagContainer* UJY_GameplayAbility_Skill::GetCooldownTags() const 
 /* 스킬마다 GE 에셋을 만들지 않고 쿨타임 GE 1개에 길이(SetByCaller)·태그(DynamicGrantedTags)를 넣는다 */
 void UJY_GameplayAbility_Skill::ApplyCooldown(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo) const //override
 {
+	const UJY_GameData* GameData = UJY_AssetManager::Get().GetGameData();
+	const TSubclassOf<UGameplayEffect> CooldownEffectClass = GameData->SkillCooldownGameplayEffect;
+	if (ensureMsgf(CooldownEffectClass != nullptr, TEXT("DA_JY_GameData에 SkillCooldownGameplayEffect가 없음")) == false)
+		return;
+
 	const FJY_SkillStats Stats = GetSkillStats();
 	const int32 AbilityLevel = GetAbilityLevel(Handle, ActorInfo);
-	const FGameplayEffectSpecHandle CooldownSpecHandle = MakeOutgoingGameplayEffectSpec(Handle, ActorInfo, ActivationInfo, UJY_GameplayEffect_SkillCooldown::StaticClass(), AbilityLevel);
+	const FGameplayEffectSpecHandle CooldownSpecHandle = MakeOutgoingGameplayEffectSpec(Handle, ActorInfo, ActivationInfo, CooldownEffectClass, AbilityLevel);
 
 	FGameplayEffectSpec* CooldownSpec = CooldownSpecHandle.Data.Get();
 	CooldownSpec->DynamicGrantedTags.AppendTags(CooldownTags);

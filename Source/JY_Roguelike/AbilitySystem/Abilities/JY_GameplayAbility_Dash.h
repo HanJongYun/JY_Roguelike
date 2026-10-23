@@ -5,6 +5,7 @@
 #include "JY_GameplayAbility_Dash.generated.h"
 
 class UAnimMontage;
+class UGameplayEffect;
 
 /* 이동 입력 방향으로 구르기. 루트모션 몽타주, 횟수 소모·충전, 실행 중 무적. 몽타주는 GA_JY_Dash에서 지정 */
 UCLASS(Abstract)
@@ -48,6 +49,10 @@ protected:
 	/* 쓴 뒤 1회가 다시 차는 시간 (초) */
 	UPROPERTY(EditDefaultsOnly, Category = "JY|Dash", Meta = (ClampMin = "0.1"))
 	float RechargeSeconds = 1.0f;
+
+	/* 충전 GE (GE_JY_DashRecharge) — 남은 횟수 +1. 비용 GE는 Costs 칸(GE_JY_DashCost) */
+	UPROPERTY(EditDefaultsOnly, Category = "JY|Dash")
+	TSubclassOf<UGameplayEffect> RechargeEffectClass;
 
 private:
 	/* 구르는 동안 붙이는 태그 (대시 중·무적) */

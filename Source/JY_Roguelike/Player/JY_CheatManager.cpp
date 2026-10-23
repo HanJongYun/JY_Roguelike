@@ -1,7 +1,6 @@
 #include "Player/JY_CheatManager.h"
 #include "Player/JY_PlayerState.h"
 #include "AbilitySystem/JY_AbilitySystemComponent.h"
-#include "AbilitySystem/Effects/JY_DebugGameplayEffects.h"
 #include "Combat/JY_CombatQuerySubsystem.h"
 #include "Interfaces/JY_HitReactable.h"
 #include "Interfaces/JY_InterfaceUtils.h"
@@ -56,7 +55,10 @@ void UJY_CheatManager::ApplyHealthDelta(float Delta)
 	UJY_AbilitySystemComponent* JYASC = JYPlayerState->GetJYAbilitySystemComponent();
 
 	const bool bIsDamage = Delta < 0.0f;
-	const TSubclassOf<UGameplayEffect> EffectClass = bIsDamage == true ? UJY_GameplayEffect_DebugDamage::StaticClass() : UJY_GameplayEffect_DebugHeal::StaticClass();
+	const UJY_GameData* GameData = UJY_AssetManager::Get().GetGameData();
+	const TSubclassOf<UGameplayEffect> EffectClass = bIsDamage == true ? GameData->DamageGameplayEffect : GameData->HealGameplayEffect;
+	if (ensureMsgf(EffectClass != nullptr, TEXT("DA_JY_GameData에 DamageGameplayEffect 또는 HealGameplayEffect가 없음")) == false)
+		return;
 	const FGameplayTag MagnitudeTag = bIsDamage == true ? JYGameplayTags::SetByCaller_Damage : JYGameplayTags::SetByCaller_Heal;
 
 	FGameplayEffectContextHandle EffectContext = JYASC->MakeEffectContext();

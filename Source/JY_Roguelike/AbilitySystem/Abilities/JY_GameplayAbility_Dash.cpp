@@ -1,6 +1,5 @@
 #include "AbilitySystem/Abilities/JY_GameplayAbility_Dash.h"
 #include "AbilitySystem/JY_AbilitySystemComponent.h"
-#include "AbilitySystem/Effects/JY_DashGameplayEffects.h"
 #include "AbilitySystem/Tasks/JY_AbilityTask_WaitDirection.h"
 #include "System/JY_GameplayTags.h"
 #include "GameFramework/Character.h"
@@ -12,7 +11,6 @@ UJY_GameplayAbility_Dash::UJY_GameplayAbility_Dash(const FObjectInitializer& Obj
 	: Super(ObjectInitializer)
 {
 	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalPredicted;
-	CostGameplayEffectClass = UJY_GameplayEffect_DashCost::StaticClass();
 
 	/* 발동 태그 대신 구르기 시작 때 붙인다 — 발동 태그면 방향을 안 보내는 변조 클라가 무적만 유지할 수 있다 */
 	RollingTags.AddTag(JYGameplayTags::State_Dashing);
@@ -67,7 +65,8 @@ void UJY_GameplayAbility_Dash::OnDashDirectionReady(const FVector& DashDirection
 	}
 
 	/* 비용을 내기 전에 검사 — 커밋 뒤에 실패하면 충전 예약 없이 횟수만 줄어든다 */
-	if (ensureMsgf(DashMontage != nullptr, TEXT("%s에 DashMontage가 없음"), *GetNameSafe(this)) == false)
+	const bool bDashDataValid = DashMontage != nullptr && RechargeEffectClass != nullptr;
+	if (ensureMsgf(bDashDataValid == true, TEXT("%s에 DashMontage 또는 RechargeEffectClass가 없음"), *GetNameSafe(this)) == false)
 	{
 		EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
 		return;
@@ -105,14 +104,15 @@ void UJY_GameplayAbility_Dash::ScheduleRecharge()
 	UAbilitySystemComponent* AbilitySystemComponent = CurrentActorInfo->AbilitySystemComponent.Get();
 	UJY_AbilitySystemComponent* JYASC = CastChecked<UJY_AbilitySystemComponent>(AbilitySystemComponent);
 	const TWeakObjectPtr<UJY_AbilitySystemComponent> WeakJYASC = JYASC;
+	const TSubclassOf<UGameplayEffect> RechargeClass = RechargeEffectClass;
 
-	auto ApplyRecharge = [WeakJYASC]()
+	auto ApplyRecharge = [WeakJYASC, RechargeClass]()
 	{
 		UJY_AbilitySystemComponent* RechargeASC = WeakJYASC.Get();
 		if (RechargeASC == nullptr)
 			return;
 
-		const UGameplayEffect* RechargeEffect = GetDefault<UJY_GameplayEffect_DashRecharge>();
+		const UGameplayEffect* RechargeEffect = RechargeClass->GetDefaultObject<UGameplayEffect>();
 		const FGameplayEffectContextHandle EffectContext = RechargeASC->MakeEffectContext();
 		RechargeASC->ApplyGameplayEffectToSelf(RechargeEffect, 1.0f, EffectContext);
 	};

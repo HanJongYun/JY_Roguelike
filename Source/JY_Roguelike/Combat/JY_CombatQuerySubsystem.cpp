@@ -1,6 +1,7 @@
 #include "Combat/JY_CombatQuerySubsystem.h"
 #include "AbilitySystem/JY_AbilitySystemComponent.h"
-#include "AbilitySystem/Effects/JY_CombatGameplayEffects.h"
+#include "System/JY_AssetManager.h"
+#include "System/JY_GameData.h"
 #include "Combat/JY_HitReactionComponent.h"
 #include "Interfaces/JY_HitReactable.h"
 #include "Interfaces/JY_InterfaceUtils.h"
@@ -246,7 +247,12 @@ bool UJY_CombatQuerySubsystem::ApplyHitToCharacter(AActor* TargetActor, UJY_Abil
 	/* 화염 지대처럼 상태이상만 거는 범위는 즉시 피해가 0 */
 	if (Payload.Damage > 0.0f)
 	{
-		const FGameplayEffectSpecHandle DamageSpecHandle = SourceASC->MakeOutgoingSpec(UJY_GameplayEffect_Damage::StaticClass(), 1.0f, EffectContext);
+		const UJY_GameData* GameData = UJY_AssetManager::Get().GetGameData();
+		const TSubclassOf<UGameplayEffect> DamageEffectClass = GameData->DamageGameplayEffect;
+		if (ensureMsgf(DamageEffectClass != nullptr, TEXT("DA_JY_GameData에 DamageGameplayEffect가 없음")) == false)
+			return false;
+
+		const FGameplayEffectSpecHandle DamageSpecHandle = SourceASC->MakeOutgoingSpec(DamageEffectClass, 1.0f, EffectContext);
 		FGameplayEffectSpec* DamageSpec = DamageSpecHandle.Data.Get();
 		DamageSpec->SetSetByCallerMagnitude(JYGameplayTags::SetByCaller_Damage, Payload.Damage);
 		SourceASC->ApplyGameplayEffectSpecToTarget(*DamageSpec, TargetASC);

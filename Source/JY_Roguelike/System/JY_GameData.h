@@ -14,6 +14,7 @@ class UJY_MetaUpgradeData;
 class UJY_ScreenWidget;
 class UUserWidget;
 class UJY_SkillDefinition;
+class UGameplayEffect;
 
 /* 게임 전체가 같이 쓰는 데이터 한 벌 (에셋 DA_JY_GameData) */
 UCLASS(BlueprintType, Const)
@@ -83,4 +84,16 @@ public:
 	/* 획득 가능한 스킬 (디버그 명령·보상 풀) */
 	UPROPERTY(EditDefaultsOnly, Category = "Skill")
 	TArray<TObjectPtr<UJY_SkillDefinition>> SkillDefinitions;
+
+	/* 피해 GE (GE_JY_Damage) — 크기는 SetByCaller.Damage */
+	UPROPERTY(EditDefaultsOnly, Category = "GameplayEffect")
+	TSubclassOf<UGameplayEffect> DamageGameplayEffect;
+
+	/* 회복 GE (GE_JY_Heal) — 크기는 SetByCaller.Heal */
+	UPROPERTY(EditDefaultsOnly, Category = "GameplayEffect")
+	TSubclassOf<UGameplayEffect> HealGameplayEffect;
+
+	/* 스킬 쿨타임 GE (GE_JY_SkillCooldown) — 길이는 SetByCaller.Cooldown, 태그는 스킬 GA가 스펙에 넣음 */
+	UPROPERTY(EditDefaultsOnly, Category = "GameplayEffect")
+	TSubclassOf<UGameplayEffect> SkillCooldownGameplayEffect;
 };

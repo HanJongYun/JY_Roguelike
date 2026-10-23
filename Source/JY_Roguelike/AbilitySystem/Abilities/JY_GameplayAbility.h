@@ -5,8 +5,8 @@
 #include "JY_GameplayAbility.generated.h"
 
 class UJY_AbilitySystemComponent;
-class UCameraShakeBase;
 class UAnimMontage;
+class UCameraShakeBase;
 struct FJY_HitShape;
 
 /* 어빌리티가 입력에 어떻게 반응해 발동하는지 */
@@ -41,9 +41,6 @@ protected:
 
 	/* [Server] [OwnClient] 몸을 수평 방향으로 돌리기 */
 	void FaceDirection(const FVector& Direction) const;
-
-	/* [Server] [OwnClient] 재생 중인 몽타주에서 이 뼈가 직전 SampleSeconds 동안 움직인 수평 방향 (월드). 못 구하면 0 */
-	FVector GetMontageSwingDirection(FName BoneName, float SampleSeconds) const;
 
 	/* [Server] [OwnClient] 모양 안 적 판정 — 서버는 피해·밀기·피격 연출, 조종 클라는 맞으면 화면만 흔듦 */
 	void ApplyHitInShape(const FJY_HitShape& Shape, const FTransform& Origin, float Damage, float KnockbackSpeed, FGameplayTag HitCueTag, TSubclassOf<UCameraShakeBase> HitCameraShake, const FVector& ObjectPushDirection = FVector::ZeroVector) const;

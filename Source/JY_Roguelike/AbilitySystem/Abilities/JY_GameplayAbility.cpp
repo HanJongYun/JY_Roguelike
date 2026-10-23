@@ -2,7 +2,7 @@
 #include "AbilitySystem/JY_AbilitySystemComponent.h"
 #include "Combat/JY_CombatQuerySubsystem.h"
 #include "System/JY_GameplayTags.h"
-#include "Abilities/GameplayAbilityTargetTypes.h"
+#include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimMontage.h"
 #include "Animation/AnimSequence.h"
@@ -96,44 +96,6 @@ FVector UJY_GameplayAbility::ComputeCursorDirection() const
 	return CursorDirection;
 }
 
-/* 방향만 필요해 회전만 담은 변환을 LocationInfo에 넣는다 */
-FGameplayAbilityTargetDataHandle UJY_GameplayAbility::MakeDirectionTargetData(const FVector& Direction)
-{
-	const FRotator DirectionRotation = Direction.Rotation();
-
-	FGameplayAbilityTargetData_LocationInfo* DirectionData = new FGameplayAbilityTargetData_LocationInfo();
-	DirectionData->TargetLocation.LocationType = EGameplayAbilityTargetingLocationType::LiteralTransform;
-	DirectionData->TargetLocation.LiteralTransform = FTransform(DirectionRotation);
-	return FGameplayAbilityTargetDataHandle(DirectionData);
-}
-
-FVector UJY_GameplayAbility::GetDirectionFromTargetData(const FGameplayAbilityTargetDataHandle& DataHandle)
-{
-	/* 서버에선 네트워크로 온 값이라 비어 있을 수 있다 */
-	const FGameplayAbilityTargetData* DirectionData = DataHandle.Get(0);
-	if (DirectionData == nullptr)
-		return FVector::ZeroVector;
-
-	const FTransform DirectionTransform = DirectionData->GetEndPointTransform();
-	const FRotator DirectionRotation = DirectionTransform.Rotator();
-	const FRotator YawRotation(0.0f, DirectionRotation.Yaw, 0.0f);
-	return YawRotation.Vector();
-}
-
-// [OwnClient]
-/* 실행 키 = 서버 구독 키(실행 동안 고정), 현재 키 = 서버가 같은 예측 창에서 처리하게 함 */
-void UJY_GameplayAbility::SendTargetDataToServer(const FGameplayAbilityTargetDataHandle& DataHandle, FGameplayTag ApplicationTag) const
-{
-	const bool bShouldNotifyServer = CurrentActorInfo->IsLocallyControlled() == true && CurrentActorInfo->IsNetAuthority() == false;
-	if (bShouldNotifyServer == false)
-		return;
-
-	UJY_AbilitySystemComponent* JYASC = GetJYAbilitySystemComponentFromActorInfo();
-	const FPredictionKey ActivationPredictionKey = CurrentActivationInfo.GetActivationPredictionKey();
-	const FPredictionKey ScopedPredictionKey = JYASC->ScopedPredictionKey;
-	JYASC->CallServerSetReplicatedTargetData(CurrentSpecHandle, ActivationPredictionKey, DataHandle, ApplicationTag, ScopedPredictionKey);
-}
-
 // [Server] [OwnClient]
 /* 루트모션 중엔 CMC가 몸을 돌리지 않는다(bAllowPhysicsRotationDuringAnimRootMotion=false, CharacterMovementComponent.cpp:3044) → 동작 시작 때 직접 돌린다 */
 void UJY_GameplayAbility::FaceDirection(const FVector& Direction) const
@@ -216,4 +178,26 @@ void UJY_GameplayAbility::ApplyHitInShape(const FJY_HitShape& Shape, const FTran
 		APlayerCameraManager* CameraManager = PlayerController->PlayerCameraManager;
 		CameraManager->StartCameraShake(HitCameraShake);
 	}
+}
+
+// [Server] [OwnClient]
+/* 몽타주가 끝나면 어빌리티도 끝내고, 어빌리티가 끝나면 몽타주도 블렌드 아웃 (bStopWhenAbilityEnds) */
+void UJY_GameplayAbility::PlayMontageUntilEnd(UAnimMontage* MontageToPlay, float MontagePlayRate, FName StartSection, float RootMotionScale)
+{
+	UAbilityTask_PlayMontageAndWait* MontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(this, NAME_None, MontageToPlay, MontagePlayRate, StartSection, true, RootMotionScale);
+	MontageTask->OnCompleted.AddDynamic(this, &ThisClass::OnMontageEnded);
+	MontageTask->OnBlendOut.AddDynamic(this, &ThisClass::OnMontageEnded);
+	MontageTask->OnInterrupted.AddDynamic(this, &ThisClass::OnMontageCancelled);
+	MontageTask->OnCancelled.AddDynamic(this, &ThisClass::OnMontageCancelled);
+	MontageTask->ReadyForActivation();
+}
+
+void UJY_GameplayAbility::OnMontageEnded()
+{
+	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
+}
+
+void UJY_GameplayAbility::OnMontageCancelled()
+{
+	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
 }

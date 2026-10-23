@@ -29,40 +29,15 @@ UJY_GameplayAbility_Skill::UJY_GameplayAbility_Skill(const FObjectInitializer& O
 	CancelAbilitiesWithTag.AddTag(JYGameplayTags::Ability_Type_Skill);
 	BlockAbilitiesWithTag.AddTag(JYGameplayTags::Ability_Type_Jump);
 
-	ActivationBlockedTags.AddTag(JYGameplayTags::State_Dashing);
-
 	/* 끊기 구간에서 같은 스킬을 다시 누르면 지금 실행을 끝내고 새로 시작 (InputPressed) */
 	bRetriggerInstancedAbility = true;
 }
 
 // [Server] [OwnClient]
-/* 서버 몽타주도 발동 RPC 지연만큼 늦게 시작해 클라와 같은 위치에서 판정한다 */
-bool UJY_GameplayAbility_Skill::CanActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayTagContainer* SourceTags, const FGameplayTagContainer* TargetTags, FGameplayTagContainer* OptionalRelevantTags) const //override
+/* 끊기 구간 밖이면 다른 스킬·기본 공격이 시작되지 않는다 */
+bool UJY_GameplayAbility_Skill::IsBlockingOtherAttacks() const //override
 {
-	if (Super::CanActivateAbility(Handle, ActorInfo, SourceTags, TargetTags, OptionalRelevantTags) == false)
-		return false;
-
-	return IsSkillInProgress(ActorInfo) == false;
-}
-
-// [Server] [OwnClient]
-/* 막기 태그(BlockAbilitiesWithTag)는 실행 내내 고정이라 "구간 안에서만 허용"을 표현할 수 없다 → 실행 중 스킬에 직접 묻는다 */
-bool UJY_GameplayAbility_Skill::IsSkillInProgress(const FGameplayAbilityActorInfo* ActorInfo)
-{
-	const UAbilitySystemComponent* AbilitySystemComponent = ActorInfo->AbilitySystemComponent.Get();
-	for (const FGameplayAbilitySpec& AbilitySpec : AbilitySystemComponent->GetActivatableAbilities())
-	{
-		if (AbilitySpec.IsActive() == false)
-			continue;
-
-		const UJY_GameplayAbility_Skill* ActiveSkill = Cast<UJY_GameplayAbility_Skill>(AbilitySpec.GetPrimaryInstance());
-		if (ActiveSkill == nullptr)
-			continue;
-
-		if (ActiveSkill->IsInCancelWindow() == false)
-			return true;
-	}
-	return false;
+	return IsInCancelWindow() == false;
 }
 
 /* 엔진 CheckCooldown이 이 태그로 막는다(GameplayAbility.cpp:1071) — 쿨타임 GE에 붙는 태그와 같은 컨테이너 */
@@ -121,15 +96,6 @@ FJY_HitShape UJY_GameplayAbility_Skill::ScaleHitShape(const FJY_HitShape& Shape,
 	ScaledShape.Radius *= RadiusScale;
 	ScaledShape.Width *= RadiusScale;
 	return ScaledShape;
-}
-
-FTransform UJY_GameplayAbility_Skill::GetAvatarHitOrigin() const
-{
-	const AActor* AvatarActor = GetAvatarActorFromActorInfo();
-	const FRotator AvatarRotation = AvatarActor->GetActorRotation();
-	const FRotator YawRotation(0.0f, AvatarRotation.Yaw, 0.0f);
-	const FVector AvatarLocation = AvatarActor->GetActorLocation();
-	return FTransform(YawRotation, AvatarLocation);
 }
 
 // [OwnClient] 끊는 판단은 조종 클라 — EndAbility가 서버로 복제된다

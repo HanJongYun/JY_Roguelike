@@ -1,10 +1,11 @@
 #include "AbilitySystem/Abilities/JY_GameplayAbility_Plunge.h"
 #include "AbilitySystem/JY_AbilitySystemComponent.h"
+#include "AbilitySystem/Tasks/JY_AbilityTask_WaitDirection.h"
+#include "AbilitySystem/Tasks/JY_AbilityTask_WaitLanded.h"
 #include "System/JY_GameplayTags.h"
 #include "Animation/JY_AnimNotify_GameplayEvent.h"
 #include "Abilities/Tasks/AbilityTask_ApplyRootMotionConstantForce.h"
 #include "Abilities/Tasks/AbilityTask_ApplyRootMotionJumpForce.h"
-#include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -13,14 +14,20 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(JY_GameplayAbility_Plunge)
 
+UJY_GameplayAbility_Plunge::UJY_GameplayAbility_Plunge(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	Damage = 40.0f;
+	KnockbackSpeed = 1200.0f;
+}
+
 // [Server] [OwnClient]
-/* 공중 여부는 조종 클라가 정해 첫 방향 TargetData의 태그로 보낸다 — 서버가 자기 낙하 상태로 정하면 지연만큼 어긋난다 */
+/* 공중 여부는 조종 클라가 정해 첫 방향과 함께 보낸다 (MakeStartTag) */
 void UJY_GameplayAbility_Plunge::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) //override
 {
-	UJY_AbilitySystemComponent* JYASC = GetJYAbilitySystemComponentFromActorInfo();
-	const FPredictionKey ActivationPredictionKey = ActivationInfo.GetActivationPredictionKey();
-	FAbilityTargetDataSetDelegate& DirectionDelegate = JYASC->AbilityTargetDataSetDelegate(Handle, ActivationPredictionKey);
-	DirectionDelegateHandle = DirectionDelegate.AddUObject(this, &ThisClass::OnDirectionReceived);
+	UJY_AbilityTask_WaitDirection* DirectionTask = UJY_AbilityTask_WaitDirection::WaitDirection(this, false);
+	DirectionTask->OnDirection.AddDynamic(this, &ThisClass::OnDirectionReceived);
+	DirectionTask->ReadyForActivation();
 
 	UAbilityTask_WaitGameplayEvent* DiveStartTask = UAbilityTask_WaitGameplayEvent::WaitGameplayEvent(this, JYGameplayTags::Event_Skill_DiveStart, nullptr, false);
 	DiveStartTask->EventReceived.AddDynamic(this, &ThisClass::OnDiveStartEvent);
@@ -30,45 +37,27 @@ void UJY_GameplayAbility_Plunge::ActivateAbility(const FGameplayAbilitySpecHandl
 	HitTask->EventReceived.AddDynamic(this, &ThisClass::OnHitEvent);
 	HitTask->ReadyForActivation();
 
-	AActor* AvatarActor = ActorInfo->AvatarActor.Get();
-	ACharacter* Character = CastChecked<ACharacter>(AvatarActor);
-	Character->LandedDelegate.AddDynamic(this, &ThisClass::OnLanded);
+	UJY_AbilityTask_WaitLanded* LandedTask = UJY_AbilityTask_WaitLanded::WaitLanded(this);
+	LandedTask->OnLanded.AddDynamic(this, &ThisClass::OnLanded);
+	LandedTask->ReadyForActivation();
 
 	if (ActorInfo->IsLocallyControlled() == false)
 		return;
 
 	StartMoveCancelListener();
 
+	UJY_AbilitySystemComponent* JYASC = GetJYAbilitySystemComponentFromActorInfo();
+	const FPredictionKey ActivationPredictionKey = ActivationInfo.GetActivationPredictionKey();
 	FScopedPredictionWindow ScopedPrediction(JYASC, ActivationPredictionKey);
 
-	const UCharacterMovementComponent* MovementComponent = Character->GetCharacterMovement();
-	FGameplayTag StartTag;
-	if (MovementComponent->IsFalling() == true)
-	{
-		StartTag = JYGameplayTags::Ability_Start_Air;
-	}
-
 	const FVector Direction = ComputeCursorDirection();
-	const FGameplayAbilityTargetDataHandle DirectionDataHandle = MakeDirectionTargetData(Direction);
-	SendTargetDataToServer(DirectionDataHandle, StartTag);
-	OnDirectionReceived(DirectionDataHandle, StartTag);
+	const FGameplayTag StartTag = MakeStartTag();
+	DirectionTask->SendDirection(Direction, StartTag);
 }
 
 // [Server] [OwnClient]
-void UJY_GameplayAbility_Plunge::OnDirectionReceived(const FGameplayAbilityTargetDataHandle& DirectionDataHandle, FGameplayTag ApplicationTag)
+void UJY_GameplayAbility_Plunge::OnDirectionReceived(const FVector& Direction, FGameplayTag ApplicationTag)
 {
-	UJY_AbilitySystemComponent* JYASC = GetJYAbilitySystemComponentFromActorInfo();
-	const FPredictionKey ActivationPredictionKey = CurrentActivationInfo.GetActivationPredictionKey();
-
-	/* 첫 방향만 받는다 */
-	FAbilityTargetDataSetDelegate& DirectionDelegate = JYASC->AbilityTargetDataSetDelegate(CurrentSpecHandle, ActivationPredictionKey);
-	DirectionDelegate.Remove(DirectionDelegateHandle);
-
-	/* 아래 Consume이 ASC 저장본을 지우므로 복사 */
-	const FGameplayAbilityTargetDataHandle LocalDataHandle = DirectionDataHandle;
-	JYASC->ConsumeClientReplicatedTargetData(CurrentSpecHandle, ActivationPredictionKey);
-
-	const FVector Direction = GetDirectionFromTargetData(LocalDataHandle);
 	if (Direction.IsNearlyZero() == true)
 	{
 		EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
@@ -117,12 +106,7 @@ void UJY_GameplayAbility_Plunge::OnDirectionReceived(const FGameplayAbilityTarge
 		MontagePlayRate = ComputeSlamPlayRate(SlamPoseTime, LandingTime);
 	}
 
-	UAbilityTask_PlayMontageAndWait* MontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(this, NAME_None, PlungeMontage, MontagePlayRate, NAME_None, true);
-	MontageTask->OnCompleted.AddDynamic(this, &ThisClass::OnMontageFinished);
-	MontageTask->OnBlendOut.AddDynamic(this, &ThisClass::OnMontageFinished);
-	MontageTask->OnInterrupted.AddDynamic(this, &ThisClass::OnMontageInterrupted);
-	MontageTask->OnCancelled.AddDynamic(this, &ThisClass::OnMontageInterrupted);
-	MontageTask->ReadyForActivation();
+	PlayMontageUntilEnd(PlungeMontage, MontagePlayRate);
 
 	if (bAirPlunge == true)
 		return;
@@ -303,34 +287,8 @@ void UJY_GameplayAbility_Plunge::OnHitEvent(FGameplayEventData Payload)
 	ApplyHitInShape(ScaledShape, HitOrigin, ScaledDamage, KnockbackSpeed, HitCueTag, HitCameraShake);
 }
 
-void UJY_GameplayAbility_Plunge::OnMontageFinished()
-{
-	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
-}
-
-void UJY_GameplayAbility_Plunge::OnMontageInterrupted()
-{
-	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
-}
-
 void UJY_GameplayAbility_Plunge::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) //override
 {
-	UJY_AbilitySystemComponent* JYASC = GetJYAbilitySystemComponentFromActorInfo();
-	const FPredictionKey ActivationPredictionKey = ActivationInfo.GetActivationPredictionKey();
-
-	/* 방향 구독·저장본 정리 (대시 EndAbility와 같음) */
-	FAbilityTargetDataSetDelegate& DirectionDelegate = JYASC->AbilityTargetDataSetDelegate(Handle, ActivationPredictionKey);
-	DirectionDelegate.Remove(DirectionDelegateHandle);
-	JYASC->ConsumeClientReplicatedTargetData(Handle, ActivationPredictionKey);
-
-	/* 캐릭터가 파괴되면서 끝날 때(PIE 종료·리스폰)는 약한 참조가 이미 비어 있다 */
-	AActor* AvatarActor = ActorInfo->AvatarActor.Get();
-	ACharacter* Character = Cast<ACharacter>(AvatarActor);
-	if (Character != nullptr)
-	{
-		Character->LandedDelegate.RemoveDynamic(this, &ThisClass::OnLanded);
-	}
-
 	/* 하강·도약 태스크는 어빌리티가 끝나면 엔진이 정리(소스 제거 AbilityTask_ApplyRootMotionConstantForce.cpp:146~151) */
 	DiveTask = nullptr;
 	LeapTask = nullptr;

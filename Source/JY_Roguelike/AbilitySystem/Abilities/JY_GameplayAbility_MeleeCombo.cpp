@@ -1,13 +1,11 @@
 #include "AbilitySystem/Abilities/JY_GameplayAbility_MeleeCombo.h"
 #include "AbilitySystem/JY_AbilitySystemComponent.h"
-#include "AbilitySystem/Abilities/JY_GameplayAbility_Skill.h"
+#include "AbilitySystem/Tasks/JY_AbilityTask_WaitDirection.h"
+#include "AbilitySystem/Tasks/JY_AbilityTask_WaitLanded.h"
 #include "AbilitySystem/Tasks/JY_AbilityTask_WaitMoveInput.h"
 #include "Combat/JY_MeleeComboData.h"
 #include "System/JY_GameplayTags.h"
-#include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
-#include "GameFramework/Character.h"
-#include "GameFramework/CharacterMovementComponent.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(JY_GameplayAbility_MeleeCombo)
 
@@ -20,32 +18,17 @@ UJY_GameplayAbility_MeleeCombo::UJY_GameplayAbility_MeleeCombo(const FObjectInit
 	AttackTags.AddTag(JYGameplayTags::Ability_Type_Attack);
 	SetAssetTags(AttackTags);
 
-	ActivationBlockedTags.AddTag(JYGameplayTags::State_Dashing);
-
 	/* 스킬의 끊기 구간 안에서 누르면 스킬을 끊고 공격 (구간 밖이면 CanActivateAbility가 막음) */
 	CancelAbilitiesWithTag.AddTag(JYGameplayTags::Ability_Type_Skill);
 }
 
 // [Server] [OwnClient]
-bool UJY_GameplayAbility_MeleeCombo::CanActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayTagContainer* SourceTags, const FGameplayTagContainer* TargetTags, FGameplayTagContainer* OptionalRelevantTags) const //override
-{
-	if (Super::CanActivateAbility(Handle, ActorInfo, SourceTags, TargetTags, OptionalRelevantTags) == false)
-		return false;
-
-	return UJY_GameplayAbility_Skill::IsSkillInProgress(ActorInfo) == false;
-}
-
-// [Server] [OwnClient]
-/*
- * 서버는 클라 커서를 모른다 — 조종 클라가 방향을 TargetData로 보내고 서버는 도착하면 시작
- * 방향 구독은 실행 내내 유지 — 다음 타 방향도 같은 실행 키로 온다
- */
+/* 조종 클라가 커서 방향을 보내고 서버는 도착하면 시작. 다음 타 방향도 같은 실행 키로 오므로 구독을 유지한다 */
 void UJY_GameplayAbility_MeleeCombo::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) //override
 {
-	UJY_AbilitySystemComponent* JYASC = GetJYAbilitySystemComponentFromActorInfo();
-	const FPredictionKey ActivationPredictionKey = ActivationInfo.GetActivationPredictionKey();
-	FAbilityTargetDataSetDelegate& DirectionDelegate = JYASC->AbilityTargetDataSetDelegate(Handle, ActivationPredictionKey);
-	DirectionDelegateHandle = DirectionDelegate.AddUObject(this, &ThisClass::OnDirectionReceived);
+	DirectionTask = UJY_AbilityTask_WaitDirection::WaitDirection(this, true);
+	DirectionTask->OnDirection.AddDynamic(this, &ThisClass::OnDirectionReceived);
+	DirectionTask->ReadyForActivation();
 
 	UAbilityTask_WaitGameplayEvent* StepStartTask = UAbilityTask_WaitGameplayEvent::WaitGameplayEvent(this, JYGameplayTags::Event_Melee_StepStart, nullptr, false);
 	StepStartTask->EventReceived.AddDynamic(this, &ThisClass::OnStepStartEvent);
@@ -55,9 +38,9 @@ void UJY_GameplayAbility_MeleeCombo::ActivateAbility(const FGameplayAbilitySpecH
 	HitTask->EventReceived.AddDynamic(this, &ThisClass::OnHitEvent);
 	HitTask->ReadyForActivation();
 
-	AActor* AvatarActor = ActorInfo->AvatarActor.Get();
-	ACharacter* Character = CastChecked<ACharacter>(AvatarActor);
-	Character->LandedDelegate.AddDynamic(this, &ThisClass::OnLanded);
+	UJY_AbilityTask_WaitLanded* LandedTask = UJY_AbilityTask_WaitLanded::WaitLanded(this);
+	LandedTask->OnLanded.AddDynamic(this, &ThisClass::OnLanded);
+	LandedTask->ReadyForActivation();
 
 	if (ActorInfo->IsLocallyControlled() == false)
 		return;
@@ -66,33 +49,18 @@ void UJY_GameplayAbility_MeleeCombo::ActivateAbility(const FGameplayAbilitySpecH
 	MoveInputTask->OnMoveInput.AddDynamic(this, &ThisClass::OnMoveInput);
 	MoveInputTask->ReadyForActivation();
 
+	UJY_AbilitySystemComponent* JYASC = GetJYAbilitySystemComponentFromActorInfo();
+	const FPredictionKey ActivationPredictionKey = ActivationInfo.GetActivationPredictionKey();
 	FScopedPredictionWindow ScopedPrediction(JYASC, ActivationPredictionKey);
 
-	/* 공중 여부는 클라가 정해 보낸다 — 서버가 자기 낙하 상태로 정하면 지연만큼 어긋난다 */
-	const UCharacterMovementComponent* MovementComponent = Character->GetCharacterMovement();
-	FGameplayTag ComboTag;
-	if (MovementComponent->IsFalling() == true)
-	{
-		ComboTag = JYGameplayTags::Ability_Start_Air;
-	}
-
 	const FVector Direction = ComputeCursorDirection();
-	const FGameplayAbilityTargetDataHandle DirectionDataHandle = MakeDirectionTargetData(Direction);
-	SendTargetDataToServer(DirectionDataHandle, ComboTag);
-	OnDirectionReceived(DirectionDataHandle, ComboTag);
+	const FGameplayTag ComboTag = MakeStartTag();
+	DirectionTask->SendDirection(Direction, ComboTag);
 }
 
 // [Server] [OwnClient]
-void UJY_GameplayAbility_MeleeCombo::OnDirectionReceived(const FGameplayAbilityTargetDataHandle& DirectionDataHandle, FGameplayTag ApplicationTag)
+void UJY_GameplayAbility_MeleeCombo::OnDirectionReceived(const FVector& Direction, FGameplayTag ApplicationTag)
 {
-	UJY_AbilitySystemComponent* JYASC = GetJYAbilitySystemComponentFromActorInfo();
-	const FPredictionKey ActivationPredictionKey = CurrentActivationInfo.GetActivationPredictionKey();
-
-	/* 아래 Consume이 ASC 저장본을 지우므로 복사. 비워 두면 다음 타 방향이 같은 키로 와도 새로 저장된다 */
-	const FGameplayAbilityTargetDataHandle LocalDataHandle = DirectionDataHandle;
-	JYASC->ConsumeClientReplicatedTargetData(CurrentSpecHandle, ActivationPredictionKey);
-
-	const FVector Direction = GetDirectionFromTargetData(LocalDataHandle);
 	if (Direction.IsNearlyZero() == true)
 	{
 		/* 첫 방향이 비면 시작할 수 없다. 다음 타 방향이 비면 방향만 유지 */
@@ -131,12 +99,7 @@ void UJY_GameplayAbility_MeleeCombo::OnDirectionReceived(const FGameplayAbilityT
 
 	/* 몽타주는 실행 동안 1개 — 다음 타는 섹션 연결로만 바뀌어 태스크 교체가 없다 */
 	const FJY_MeleeComboStep& FirstStep = ActiveCombo->Steps[0];
-	UAbilityTask_PlayMontageAndWait* MontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(this, NAME_None, ActiveCombo->Montage, ActiveCombo->PlayRate, FirstStep.AttackSection, true);
-	MontageTask->OnCompleted.AddDynamic(this, &ThisClass::OnMontageFinished);
-	MontageTask->OnBlendOut.AddDynamic(this, &ThisClass::OnMontageFinished);
-	MontageTask->OnInterrupted.AddDynamic(this, &ThisClass::OnMontageInterrupted);
-	MontageTask->OnCancelled.AddDynamic(this, &ThisClass::OnMontageInterrupted);
-	MontageTask->ReadyForActivation();
+	PlayMontageUntilEnd(ActiveCombo->Montage, ActiveCombo->PlayRate, FirstStep.AttackSection);
 }
 
 // [OwnClient] 실행 중 다시 누름 — 엔진이 실행 중 인스턴스에 전달(AbilitySystemComponent_Abilities.cpp:2914~2934)
@@ -160,9 +123,7 @@ void UJY_GameplayAbility_MeleeCombo::InputPressed(const FGameplayAbilitySpecHand
 	FScopedPredictionWindow ScopedPrediction(JYASC, true);
 
 	const FVector Direction = ComputeCursorDirection();
-	const FGameplayAbilityTargetDataHandle DirectionDataHandle = MakeDirectionTargetData(Direction);
-	SendTargetDataToServer(DirectionDataHandle, FGameplayTag());
-	OnDirectionReceived(DirectionDataHandle, FGameplayTag());
+	DirectionTask->SendDirection(Direction, FGameplayTag());
 
 	const FName CurrentSection = ActiveCombo->Steps[StepIndex].AttackSection;
 	const FName NextSection = ActiveCombo->Steps[StepIndex + 1].AttackSection;
@@ -199,24 +160,10 @@ void UJY_GameplayAbility_MeleeCombo::OnHitEvent(FGameplayEventData Payload)
 		return;
 
 	const FJY_MeleeComboStep& Step = ActiveCombo->Steps[ActiveStepIndex];
-	const AActor* AvatarActor = GetAvatarActorFromActorInfo();
-	const FRotator AvatarRotation = AvatarActor->GetActorRotation();
-	const FRotator YawRotation(0.0f, AvatarRotation.Yaw, 0.0f);
-	const FVector AvatarLocation = AvatarActor->GetActorLocation();
-	const FTransform HitOrigin(YawRotation, AvatarLocation);
+	const FTransform HitOrigin = GetAvatarHitOrigin();
 
 	const FVector ObjectPushDirection = GetMontageSwingDirection(SwingBoneName, SwingSampleSeconds);
 	ApplyHitInShape(Step.HitShape, HitOrigin, Step.Damage, Step.KnockbackSpeed, ActiveCombo->HitCueTag, Step.HitCameraShake, ObjectPushDirection);
-}
-
-void UJY_GameplayAbility_MeleeCombo::OnMontageFinished()
-{
-	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
-}
-
-void UJY_GameplayAbility_MeleeCombo::OnMontageInterrupted()
-{
-	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
 }
 
 // [OwnClient]
@@ -241,22 +188,7 @@ void UJY_GameplayAbility_MeleeCombo::OnLanded(const FHitResult& Hit)
 
 void UJY_GameplayAbility_MeleeCombo::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) //override
 {
-	UJY_AbilitySystemComponent* JYASC = GetJYAbilitySystemComponentFromActorInfo();
-	const FPredictionKey ActivationPredictionKey = ActivationInfo.GetActivationPredictionKey();
-
-	/* 방향 구독·저장본 정리 (대시 EndAbility와 같음) */
-	FAbilityTargetDataSetDelegate& DirectionDelegate = JYASC->AbilityTargetDataSetDelegate(Handle, ActivationPredictionKey);
-	DirectionDelegate.Remove(DirectionDelegateHandle);
-	JYASC->ConsumeClientReplicatedTargetData(Handle, ActivationPredictionKey);
-
-	/* 캐릭터가 파괴되면서 끝날 때(PIE 종료·리스폰)는 약한 참조가 이미 비어 있다 */
-	AActor* AvatarActor = ActorInfo->AvatarActor.Get();
-	ACharacter* Character = Cast<ACharacter>(AvatarActor);
-	if (Character != nullptr)
-	{
-		Character->LandedDelegate.RemoveDynamic(this, &ThisClass::OnLanded);
-	}
-
+	DirectionTask = nullptr;
 	ActiveCombo = nullptr;
 	NextStepDirection = FVector::ZeroVector;
 	bNextStepQueued = false;

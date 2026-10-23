@@ -5,7 +5,6 @@
 #include "JY_GameplayAbility_Dash.generated.h"
 
 class UAnimMontage;
-struct FGameplayAbilityTargetDataHandle;
 
 /* 이동 입력 방향으로 구르기. 루트모션 몽타주, 횟수 소모·충전, 실행 중 무적. 몽타주는 GA_JY_Dash에서 지정 */
 UCLASS(Abstract)
@@ -25,18 +24,11 @@ private:
 	FVector ComputeDashDirection() const;
 
 	/* 방향이 준비되면 실행 — 조종 클라는 바로, 서버는 클라가 보낸 방향이 도착했을 때 */
-	void OnDashDirectionReady(const FGameplayAbilityTargetDataHandle& DirectionDataHandle, FGameplayTag ApplicationTag);
+	UFUNCTION()
+	void OnDashDirectionReady(const FVector& DashDirection, FGameplayTag ApplicationTag);
 
 	/* 충전 시간 뒤 횟수 +1 예약 */
 	void ScheduleRecharge();
-
-	/* 몽타주가 정상으로 끝남 */
-	UFUNCTION()
-	void OnDashMontageFinished();
-
-	/* 몽타주가 끊김 */
-	UFUNCTION()
-	void OnDashMontageInterrupted();
 
 protected:
 	/* 설정값 — GA_JY_Dash의 Class Defaults에서 수정 */
@@ -60,9 +52,6 @@ protected:
 private:
 	/* 구르는 동안 붙이는 태그 (대시 중·무적) */
 	FGameplayTagContainer RollingTags;
-
-	/* 서버가 방향 도착을 기다리는 구독 */
-	FDelegateHandle DirectionReadyDelegateHandle;
 
 	/* 이번 실행에서 RollingTags를 붙였는지 (끝날 때 뗄지) */
 	bool bRollingTagsAdded = false;

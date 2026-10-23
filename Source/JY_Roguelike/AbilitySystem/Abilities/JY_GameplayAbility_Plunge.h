@@ -14,6 +14,9 @@ class UJY_GameplayAbility_Plunge : public UJY_GameplayAbility_Skill
 {
 	GENERATED_BODY()
 
+public:
+	UJY_GameplayAbility_Plunge(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+
 protected:
 	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
 	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
@@ -29,7 +32,8 @@ private:
 	float ComputeSlamPlayRate(float SlamTimeLeft, float FallTime) const;
 
 	/* [Server] [OwnClient] 방향 도착 — 땅/공중 결정·비용·몽타주·땅 도약 */
-	void OnDirectionReceived(const FGameplayAbilityTargetDataHandle& DirectionDataHandle, FGameplayTag ApplicationTag);
+	UFUNCTION()
+	void OnDirectionReceived(const FVector& Direction, FGameplayTag ApplicationTag);
 
 	/* 공중 — 하강 시작 노티파이 */
 	UFUNCTION()
@@ -41,12 +45,6 @@ private:
 	/* 착지하면 하강 멈춤, 조종 클라는 착지 섹션으로 */
 	UFUNCTION()
 	void OnLanded(const FHitResult& Hit);
-
-	UFUNCTION()
-	void OnMontageFinished();
-
-	UFUNCTION()
-	void OnMontageInterrupted();
 
 protected:
 	/* 설정값 — GA_JY_Skill_Plunge 의 Class Defaults */
@@ -70,14 +68,6 @@ protected:
 	/* 충격 판정 (범위 배율 전) */
 	UPROPERTY(EditDefaultsOnly, Category = "JY|Skill")
 	FJY_HitShape HitShape;
-
-	/* 피해 (레벨·카드 배율 전) */
-	UPROPERTY(EditDefaultsOnly, Category = "JY|Skill")
-	float Damage = 40.0f;
-
-	/* 맞은 적을 미는 속도 (cm/s) */
-	UPROPERTY(EditDefaultsOnly, Category = "JY|Skill")
-	float KnockbackSpeed = 1200.0f;
 
 	/* 땅 도약 — 최고 높이 (cm) */
 	UPROPERTY(EditDefaultsOnly, Category = "JY|Skill", Meta = (ClampMin = "0"))
@@ -119,9 +109,6 @@ private:
 	/* 땅 도약 루트모션 태스크 (착지하면 스스로 끝남) */
 	UPROPERTY()
 	TObjectPtr<UAbilityTask_ApplyRootMotionJumpForce> LeapTask;
-
-	/* 서버가 방향을 기다리는 구독 */
-	FDelegateHandle DirectionDelegateHandle;
 
 	/* 공중에서 시작했는지 */
 	bool bAirPlunge = false;

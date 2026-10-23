@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "AbilitySystem/Abilities/JY_GameplayAbility.h"
+#include "AbilitySystem/Abilities/JY_GameplayAbility_Attack.h"
 #include "Combat/JY_CombatTypes.h"
 #include "Skill/JY_SkillTypes.h"
 #include "JY_GameplayAbility_Skill.generated.h"
@@ -9,9 +9,9 @@
 class UJY_SkillDefinition;
 class UCameraShakeBase;
 
-/* 스킬 GA 공통 — 쿨타임(레벨·카드 반영), 최종 수치, 스킬 정의 찾기 */
+/* 스킬 GA 공통 — 쿨타임(레벨·카드 반영), 최종 수치, 스킬 정의 찾기, 끊기 구간 */
 UCLASS(Abstract)
-class UJY_GameplayAbility_Skill : public UJY_GameplayAbility
+class UJY_GameplayAbility_Skill : public UJY_GameplayAbility_Attack
 {
 	GENERATED_BODY()
 
@@ -19,14 +19,12 @@ public:
 	UJY_GameplayAbility_Skill(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 public:
-	virtual bool CanActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayTagContainer* SourceTags = nullptr, const FGameplayTagContainer* TargetTags = nullptr, FGameplayTagContainer* OptionalRelevantTags = nullptr) const override;
 	virtual const FGameplayTagContainer* GetCooldownTags() const override;
 	virtual void ApplyCooldown(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo) const override;
 	virtual void InputPressed(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo) override;
 
-public:
-	/* [Server] [OwnClient] 끊기 구간 밖에서 실행 중인 스킬이 있는지 — 있으면 다른 스킬·기본 공격이 시작되지 않는다 */
-	static bool IsSkillInProgress(const FGameplayAbilityActorInfo* ActorInfo);
+protected:
+	virtual bool IsBlockingOtherAttacks() const override;
 
 protected:
 	/* 스펙의 SourceObject = 이 스킬 정의 */
@@ -37,9 +35,6 @@ protected:
 
 	/* 판정 모양에 범위 배율 (반지름·폭만 — 상자 길이는 그대로) */
 	static FJY_HitShape ScaleHitShape(const FJY_HitShape& Shape, float RadiusScale);
-
-	/* 아바타 위치 + 수평 방향 */
-	FTransform GetAvatarHitOrigin() const;
 
 	/* [OwnClient] 이동 입력 대기 시작 — 끊기 구간 안에서 들어오면 스킬을 끝냄 */
 	void StartMoveCancelListener();
@@ -53,6 +48,14 @@ private:
 
 protected:
 	/* 설정값 — GA_JY_Skill_* 의 Class Defaults */
+
+	/* 타격 1회 피해 (레벨·카드 배율 전) */
+	UPROPERTY(EditDefaultsOnly, Category = "JY|Skill")
+	float Damage = 30.0f;
+
+	/* 맞은 적을 미는 속도 (cm/s) */
+	UPROPERTY(EditDefaultsOnly, Category = "JY|Skill")
+	float KnockbackSpeed = 400.0f;
 
 	/* 쿨타임 중 붙는 태그 (Cooldown.Skill.Plunge 등) */
 	UPROPERTY(EditDefaultsOnly, Category = "JY|Skill", Meta = (Categories = "Cooldown"))

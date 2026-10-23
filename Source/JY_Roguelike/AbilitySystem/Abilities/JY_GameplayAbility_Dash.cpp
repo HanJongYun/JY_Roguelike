@@ -1,9 +1,8 @@
 #include "AbilitySystem/Abilities/JY_GameplayAbility_Dash.h"
 #include "AbilitySystem/JY_AbilitySystemComponent.h"
 #include "AbilitySystem/Effects/JY_DashGameplayEffects.h"
+#include "AbilitySystem/Tasks/JY_AbilityTask_WaitDirection.h"
 #include "System/JY_GameplayTags.h"
-#include "Abilities/GameplayAbilityTargetTypes.h"
-#include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "GameFramework/Character.h"
 #include "TimerManager.h"
 
@@ -24,26 +23,22 @@ UJY_GameplayAbility_Dash::UJY_GameplayAbility_Dash(const FObjectInitializer& Obj
 }
 
 // [Server] [OwnClient]
-/*
- * 이동 RPC와 어빌리티 RPC는 순서 보장이 없어 서버 가속도를 믿을 수 없다
- * → 조종 클라가 방향을 TargetData로 보내고 서버는 도착을 기다린다 (Lyra RangedWeapon 방식)
- */
+/* 이동 RPC와 어빌리티 RPC는 순서 보장이 없어 서버 가속도를 믿을 수 없다 → 조종 클라가 정한 방향을 보낸다 */
 void UJY_GameplayAbility_Dash::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) //override
 {
-	UAbilitySystemComponent* AbilitySystemComponent = ActorInfo->AbilitySystemComponent.Get();
-	const FPredictionKey ActivationPredictionKey = ActivationInfo.GetActivationPredictionKey();
-
-	FAbilityTargetDataSetDelegate& DirectionReadyDelegate = AbilitySystemComponent->AbilityTargetDataSetDelegate(Handle, ActivationPredictionKey);
-	DirectionReadyDelegateHandle = DirectionReadyDelegate.AddUObject(this, &ThisClass::OnDashDirectionReady);
+	UJY_AbilityTask_WaitDirection* DirectionTask = UJY_AbilityTask_WaitDirection::WaitDirection(this, false);
+	DirectionTask->OnDirection.AddDynamic(this, &ThisClass::OnDashDirectionReady);
+	DirectionTask->ReadyForActivation();
 
 	if (ActorInfo->IsLocallyControlled() == false)
 		return;
 
-	FScopedPredictionWindow ScopedPrediction(AbilitySystemComponent, ActivationPredictionKey);
+	UJY_AbilitySystemComponent* JYASC = GetJYAbilitySystemComponentFromActorInfo();
+	const FPredictionKey ActivationPredictionKey = ActivationInfo.GetActivationPredictionKey();
+	FScopedPredictionWindow ScopedPrediction(JYASC, ActivationPredictionKey);
 
 	const FVector DashDirection = ComputeDashDirection();
-	const FGameplayAbilityTargetDataHandle DirectionDataHandle = MakeDirectionTargetData(DashDirection);
-	OnDashDirectionReady(DirectionDataHandle, FGameplayTag());
+	DirectionTask->SendDirection(DashDirection, FGameplayTag());
 }
 
 // [OwnClient]
@@ -63,26 +58,8 @@ FVector UJY_GameplayAbility_Dash::ComputeDashDirection() const
 }
 
 // [Server] [OwnClient]
-void UJY_GameplayAbility_Dash::OnDashDirectionReady(const FGameplayAbilityTargetDataHandle& DirectionDataHandle, FGameplayTag ApplicationTag)
+void UJY_GameplayAbility_Dash::OnDashDirectionReady(const FVector& DashDirection, FGameplayTag ApplicationTag)
 {
-	UAbilitySystemComponent* AbilitySystemComponent = CurrentActorInfo->AbilitySystemComponent.Get();
-	const FPredictionKey ActivationPredictionKey = CurrentActivationInfo.GetActivationPredictionKey();
-
-	/* 첫 방향만 받는다 — 같은 실행 키로 방향이 두 번 오면(변조 클라) 비용·태그가 두 번 적용돼 태그가 남는다 */
-	FAbilityTargetDataSetDelegate& DirectionReadyDelegate = AbilitySystemComponent->AbilityTargetDataSetDelegate(CurrentSpecHandle, ActivationPredictionKey);
-	DirectionReadyDelegate.Remove(DirectionReadyDelegateHandle);
-
-	FScopedPredictionWindow ScopedPrediction(AbilitySystemComponent);
-
-	/* 아래 Consume이 ASC 저장본을 지우므로 복사해 둔다 */
-	const FGameplayAbilityTargetDataHandle LocalDataHandle = DirectionDataHandle;
-
-	SendTargetDataToServer(LocalDataHandle, ApplicationTag);
-
-	AbilitySystemComponent->ConsumeClientReplicatedTargetData(CurrentSpecHandle, ActivationPredictionKey);
-
-	/* 서버에선 네트워크로 온 값이라 비어 있을 수 있다 */
-	const FVector DashDirection = GetDirectionFromTargetData(LocalDataHandle);
 	if (DashDirection.IsNearlyZero() == true)
 	{
 		EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
@@ -103,7 +80,8 @@ void UJY_GameplayAbility_Dash::OnDashDirectionReady(const FGameplayAbilityTarget
 		return;
 	}
 
-	AbilitySystemComponent->AddLooseGameplayTags(RollingTags);
+	UJY_AbilitySystemComponent* JYASC = GetJYAbilitySystemComponentFromActorInfo();
+	JYASC->AddLooseGameplayTags(RollingTags);
 	bRollingTagsAdded = true;
 
 	/* 루트모션 중엔 CMC가 몸을 돌리지 않아 처음 돌린 방향으로 끝까지 간다 */
@@ -114,12 +92,7 @@ void UJY_GameplayAbility_Dash::OnDashDirectionReady(const FGameplayAbilityTarget
 		ScheduleRecharge();
 	}
 
-	UAbilityTask_PlayMontageAndWait* MontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(this, NAME_None, DashMontage, PlayRate, NAME_None, true, RootMotionScale);
-	MontageTask->OnBlendOut.AddDynamic(this, &ThisClass::OnDashMontageFinished);
-	MontageTask->OnCompleted.AddDynamic(this, &ThisClass::OnDashMontageFinished);
-	MontageTask->OnInterrupted.AddDynamic(this, &ThisClass::OnDashMontageInterrupted);
-	MontageTask->OnCancelled.AddDynamic(this, &ThisClass::OnDashMontageInterrupted);
-	MontageTask->ReadyForActivation();
+	PlayMontageUntilEnd(DashMontage, PlayRate, NAME_None, RootMotionScale);
 }
 
 // [Server]
@@ -151,29 +124,12 @@ void UJY_GameplayAbility_Dash::ScheduleRecharge()
 	TimerManager.SetTimer(RechargeTimerHandle, RechargeDelegate, RechargeSeconds, false);
 }
 
-void UJY_GameplayAbility_Dash::OnDashMontageFinished()
-{
-	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
-}
-
-void UJY_GameplayAbility_Dash::OnDashMontageInterrupted()
-{
-	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
-}
-
 void UJY_GameplayAbility_Dash::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) //override
 {
-	UAbilitySystemComponent* AbilitySystemComponent = ActorInfo->AbilitySystemComponent.Get();
-	const FPredictionKey ActivationPredictionKey = ActivationInfo.GetActivationPredictionKey();
-
-	/* 방향 대기 구독·저장본 정리 (LyraGameplayAbility_RangedWeapon::EndAbility와 같음) */
-	FAbilityTargetDataSetDelegate& DirectionReadyDelegate = AbilitySystemComponent->AbilityTargetDataSetDelegate(Handle, ActivationPredictionKey);
-	DirectionReadyDelegate.Remove(DirectionReadyDelegateHandle);
-	AbilitySystemComponent->ConsumeClientReplicatedTargetData(Handle, ActivationPredictionKey);
-
 	if (bRollingTagsAdded == true)
 	{
-		AbilitySystemComponent->RemoveLooseGameplayTags(RollingTags);
+		UJY_AbilitySystemComponent* JYASC = GetJYAbilitySystemComponentFromActorInfo();
+		JYASC->RemoveLooseGameplayTags(RollingTags);
 		bRollingTagsAdded = false;
 	}
 

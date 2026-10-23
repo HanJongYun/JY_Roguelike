@@ -42,9 +42,11 @@ void AJY_GameMode::HandleStartingNewPlayer_Implementation(APlayerController* New
 
 	/* 심리스 이동도 도착 맵에서 PC를 새로 만들어 여기가 다시 불린다 → 맵 도착마다 배너 1번 */
 	const AJY_WorldSettings* WorldSettings = CastChecked<AJY_WorldSettings>(GetWorldSettings());
-	if (WorldSettings->GetAreaNameText().IsEmpty() == false)
+	/* 에디터 시뮬레이트(SIE)는 관전용 기본 PlayerController를 만든다 — 그때는 배너 없음 */
+	AJY_PlayerController* JYPlayerController = Cast<AJY_PlayerController>(NewPlayer);
+	if (JYPlayerController != nullptr && WorldSettings->GetAreaNameText().IsEmpty() == false)
 	{
-		CastChecked<AJY_PlayerController>(NewPlayer)->Client_ShowNotification(EJY_NotificationType::Banner, WorldSettings->GetAreaNameText());
+		JYPlayerController->Client_ShowNotification(EJY_NotificationType::Banner, WorldSettings->GetAreaNameText());
 	}
 }
 

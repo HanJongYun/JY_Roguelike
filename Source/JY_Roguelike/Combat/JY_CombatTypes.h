@@ -69,6 +69,9 @@ struct FJY_HitPayload
 	/* 밀어내는 속도 (cm/s, 수평) */
 	FVector2f KnockbackImpulse = FVector2f::ZeroVector;
 
+	/* 밀려나며 떠오르는 높이 (cm) — 0이면 바닥을 미끄러짐 */
+	float KnockbackHeight = 0.0f;
+
 	/* 피격 연출 큐 (비우면 연출 없음) */
 	FGameplayTag HitCueTag;
 

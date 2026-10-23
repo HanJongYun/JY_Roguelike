@@ -79,8 +79,8 @@ public:
 	UJY_HitReactionComponent();
 
 public:
-	/* [Server] 밀려나기 (저항만큼 줄인 속도로 KnockbackDuration 동안) */
-	void ReceiveKnockback(const FVector2f& Impulse);
+	/* [Server] 밀려나기 — 높이가 있으면 포물선으로 날아감 (저항만큼 줄임) */
+	void ReceiveKnockback(const FVector2f& Impulse, float Height);
 
 	/* [Client] 피격 반응 연출 — 피격 큐가 부름 */
 	void PlayHitReaction(const FJY_HitReactionParams& Params);
@@ -115,6 +115,13 @@ private:
 	void EndHitFlash();
 
 	void StartCameraShake(TSubclassOf<UCameraShakeBase> CameraShake) const;
+
+	/* 서버·조종 클라가 같은 루트모션 소스를 건다 */
+	void ApplyKnockback(const FVector& Velocity, float Height);
+
+	/* [Server -> Client RPC] 조종 클라에도 같은 밀림 */
+	UFUNCTION(Client, Reliable)
+	void Client_ApplyKnockback(FVector_NetQuantize10 Velocity, float Height);
 
 private:
 	/* 설정값 — BP_JY_Character·BP_JY_TrainingDummy 등의 컴포넌트 디테일 */
@@ -160,6 +167,10 @@ private:
 	/* 밀려나는 시간 (초). 거리 = 미는 속도 × 이 시간 */
 	UPROPERTY(EditDefaultsOnly, Category = "JY|HitReaction|Knockback", Meta = (ClampMin = "0.05"))
 	float KnockbackDuration = 0.25f;
+
+	/* 떠서 날아가는 시간 (초). 거리 = 미는 속도 × 이 시간 */
+	UPROPERTY(EditDefaultsOnly, Category = "JY|HitReaction|Knockback", Meta = (ClampMin = "0.05"))
+	float AirKnockbackDuration = 0.5f;
 
 private:
 	/* 지금 밀려나는 루트모션 소스 (없으면 0) — 다시 맞으면 바꿔 끼운다 */

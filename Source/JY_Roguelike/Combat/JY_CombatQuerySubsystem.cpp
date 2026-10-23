@@ -230,9 +230,9 @@ bool UJY_CombatQuerySubsystem::ApplyHitToCharacter(AActor* TargetActor, UJY_Abil
 	SourceASC->ApplyGameplayEffectSpecToTarget(*DamageSpec, TargetASC);
 
 	UJY_HitReactionComponent* HitReaction = TargetActor->FindComponentByClass<UJY_HitReactionComponent>();
-	if (HitReaction != nullptr && Payload.KnockbackImpulse.IsNearlyZero() == false)
+	if (HitReaction != nullptr && (Payload.KnockbackImpulse.IsNearlyZero() == false || Payload.KnockbackHeight > 0.0f))
 	{
-		HitReaction->ReceiveKnockback(Payload.KnockbackImpulse);
+		HitReaction->ReceiveKnockback(Payload.KnockbackImpulse, Payload.KnockbackHeight);
 	}
 
 	if (Payload.HitCueTag.IsValid() == true)

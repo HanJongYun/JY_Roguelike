@@ -17,31 +17,71 @@
 UJY_HitReactionComponent::UJY_HitReactionComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
+
+	/* 조종 클라에 밀림을 보내는 Client RPC용 */
+	SetIsReplicatedByDefault(true);
 }
 
 // [Server]
 /* 수평 LaunchCharacter는 바로 착지해 마찰로 0.1초 안에 멈춘다 (CharacterMovementComponent.cpp:1237) */
 /* 루트모션 소스는 정한 시간 동안 속도를 덮어써 마찰과 무관하게 거리가 나오고, 시뮬 프록시에도 복제된다 */
-void UJY_HitReactionComponent::ReceiveKnockback(const FVector2f& Impulse)
+void UJY_HitReactionComponent::ReceiveKnockback(const FVector2f& Impulse, float Height)
 {
 	const float KnockbackScale = 1.0f - KnockbackResistance;
 	const FVector KnockbackVelocity(Impulse.X * KnockbackScale, Impulse.Y * KnockbackScale, 0.0f);
+	const float KnockbackHeight = Height * KnockbackScale;
 
 	/* 저항 1(안 밀림) */
-	if (KnockbackVelocity.IsNearlyZero() == true)
+	if (KnockbackVelocity.IsNearlyZero() == true && KnockbackHeight <= 0.0f)
 		return;
 
+	ApplyKnockback(KnockbackVelocity, KnockbackHeight);
+
+	/* 서버에만 건 루트모션 소스는 조종 클라가 버리고 위치 보정만 받아 덜컹인다(CharacterMovementComponent.cpp:11620) — 양쪽에 따로 걸면 엔진이 짝지어 맞춘다(12229) */
+	const APawn* Pawn = GetOwner<APawn>();
+	if (Pawn->IsPlayerControlled() == true && Pawn->IsLocallyControlled() == false)
+	{
+		Client_ApplyKnockback(KnockbackVelocity, KnockbackHeight);
+	}
+}
+
+// [OwnClient]
+void UJY_HitReactionComponent::Client_ApplyKnockback_Implementation(FVector_NetQuantize10 Velocity, float Height)
+{
+	ApplyKnockback(Velocity, Height);
+}
+
+// [Server] [OwnClient]
+void UJY_HitReactionComponent::ApplyKnockback(const FVector& Velocity, float Height)
+{
 	ACharacter* Character = GetOwner<ACharacter>();
 	UCharacterMovementComponent* MovementComponent = Character->GetCharacterMovement();
 
 	/* 연타로 다시 밀리면 이전 밀림을 새 방향으로 바꾼다 */
 	MovementComponent->RemoveRootMotionSourceByID(KnockbackRootMotionSourceID);
 
+	if (Height > 0.0f)
+	{
+		/* 엔진 점프 포물선 — 끝나면 속도 0으로 내려놓아 미끄러지지 않게 */
+		TSharedPtr<FRootMotionSource_JumpForce> LaunchForce = MakeShared<FRootMotionSource_JumpForce>();
+		LaunchForce->InstanceName = TEXT("Knockback");
+		LaunchForce->AccumulateMode = ERootMotionAccumulateMode::Override;
+		LaunchForce->Priority = 5;
+		LaunchForce->Rotation = Velocity.Rotation();
+		LaunchForce->Distance = Velocity.Size() * AirKnockbackDuration;
+		LaunchForce->Height = Height;
+		LaunchForce->Duration = AirKnockbackDuration;
+		LaunchForce->FinishVelocityParams.Mode = ERootMotionFinishVelocityMode::SetVelocity;
+		LaunchForce->FinishVelocityParams.SetVelocity = FVector::ZeroVector;
+		KnockbackRootMotionSourceID = MovementComponent->ApplyRootMotionSource(LaunchForce);
+		return;
+	}
+
 	TSharedPtr<FRootMotionSource_ConstantForce> KnockbackForce = MakeShared<FRootMotionSource_ConstantForce>();
 	KnockbackForce->InstanceName = TEXT("Knockback");
 	KnockbackForce->AccumulateMode = ERootMotionAccumulateMode::Override;
 	KnockbackForce->Priority = 5;
-	KnockbackForce->Force = KnockbackVelocity;
+	KnockbackForce->Force = Velocity;
 	KnockbackForce->Duration = KnockbackDuration;
 
 	/* 수직은 덮지 않는다 — 낭떠러지에선 중력대로 떨어진다 */

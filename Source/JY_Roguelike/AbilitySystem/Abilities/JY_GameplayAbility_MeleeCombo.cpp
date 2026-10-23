@@ -205,7 +205,8 @@ void UJY_GameplayAbility_MeleeCombo::OnHitEvent(FGameplayEventData Payload)
 	const FVector AvatarLocation = AvatarActor->GetActorLocation();
 	const FTransform HitOrigin(YawRotation, AvatarLocation);
 
-	ApplyHitInShape(Step.HitShape, HitOrigin, Step.Damage, Step.KnockbackSpeed, ActiveCombo->HitCueTag, Step.HitCameraShake);
+	const FVector ObjectPushDirection = GetMontageSwingDirection(SwingBoneName, SwingSampleSeconds);
+	ApplyHitInShape(Step.HitShape, HitOrigin, Step.Damage, Step.KnockbackSpeed, ActiveCombo->HitCueTag, Step.HitCameraShake, ObjectPushDirection);
 }
 
 void UJY_GameplayAbility_MeleeCombo::OnMontageFinished()

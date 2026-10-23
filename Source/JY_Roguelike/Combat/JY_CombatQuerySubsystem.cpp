@@ -185,7 +185,13 @@ void UJY_CombatQuerySubsystem::ApplyHit(const FJY_CombatTarget& Target, const FJ
 	IJY_HitReactable* HitReactable = JY_FindInterface<IJY_HitReactable>(TargetActor);
 	if (HitReactable != nullptr)
 	{
-		const FVector HitVelocity(Payload.KnockbackImpulse.X, Payload.KnockbackImpulse.Y, 0.0f);
+		FVector HitVelocity(Payload.KnockbackImpulse.X, Payload.KnockbackImpulse.Y, 0.0f);
+
+		/* 칼이 지나간 방향으로 날린다 — 세기는 그대로 두고 방향만 바꿈. 밀기 0인 타격은 크기 1을 넘겨 물체 최소 속도(UJY_HittableComponent::MinPushSpeed)를 쓰게 한다 */
+		if (Payload.ObjectPushDirection.IsNearlyZero() == false)
+		{
+			HitVelocity = Payload.ObjectPushDirection.GetSafeNormal2D() * FMath::Max(HitVelocity.Size(), 1.0f);
+		}
 		HitReactable->ReceiveHit(InstigatorActor, Payload.Damage, HitVelocity);
 		return;
 	}

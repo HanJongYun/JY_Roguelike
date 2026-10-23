@@ -75,6 +75,9 @@ struct FJY_HitPayload
 	/* 밀려나며 떠오르는 높이 (cm) — 0이면 바닥을 미끄러짐 */
 	float KnockbackHeight = 0.0f;
 
+	/* 부서지는 물체를 날리는 방향 (월드, 수평) — 0이면 공격자 → 물체 */
+	FVector ObjectPushDirection = FVector::ZeroVector;
+
 	/* 맞은 대상에 거는 상태이상 (화상·중독 등 기간형 GE, 비우면 없음) */
 	TSubclassOf<UGameplayEffect> StatusEffect;
 

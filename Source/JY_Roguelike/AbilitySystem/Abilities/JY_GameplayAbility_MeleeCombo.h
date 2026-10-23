@@ -63,6 +63,14 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "JY|Combo")
 	TObjectPtr<const UJY_MeleeComboData> AirCombo;
 
+	/* 휘두른 방향을 잴 뼈 — 부서지는 물체가 이 뼈가 움직인 방향으로 날아감 */
+	UPROPERTY(EditDefaultsOnly, Category = "JY|Combo")
+	FName SwingBoneName = TEXT("hand_r");
+
+	/* 타격 순간보다 이만큼 앞 시점과 비교해 휘두른 방향을 잰다 (초) */
+	UPROPERTY(EditDefaultsOnly, Category = "JY|Combo", Meta = (ClampMin = "0.01"))
+	float SwingSampleSeconds = 0.05f;
+
 private:
 	/* 이번 실행의 콤보 (첫 방향의 ApplicationTag로 결정) */
 	UPROPERTY()

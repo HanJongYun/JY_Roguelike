@@ -28,6 +28,9 @@ private:
 
 	void DestroyDebris();
 
+	/* 파편이 터지는 점 — 맞은 쪽 표면, 방향이 없으면 바닥 중심 */
+	FVector GetBurstCenter(const UPrimitiveComponent* Body, const FVector& PushVelocity) const;
+
 private:
 	/* 설정값 */
 

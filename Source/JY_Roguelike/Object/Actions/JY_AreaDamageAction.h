@@ -5,6 +5,8 @@
 #include "GameplayTagContainer.h"
 #include "JY_AreaDamageAction.generated.h"
 
+class UGameplayEffect;
+
 /* 범위 안 모두(플레이어·적, 팀 무관)에게 피해 — 한 번(폭발) 또는 상태에 있는 동안 반복(가시·화염·독구름·도끼) */
 UCLASS(meta = (DisplayName = "Area Damage"))
 class UJY_AreaDamageAction : public UJY_Action
@@ -53,6 +55,22 @@ private:
 	/* 맞은 캐릭터 피격 연출 (GCN_JY_Hit_*) — 비우면 연출 없음 */
 	UPROPERTY(EditAnywhere, Category = "JY|AreaDamage", Meta = (Categories = "GameplayCue"))
 	FGameplayTag HitCueTag;
+
+	/* 범위 안 대상에 거는 상태이상 (GE_JY_Burn·GE_JY_Poison 등 기간형 GE) — 비우면 없음. 다시 걸면 기간만 갱신 */
+	UPROPERTY(EditAnywhere, Category = "JY|AreaDamage|Status")
+	TSubclassOf<UGameplayEffect> StatusEffect;
+
+	/* 상태이상 한 틱 피해 */
+	UPROPERTY(EditAnywhere, Category = "JY|AreaDamage|Status", Meta = (ClampMin = "0.0", EditCondition = "StatusEffect != nullptr"))
+	float StatusTickDamage = 5.0f;
+
+	/* 중심 바깥으로 밀어내는 속도 (cm/s) — 0이면 안 밂 */
+	UPROPERTY(EditAnywhere, Category = "JY|AreaDamage|Knockback", Meta = (ClampMin = "0.0"))
+	float KnockbackSpeed = 0.0f;
+
+	/* 밀려나며 떠오르는 높이 (cm) — 0이면 바닥을 미끄러짐 */
+	UPROPERTY(EditAnywhere, Category = "JY|AreaDamage|Knockback", Meta = (ClampMin = "0.0"))
+	float KnockbackHeight = 0.0f;
 
 	/* 중심 부품의 Component Tags — 비우면 루트 (도끼는 Blade) */
 	UPROPERTY(EditAnywhere, Category = "JY|AreaDamage")

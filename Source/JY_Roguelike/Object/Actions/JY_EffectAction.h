@@ -28,6 +28,10 @@ private:
 	UPROPERTY(EditAnywhere, Category = "JY|Effect")
 	TObjectPtr<UNiagaraSystem> SpawnSystem;
 
+	/* 새로 재생하는 시스템 크기 — 폭발을 피해 반경에 맞춘다 (물체 배율과 곱함) */
+	UPROPERTY(EditAnywhere, Category = "JY|Effect", Meta = (EditCondition = "SpawnSystem != nullptr"))
+	FVector SpawnScale = FVector::OneVector;
+
 	/* 상태에서 나갈 때 새로 재생한 시스템도 끔 (반복 시스템: 독구름·점화 불꽃) */
 	UPROPERTY(EditAnywhere, Category = "JY|Effect", Meta = (EditCondition = "SpawnSystem != nullptr"))
 	bool bStopSpawnedOnExit = false;

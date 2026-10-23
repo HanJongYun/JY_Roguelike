@@ -74,6 +74,9 @@ void UJY_AreaDamageAction::ApplyDamage()
 	HitPayload.Damage = Damage;
 	HitPayload.HitCueTag = HitCueTag;
 	HitPayload.Instigator = InstigatorActor;
+	HitPayload.StatusEffect = StatusEffect;
+	HitPayload.StatusTickDamage = StatusTickDamage;
+	HitPayload.KnockbackHeight = KnockbackHeight;
 
 	/* 캡슐·메시가 둘 다 Pawn 채널이라 같은 액터가 여러 번 걸린다 */
 	TSet<const AActor*> CheckedActors;
@@ -91,6 +94,9 @@ void UJY_AreaDamageAction::ApplyDamage()
 
 		if (RehitSeconds > 0.0f && LastHitTime != nullptr && Now - *LastHitTime < RehitSeconds)
 			continue;
+
+		const FVector AwayFromCenter = (Actor->GetActorLocation() - Center).GetSafeNormal2D() * KnockbackSpeed;
+		HitPayload.KnockbackImpulse = FVector2f(AwayFromCenter.X, AwayFromCenter.Y);
 
 		/* 무적(대시)으로 못 맞았으면 기록하지 않는다 — 무적이 끝난 뒤 간격에 맞는다 */
 		const bool bDamaged = CombatQuery->ApplyEnvironmentDamage(Actor, HitPayload, Center);

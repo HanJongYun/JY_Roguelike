@@ -224,10 +224,23 @@ bool UJY_CombatQuerySubsystem::ApplyHitToCharacter(AActor* TargetActor, UJY_Abil
 	FGameplayEffectContextHandle EffectContext = SourceASC->MakeEffectContext();
 	EffectContext.AddOrigin(Origin);
 
-	const FGameplayEffectSpecHandle DamageSpecHandle = SourceASC->MakeOutgoingSpec(UJY_GameplayEffect_Damage::StaticClass(), 1.0f, EffectContext);
-	FGameplayEffectSpec* DamageSpec = DamageSpecHandle.Data.Get();
-	DamageSpec->SetSetByCallerMagnitude(JYGameplayTags::SetByCaller_Damage, Payload.Damage);
-	SourceASC->ApplyGameplayEffectSpecToTarget(*DamageSpec, TargetASC);
+	/* 화염 지대처럼 상태이상만 거는 범위는 즉시 피해가 0 */
+	if (Payload.Damage > 0.0f)
+	{
+		const FGameplayEffectSpecHandle DamageSpecHandle = SourceASC->MakeOutgoingSpec(UJY_GameplayEffect_Damage::StaticClass(), 1.0f, EffectContext);
+		FGameplayEffectSpec* DamageSpec = DamageSpecHandle.Data.Get();
+		DamageSpec->SetSetByCallerMagnitude(JYGameplayTags::SetByCaller_Damage, Payload.Damage);
+		SourceASC->ApplyGameplayEffectSpecToTarget(*DamageSpec, TargetASC);
+	}
+
+	/* 상태이상 GE가 기간·틱 간격·몸에 붙는 큐를 정한다 — 피해 방식이 늘면 GE 에셋만 추가 */
+	if (Payload.StatusEffect != nullptr)
+	{
+		const FGameplayEffectSpecHandle StatusSpecHandle = SourceASC->MakeOutgoingSpec(Payload.StatusEffect, 1.0f, EffectContext);
+		FGameplayEffectSpec* StatusSpec = StatusSpecHandle.Data.Get();
+		StatusSpec->SetSetByCallerMagnitude(JYGameplayTags::SetByCaller_Damage, Payload.StatusTickDamage);
+		SourceASC->ApplyGameplayEffectSpecToTarget(*StatusSpec, TargetASC);
+	}
 
 	UJY_HitReactionComponent* HitReaction = TargetActor->FindComponentByClass<UJY_HitReactionComponent>();
 	if (HitReaction != nullptr && (Payload.KnockbackImpulse.IsNearlyZero() == false || Payload.KnockbackHeight > 0.0f))

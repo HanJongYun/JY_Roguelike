@@ -21,7 +21,8 @@ void UJY_EffectAction::OnClientEnter(AJY_Object* Object, bool bCatchUp) //overri
 		return;
 
 	/* 시스템이 컬링되면 nullptr */
-	SpawnedEffect = UNiagaraFunctionLibrary::SpawnSystemAtLocation(Object, SpawnSystem, Object->GetActorLocation());
+	const FVector EffectScale = SpawnScale * Object->GetActorScale3D();
+	SpawnedEffect = UNiagaraFunctionLibrary::SpawnSystemAtLocation(Object, SpawnSystem, Object->GetActorLocation(), Object->GetActorRotation(), EffectScale);
 }
 
 // [Client]

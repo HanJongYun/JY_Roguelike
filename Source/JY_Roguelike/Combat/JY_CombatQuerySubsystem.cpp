@@ -83,17 +83,17 @@ bool UJY_CombatQuerySubsystem::DoesSupportWorldType(const EWorldType::Type World
 
 // [Server] [OwnClient]
 /*
- * 넓은 구 겹침으로 후보를 모으고 수평 2D 모양으로 거른다 — 칼 궤적 대신 모양이라 Mass 적에도 같은 판정을 쓴다
- * 조종 클라는 연출(화면 흔들림)용으로만 부른다
+ * 넓은 구 겹침으로 후보를 모으고 높이·수평 2D 모양으로 거른다 — 칼 궤적 대신 모양이라 Mass 적에도 같은 판정을 쓴다.
+ * 함정·폭발·공격이 모두 여기를 거쳐, Mass 적 후보를 더할 곳이 여기 하나다
  */
-void UJY_CombatQuerySubsystem::FindTargets(const FJY_HitShape& Shape, const FTransform& Origin, const AActor* Attacker, TArray<FJY_CombatTarget>& OutTargets) const
+void UJY_CombatQuerySubsystem::FindActorsInShape(const FJY_HitShape& Shape, const FTransform& Origin, const AActor* IgnoreActor, const FCollisionObjectQueryParams& ObjectQueryParams, TArray<AActor*>& OutActors) const
 {
 	const UWorld* World = GetWorld();
 	const FVector LocalOffset(Shape.Offset.X, Shape.Offset.Y, 0.0f);
 	const FVector Center = Origin.TransformPosition(LocalOffset);
 	const FVector Forward = Origin.GetUnitAxis(EAxis::X);
 
-	/* 상자는 공격자 앞으로 뻗으므로 중심에서 가장 먼 모서리까지 */
+	/* 상자는 중심에서 앞으로 뻗으므로 중심에서 가장 먼 모서리까지 */
 	float QueryRadius = Shape.Radius;
 	if (Shape.Type == EJY_HitShapeType::Box)
 	{
@@ -101,10 +101,7 @@ void UJY_CombatQuerySubsystem::FindTargets(const FJY_HitShape& Shape, const FTra
 		QueryRadius = FarCorner.Size();
 	}
 
-	/* 맞으면 발동하는 물체(IJY_HitReactable — 항아리 등)는 WorldDynamic */
-	FCollisionObjectQueryParams ObjectQueryParams(ECC_Pawn);
-	ObjectQueryParams.AddObjectTypesToQuery(ECC_WorldDynamic);
-	const FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(JY_FindTargets), false, Attacker);
+	const FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(JY_FindActorsInShape), false, IgnoreActor);
 	const FCollisionShape QuerySphere = FCollisionShape::MakeSphere(QueryRadius);
 	TArray<FOverlapResult> Overlaps;
 	World->OverlapMultiByObjectType(OUT Overlaps, Center, FQuat::Identity, ObjectQueryParams, QuerySphere, QueryParams);
@@ -119,11 +116,30 @@ void UJY_CombatQuerySubsystem::FindTargets(const FJY_HitShape& Shape, const FTra
 		if (bAlreadyChecked == true)
 			continue;
 
+		if (JY_CombatQuery::IsActorInsideShape(Shape, Center, Forward, Actor) == false)
+			continue;
+
+		OutActors.Add(Actor);
+	}
+}
+
+// [Server] [OwnClient]
+/* 조종 클라는 연출(화면 흔들림)용으로만 부른다 */
+void UJY_CombatQuerySubsystem::FindTargets(const FJY_HitShape& Shape, const FTransform& Origin, const AActor* Attacker, TArray<FJY_CombatTarget>& OutTargets) const
+{
+	/* 맞으면 발동하는 물체(IJY_HitReactable — 항아리 등)는 WorldDynamic */
+	FCollisionObjectQueryParams ObjectQueryParams(ECC_Pawn);
+	ObjectQueryParams.AddObjectTypesToQuery(ECC_WorldDynamic);
+	TArray<AActor*> ActorsInShape;
+	FindActorsInShape(Shape, Origin, Attacker, ObjectQueryParams, OUT ActorsInShape);
+
+	for (AActor* Actor : ActorsInShape)
+	{
 		/* 맞으면 발동하는 물체는 팀·체력 없이 모양만 본다 — 적 공격도 부순다 */
 		const IJY_HitReactable* HitReactable = JY_FindInterface<IJY_HitReactable>(Actor);
 		if (HitReactable != nullptr)
 		{
-			if (HitReactable->CanReceiveHit() == true && JY_CombatQuery::IsActorInsideShape(Shape, Center, Forward, Actor) == true)
+			if (HitReactable->CanReceiveHit() == true)
 			{
 				FJY_CombatTarget& Target = OutTargets.AddDefaulted_GetRef();
 				Target.Actor = Actor;
@@ -143,9 +159,6 @@ void UJY_CombatQuerySubsystem::FindTargets(const FJY_HitShape& Shape, const FTra
 		if (TargetASC->HasMatchingGameplayTag(JYGameplayTags::Status_Death) == true)
 			continue;
 
-		if (JY_CombatQuery::IsActorInsideShape(Shape, Center, Forward, Actor) == false)
-			continue;
-
 		FJY_CombatTarget& Target = OutTargets.AddDefaulted_GetRef();
 		Target.Actor = Actor;
 		Target.Location = Actor->GetActorLocation();
@@ -154,7 +167,7 @@ void UJY_CombatQuerySubsystem::FindTargets(const FJY_HitShape& Shape, const FTra
 	if (JY_CombatQuery::CVarDrawHitShapes.GetValueOnGameThread() != 0)
 	{
 		const bool bHitAny = OutTargets.Num() > 0;
-		DrawHitShape(World, Shape, Origin, bHitAny);
+		DrawHitShape(GetWorld(), Shape, Origin, bHitAny);
 	}
 }
 
@@ -266,10 +279,9 @@ bool UJY_CombatQuerySubsystem::ApplyHitToCharacter(AActor* TargetActor, UJY_Abil
 	return true;
 }
 
-void UJY_CombatQuerySubsystem::DrawHitShape(const UWorld* World, const FJY_HitShape& Shape, const FTransform& Origin, bool bHitAny)
+void UJY_CombatQuerySubsystem::DrawHitShape(const UWorld* World, const FJY_HitShape& Shape, const FTransform& Origin, bool bHitAny, float DrawSeconds)
 {
 	const FColor ShapeColor = bHitAny == true ? FColor::Red : FColor::Green;
-	const float DrawSeconds = 1.0f;
 	const FVector LocalOffset(Shape.Offset.X, Shape.Offset.Y, 0.0f);
 	const FVector Center = Origin.TransformPosition(LocalOffset);
 	const FVector Forward = Origin.GetUnitAxis(EAxis::X);

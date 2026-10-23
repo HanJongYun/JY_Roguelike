@@ -5,6 +5,8 @@
 #include "Combat/JY_CombatTypes.h"
 #include "JY_CombatQuerySubsystem.generated.h"
 
+struct FCollisionObjectQueryParams;
+
 class UJY_AbilitySystemComponent;
 
 /* 전투 판정 창구 — 모양 안 대상 찾기·피해 적용 */
@@ -17,6 +19,9 @@ protected:
 	virtual bool DoesSupportWorldType(const EWorldType::Type WorldType) const override;
 
 public:
+	/* 모양 안 액터 모으기 (팀 무관) — 주어진 채널 후보 중 높이 허용치·2D 모양에 걸치는 것 */
+	void FindActorsInShape(const FJY_HitShape& Shape, const FTransform& Origin, const AActor* IgnoreActor, const FCollisionObjectQueryParams& ObjectQueryParams, TArray<AActor*>& OutActors) const;
+
 	/* 모양 안의 적대 대상 모으기. Origin = 공격자 위치 + 수평 방향 */
 	void FindTargets(const FJY_HitShape& Shape, const FTransform& Origin, const AActor* Attacker, TArray<FJY_CombatTarget>& OutTargets) const;
 
@@ -27,7 +32,7 @@ public:
 	bool ApplyEnvironmentDamage(AActor* TargetActor, const FJY_HitPayload& Payload, const FVector& Origin) const;
 
 	/* 판정 모양 그리기 (콘솔 jy.Combat.DrawHitShapes 1) */
-	static void DrawHitShape(const UWorld* World, const FJY_HitShape& Shape, const FTransform& Origin, bool bHitAny);
+	static void DrawHitShape(const UWorld* World, const FJY_HitShape& Shape, const FTransform& Origin, bool bHitAny, float DrawSeconds = 1.0f);
 
 private:
 	/* [Server] 체력 있는 대상에 피해 GE·밀어내기·피격 큐. Origin = 때린 위치 (맞은 방향 계산). 죽는 중·무적이면 false */

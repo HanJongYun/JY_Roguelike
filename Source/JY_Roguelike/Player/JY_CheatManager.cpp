@@ -208,6 +208,17 @@ void UJY_CheatManager::JYHitReact(const FString& Direction, const FString& CueNa
 	CombatQuery->ApplyEnvironmentDamage(Pawn, HitPayload, Origin);
 }
 
+/* 그림은 각 기기 화면에만 보여 내 쪽(클라)에서 켠다 */
+// [OwnClient]
+void UJY_CheatManager::JYShowRanges()
+{
+	IConsoleVariable* ShowRangesVariable = IConsoleManager::Get().FindConsoleVariable(TEXT("jy.Debug.ShowRanges"));
+	IConsoleVariable* DrawHitShapesVariable = IConsoleManager::Get().FindConsoleVariable(TEXT("jy.Combat.DrawHitShapes"));
+	const bool bShow = ShowRangesVariable->GetInt() == 0;
+	ShowRangesVariable->Set(bShow == true ? 1 : 0, ECVF_SetByConsole);
+	DrawHitShapesVariable->Set(bShow == true ? 1 : 0, ECVF_SetByConsole);
+}
+
 // [Server]
 void UJY_CheatManager::JYUnlimitedHealth(bool bEnable)
 {

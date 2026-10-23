@@ -49,6 +49,10 @@ public:
 	UFUNCTION(Exec, BlueprintAuthorityOnly)
 	void JYHitReact(const FString& Direction, const FString& CueName);
 
+	/* 피해 범위 보이기 켜기·끄기 — 내 공격 판정(jy.Combat.DrawHitShapes)·함정 범위(jy.Debug.ShowRanges) */
+	UFUNCTION(Exec)
+	void JYShowRanges();
+
 	/* 안 죽기 켜기·끄기 (예: JYUnlimitedHealth 0) — 기본 켜짐 */
 	UFUNCTION(Exec, BlueprintAuthorityOnly)
 	void JYUnlimitedHealth(bool bEnable);

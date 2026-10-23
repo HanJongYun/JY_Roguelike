@@ -4,11 +4,43 @@
 #include "Interfaces/JY_HitReactable.h"
 #include "Interfaces/JY_InterfaceUtils.h"
 #include "Components/SceneComponent.h"
-#include "Engine/OverlapResult.h"
+#include "HAL/IConsoleManager.h"
 #include "Engine/World.h"
 #include "TimerManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(JY_AreaDamageAction)
+
+namespace JY_AreaDamage
+{
+	static TAutoConsoleVariable<int32> CVarShowRanges(TEXT("jy.Debug.ShowRanges"), 0, TEXT("1이면 함정·폭발 피해 범위를 그린다 (클라)"));
+
+	/* 범위 그리기 갱신 간격 (초) */
+	static constexpr float DebugDrawInterval = 0.1f;
+}
+
+// [Server] [Client]
+void UJY_AreaDamageAction::Initialize(AJY_Object* Object) //override
+{
+	OwnerObject = Object;
+
+#if !UE_BUILD_SHIPPING
+	/* 시험용 — 데디 서버 그림은 클라 화면에 안 보여 클라에서 그린다. 출시 빌드에선 빠진다 */
+	if (Object->IsNetMode(NM_DedicatedServer) == false)
+	{
+		GetWorld()->GetTimerManager().SetTimer(DebugDrawTimerHandle, this, &ThisClass::DrawDebugRange, JY_AreaDamage::DebugDrawInterval, true);
+	}
+#endif
+}
+
+// [Client]
+/* 도끼처럼 중심 부품이 움직여도 따라가게 매번 다시 그린다. 실제로는 대상 캡슐 반지름만큼 더 멀리서 맞는다 */
+void UJY_AreaDamageAction::DrawDebugRange() const
+{
+	if (JY_AreaDamage::CVarShowRanges.GetValueOnGameThread() == 0 || OwnerObject.IsValid() == false)
+		return;
+
+	UJY_CombatQuerySubsystem::DrawHitShape(GetWorld(), GetScaledHitShape(), GetHitOrigin(), false, JY_AreaDamage::DebugDrawInterval * 1.5f);
+}
 
 // [Server]
 void UJY_AreaDamageAction::OnServerEnter(AJY_Object* Object) //override
@@ -38,12 +70,24 @@ FVector UJY_AreaDamageAction::GetCenter() const
 	return CenterPart->GetComponentTransform().TransformPosition(CenterOffset);
 }
 
-/* 판은 가로로 놓여 있어 가로(X·Y) 배율 중 큰 쪽을 따른다 — 엔진 구 콜리전도 배율을 곱한다 (SphereComponent.h:71) */
-float UJY_AreaDamageAction::GetScaledRadius() const
+/* 판은 가로로 놓여 있어 가로(X·Y) 배율 중 큰 쪽을 따른다 — 엔진 콜리전도 배율을 곱한다 (SphereComponent.h:71). 높이는 그대로 */
+FJY_HitShape UJY_AreaDamageAction::GetScaledHitShape() const
 {
 	const FVector ActorScale = OwnerObject->GetActorScale3D();
 	const float HorizontalScale = FMath::Max(FMath::Abs(ActorScale.X), FMath::Abs(ActorScale.Y));
-	return Radius * HorizontalScale;
+
+	FJY_HitShape ScaledShape = HitShape;
+	ScaledShape.Offset *= HorizontalScale;
+	ScaledShape.Radius *= HorizontalScale;
+	ScaledShape.Length *= HorizontalScale;
+	ScaledShape.Width *= HorizontalScale;
+	return ScaledShape;
+}
+
+FTransform UJY_AreaDamageAction::GetHitOrigin() const
+{
+	const FRotator YawRotation(0.0f, OwnerObject->GetActorRotation().Yaw, 0.0f);
+	return FTransform(YawRotation, GetCenter());
 }
 
 /*
@@ -59,15 +103,13 @@ void UJY_AreaDamageAction::ApplyDamage()
 
 	UWorld* World = GetWorld();
 	const FVector Center = GetCenter();
+	const FTransform HitOrigin = GetHitOrigin();
+	const FJY_HitShape ScaledShape = GetScaledHitShape();
 	AActor* InstigatorActor = Object->GetActivationInstigator();
 
-	const FCollisionObjectQueryParams ObjectQueryParams(ECC_Pawn);
-	const FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(JY_AreaDamage), false, Object);
-	const FCollisionShape QuerySphere = FCollisionShape::MakeSphere(GetScaledRadius());
-	TArray<FOverlapResult> Overlaps;
-	World->OverlapMultiByObjectType(OUT Overlaps, Center, FQuat::Identity, ObjectQueryParams, QuerySphere, QueryParams);
-
 	const UJY_CombatQuerySubsystem* CombatQuery = World->GetSubsystem<UJY_CombatQuerySubsystem>();
+	TArray<AActor*> ActorsInShape;
+	CombatQuery->FindActorsInShape(ScaledShape, HitOrigin, Object, FCollisionObjectQueryParams(ECC_Pawn), OUT ActorsInShape);
 	const double Now = World->GetTimeSeconds();
 
 	FJY_HitPayload HitPayload;
@@ -78,16 +120,8 @@ void UJY_AreaDamageAction::ApplyDamage()
 	HitPayload.StatusTickDamage = StatusTickDamage;
 	HitPayload.KnockbackHeight = KnockbackHeight;
 
-	/* 캡슐·메시가 둘 다 Pawn 채널이라 같은 액터가 여러 번 걸린다 */
-	TSet<const AActor*> CheckedActors;
-	for (const FOverlapResult& Overlap : Overlaps)
+	for (AActor* Actor : ActorsInShape)
 	{
-		AActor* Actor = Overlap.GetActor();
-		bool bAlreadyChecked = false;
-		CheckedActors.Add(Actor, &bAlreadyChecked);
-		if (bAlreadyChecked == true)
-			continue;
-
 		const double* LastHitTime = LastHitTimes.Find(Actor);
 		if (bHitEachTargetOnce == true && LastHitTime != nullptr)
 			continue;
@@ -108,30 +142,21 @@ void UJY_AreaDamageAction::ApplyDamage()
 
 	if (bHitObjects == true)
 	{
-		HitObjects(Center);
+		HitObjects(ScaledShape, HitOrigin, Center);
 	}
 }
 
 /* 폭발 통끼리는 점화 시간(ActivationDelay)만큼 차례로 터진다 */
 // [Server]
-void UJY_AreaDamageAction::HitObjects(const FVector& Center) const
+void UJY_AreaDamageAction::HitObjects(const FJY_HitShape& Shape, const FTransform& HitOrigin, const FVector& Center) const
 {
 	AJY_Object* Object = OwnerObject.Get();
-	const FCollisionObjectQueryParams ObjectQueryParams(ECC_WorldDynamic);
-	const FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(JY_AreaDamageObjects), false, Object);
-	const FCollisionShape QuerySphere = FCollisionShape::MakeSphere(GetScaledRadius());
-	TArray<FOverlapResult> Overlaps;
-	GetWorld()->OverlapMultiByObjectType(OUT Overlaps, Center, FQuat::Identity, ObjectQueryParams, QuerySphere, QueryParams);
+	const UJY_CombatQuerySubsystem* CombatQuery = GetWorld()->GetSubsystem<UJY_CombatQuerySubsystem>();
+	TArray<AActor*> ObjectsInShape;
+	CombatQuery->FindActorsInShape(Shape, HitOrigin, Object, FCollisionObjectQueryParams(ECC_WorldDynamic), OUT ObjectsInShape);
 
-	TSet<const AActor*> CheckedActors;
-	for (const FOverlapResult& Overlap : Overlaps)
+	for (AActor* Actor : ObjectsInShape)
 	{
-		AActor* Actor = Overlap.GetActor();
-		bool bAlreadyChecked = false;
-		CheckedActors.Add(Actor, &bAlreadyChecked);
-		if (bAlreadyChecked == true)
-			continue;
-
 		IJY_HitReactable* HitReactable = JY_FindInterface<IJY_HitReactable>(Actor);
 		if (HitReactable == nullptr || HitReactable->CanReceiveHit() == false)
 			continue;

@@ -1,22 +1,20 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "AbilitySystem/Abilities/JY_GameplayAbility.h"
+#include "AbilitySystem/Abilities/JY_GameplayAbility_Attack.h"
 #include "JY_GameplayAbility_MeleeCombo.generated.h"
 
 class UJY_MeleeComboData;
+class UJY_AbilityTask_WaitDirection;
 
-/* 기본 공격 — 지상·공중 콤보. 타 입력 섹션 안에서 누르면 분기 시점에 커서 방향으로 다음 타, 피해는 서버. 데이터는 GA_JY_MeleeCombo */
+/* 기본 공격 — 지상·공중 콤보. 입력 구간에 누르면 커서 방향으로 다음 타 */
 UCLASS(Abstract)
-class UJY_GameplayAbility_MeleeCombo : public UJY_GameplayAbility
+class UJY_GameplayAbility_MeleeCombo : public UJY_GameplayAbility_Attack
 {
 	GENERATED_BODY()
 
 public:
 	UJY_GameplayAbility_MeleeCombo(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-
-public:
-	virtual bool CanActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayTagContainer* SourceTags = nullptr, const FGameplayTagContainer* TargetTags = nullptr, FGameplayTagContainer* OptionalRelevantTags = nullptr) const override;
 
 protected:
 	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
@@ -25,7 +23,8 @@ protected:
 
 private:
 	/* 방향 도착 — 첫 도착은 콤보 시작, 이후는 다음 타 방향 저장 */
-	void OnDirectionReceived(const FGameplayAbilityTargetDataHandle& DirectionDataHandle, FGameplayTag ApplicationTag);
+	UFUNCTION()
+	void OnDirectionReceived(const FVector& Direction, FGameplayTag ApplicationTag);
 
 	/* 지금 몽타주 섹션의 타 번호 (Recover 섹션이면 INDEX_NONE) */
 	int32 GetCurrentStepIndex() const;
@@ -37,12 +36,6 @@ private:
 	/* 타격 시점 — 판정·피해 */
 	UFUNCTION()
 	void OnHitEvent(FGameplayEventData Payload);
-
-	UFUNCTION()
-	void OnMontageFinished();
-
-	UFUNCTION()
-	void OnMontageInterrupted();
 
 	/* 후딜레이 중 이동 입력이면 끝내기 */
 	UFUNCTION()
@@ -63,13 +56,22 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "JY|Combo")
 	TObjectPtr<const UJY_MeleeComboData> AirCombo;
 
+	/* 휘두른 방향을 잴 뼈 — 부서지는 물체가 이 뼈가 움직인 방향으로 날아감 */
+	UPROPERTY(EditDefaultsOnly, Category = "JY|Combo")
+	FName SwingBoneName = TEXT("hand_r");
+
+	/* 타격 순간보다 이만큼 앞 시점과 비교해 휘두른 방향을 잰다 (초) */
+	UPROPERTY(EditDefaultsOnly, Category = "JY|Combo", Meta = (ClampMin = "0.01"))
+	float SwingSampleSeconds = 0.05f;
+
 private:
 	/* 이번 실행의 콤보 (첫 방향의 ApplicationTag로 결정) */
 	UPROPERTY()
 	TObjectPtr<const UJY_MeleeComboData> ActiveCombo;
 
-	/* 서버가 방향을 받는 구독 (실행 내내 유지) */
-	FDelegateHandle DirectionDelegateHandle;
+	/* 방향 주고받기 (실행 내내 유지 — 다음 타 방향도 이 태스크로) */
+	UPROPERTY()
+	TObjectPtr<UJY_AbilityTask_WaitDirection> DirectionTask;
 
 	/* 다음 타 시작 때 바라볼 방향 (가장 최근 요청, 없으면 0) */
 	FVector NextStepDirection = FVector::ZeroVector;

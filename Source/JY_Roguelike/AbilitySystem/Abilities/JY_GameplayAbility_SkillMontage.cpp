@@ -1,19 +1,18 @@
 #include "AbilitySystem/Abilities/JY_GameplayAbility_SkillMontage.h"
 #include "AbilitySystem/JY_AbilitySystemComponent.h"
+#include "AbilitySystem/Tasks/JY_AbilityTask_WaitDirection.h"
 #include "System/JY_GameplayTags.h"
-#include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(JY_GameplayAbility_SkillMontage)
 
 // [Server] [OwnClient]
-/* 대시·기본 공격과 같은 구조 — 조종 클라가 커서 방향을 TargetData로 보내고 서버는 도착하면 시작 */
+/* 조종 클라가 커서 방향을 보내고 서버는 도착하면 시작 */
 void UJY_GameplayAbility_SkillMontage::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) //override
 {
-	UJY_AbilitySystemComponent* JYASC = GetJYAbilitySystemComponentFromActorInfo();
-	const FPredictionKey ActivationPredictionKey = ActivationInfo.GetActivationPredictionKey();
-	FAbilityTargetDataSetDelegate& DirectionDelegate = JYASC->AbilityTargetDataSetDelegate(Handle, ActivationPredictionKey);
-	DirectionDelegateHandle = DirectionDelegate.AddUObject(this, &ThisClass::OnDirectionReceived);
+	UJY_AbilityTask_WaitDirection* DirectionTask = UJY_AbilityTask_WaitDirection::WaitDirection(this, false);
+	DirectionTask->OnDirection.AddDynamic(this, &ThisClass::OnDirectionReceived);
+	DirectionTask->ReadyForActivation();
 
 	UAbilityTask_WaitGameplayEvent* HitTask = UAbilityTask_WaitGameplayEvent::WaitGameplayEvent(this, JYGameplayTags::Event_Skill_Hit, nullptr, false);
 	HitTask->EventReceived.AddDynamic(this, &ThisClass::OnHitEvent);
@@ -24,29 +23,17 @@ void UJY_GameplayAbility_SkillMontage::ActivateAbility(const FGameplayAbilitySpe
 
 	StartMoveCancelListener();
 
+	UJY_AbilitySystemComponent* JYASC = GetJYAbilitySystemComponentFromActorInfo();
+	const FPredictionKey ActivationPredictionKey = ActivationInfo.GetActivationPredictionKey();
 	FScopedPredictionWindow ScopedPrediction(JYASC, ActivationPredictionKey);
 
 	const FVector Direction = ComputeCursorDirection();
-	const FGameplayAbilityTargetDataHandle DirectionDataHandle = MakeDirectionTargetData(Direction);
-	SendTargetDataToServer(DirectionDataHandle, FGameplayTag());
-	OnDirectionReceived(DirectionDataHandle, FGameplayTag());
+	DirectionTask->SendDirection(Direction, FGameplayTag());
 }
 
 // [Server] [OwnClient]
-void UJY_GameplayAbility_SkillMontage::OnDirectionReceived(const FGameplayAbilityTargetDataHandle& DirectionDataHandle, FGameplayTag ApplicationTag)
+void UJY_GameplayAbility_SkillMontage::OnDirectionReceived(const FVector& Direction, FGameplayTag ApplicationTag)
 {
-	UJY_AbilitySystemComponent* JYASC = GetJYAbilitySystemComponentFromActorInfo();
-	const FPredictionKey ActivationPredictionKey = CurrentActivationInfo.GetActivationPredictionKey();
-
-	/* 첫 방향만 받는다 — 같은 키로 두 번 오면(변조 클라) 비용이 두 번 나간다 */
-	FAbilityTargetDataSetDelegate& DirectionDelegate = JYASC->AbilityTargetDataSetDelegate(CurrentSpecHandle, ActivationPredictionKey);
-	DirectionDelegate.Remove(DirectionDelegateHandle);
-
-	/* 아래 Consume이 ASC 저장본을 지우므로 복사 */
-	const FGameplayAbilityTargetDataHandle LocalDataHandle = DirectionDataHandle;
-	JYASC->ConsumeClientReplicatedTargetData(CurrentSpecHandle, ActivationPredictionKey);
-
-	const FVector Direction = GetDirectionFromTargetData(LocalDataHandle);
 	if (Direction.IsNearlyZero() == true)
 	{
 		EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
@@ -70,12 +57,7 @@ void UJY_GameplayAbility_SkillMontage::OnDirectionReceived(const FGameplayAbilit
 	HitEventIndex = 0;
 	OnSkillStarted();
 
-	UAbilityTask_PlayMontageAndWait* MontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(this, NAME_None, Montage, PlayRate, StartSectionName, true);
-	MontageTask->OnCompleted.AddDynamic(this, &ThisClass::OnMontageFinished);
-	MontageTask->OnBlendOut.AddDynamic(this, &ThisClass::OnMontageFinished);
-	MontageTask->OnInterrupted.AddDynamic(this, &ThisClass::OnMontageInterrupted);
-	MontageTask->OnCancelled.AddDynamic(this, &ThisClass::OnMontageInterrupted);
-	MontageTask->ReadyForActivation();
+	PlayMontageUntilEnd(Montage, PlayRate, StartSectionName);
 }
 
 void UJY_GameplayAbility_SkillMontage::OnSkillStarted()
@@ -102,27 +84,4 @@ void UJY_GameplayAbility_SkillMontage::OnHitEvent(FGameplayEventData Payload)
 	const FJY_HitShape ScaledShape = ScaleHitShape(EventShape, Stats.RadiusScale);
 	const float ScaledDamage = Damage * Stats.DamageScale;
 	ApplyHitInShape(ScaledShape, HitOrigin, ScaledDamage, KnockbackSpeed, HitCueTag, HitCameraShake);
-}
-
-void UJY_GameplayAbility_SkillMontage::OnMontageFinished()
-{
-	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
-}
-
-void UJY_GameplayAbility_SkillMontage::OnMontageInterrupted()
-{
-	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
-}
-
-void UJY_GameplayAbility_SkillMontage::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) //override
-{
-	UJY_AbilitySystemComponent* JYASC = GetJYAbilitySystemComponentFromActorInfo();
-	const FPredictionKey ActivationPredictionKey = ActivationInfo.GetActivationPredictionKey();
-
-	/* 방향 구독·저장본 정리 (대시 EndAbility와 같음) */
-	FAbilityTargetDataSetDelegate& DirectionDelegate = JYASC->AbilityTargetDataSetDelegate(Handle, ActivationPredictionKey);
-	DirectionDelegate.Remove(DirectionDelegateHandle);
-	JYASC->ConsumeClientReplicatedTargetData(Handle, ActivationPredictionKey);
-
-	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }

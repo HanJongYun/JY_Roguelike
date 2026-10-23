@@ -5,10 +5,7 @@
 
 DEFINE_LOG_CATEGORY(LogJY);
 
-/*
- * Lyra GetClientServerContextString(LyraLogChannels.cpp)은 Server/Client 두 가지만 구분.
- * 여기선 소유 클라와 남의 클라를 나눠야 해서 역할을 한 단계 더 쪼갠다.
- */
+/* Lyra는 Server/Client만 나눈다 — 소유 클라와 남의 클라를 구분하려고 한 단계 더 쪼갠다 */
 const TCHAR* JY_GetNetRoleTag(const AActor* Actor)
 {
 	if (Actor == nullptr)

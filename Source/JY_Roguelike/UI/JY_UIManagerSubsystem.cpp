@@ -21,22 +21,14 @@ void UJY_UIManagerSubsystem::Deinitialize() //override
 	Super::Deinitialize();
 }
 
-/*
- * 엔진이 로컬 플레이어에 새 PC를 붙일 때마다 부른다 (LocalPlayer.cpp:749 ReceivedPlayerController).
- * 데디 서버에는 로컬 플레이어가 없어 이 서브시스템 자체가 없다 → 클라에서만 실행.
- * 맵 이동 뒤: 위젯 Outer가 GameInstance라 옛 틀 포인터가 살아 있다(UserWidget.cpp:2753) → 지우고 새 PC로 다시 만든다.
- * 심리스 이동도 서버가 도착 맵에서 PC를 새로 만든다 → 클라에 새 PC가 오면 여기가 불린다 (NetConnection.cpp:5213 HandleClientPlayer).
- */
+/* 맵 이동(심리스 포함) 뒤 새 PC가 오면 불린다 — 옛 틀은 Outer가 GameInstance라 살아 있어 지우고 다시 만든다 (UserWidget.cpp:2753) */
 // [OwnClient]
 void UJY_UIManagerSubsystem::PlayerControllerChanged(APlayerController* NewPlayerController) //override
 {
 	Super::PlayerControllerChanged(NewPlayerController);
 
-	/*
-	 * 같은 PC로 두 번 알림이 와도(SetPlayer·ReceivedPlayer, Player.cpp:174 / PlayerController.cpp:954) 다시 만들지 않는다.
-	 * 위젯의 GetOwningPlayer와 비교하면 안 된다 — 옛 월드가 사라지면 로컬 플레이어의 새 PC를 돌려줘(LocalPlayer.cpp:151)
-	 * 새 맵에서 틀을 다시 만들지 않는다 (예: 포털로 던전에 가면 HUD가 없음)
-	 */
+	/* 같은 PC로 두 번 와도 다시 만들지 않음 — 위젯의 GetOwningPlayer와 비교하면 안 된다:
+	   옛 월드가 사라지면 새 PC를 돌려줘 새 맵에서 틀이 안 만들어진다 (LocalPlayer.cpp:151) */
 	if (PrimaryLayout != nullptr && LayoutOwner.Get() == NewPlayerController)
 		return;
 
@@ -48,10 +40,7 @@ void UJY_UIManagerSubsystem::PlayerControllerChanged(APlayerController* NewPlaye
 	CreatePrimaryLayout(NewPlayerController);
 }
 
-/*
- * ZOrder 1000 — 옛 경로로 붙는 위젯(ZOrder 0)보다 위. 틀 자체는 투명하고 클릭을 통과시킨다.
- * 클래스는 Soft 참조라 여기서 처음 로드된다. 틀은 플레이어당 1개·맵당 1회라 동기 로드로 충분.
- */
+/* ZOrder 1000 — 기본 ZOrder 0으로 붙는 위젯보다 위. 틀은 맵당 1회라 동기 로드로 충분 */
 // [OwnClient]
 void UJY_UIManagerSubsystem::CreatePrimaryLayout(APlayerController* PC)
 {
@@ -74,10 +63,7 @@ void UJY_UIManagerSubsystem::CreatePrimaryLayout(APlayerController* PC)
 	PushHUD(PC, *GameData);
 }
 
-/*
- * 층 스택에 넣으면 스택이 위젯을 만들고(또는 풀에서 꺼내고) → InitFunc → 켠다(Activate) (CommonActivatableWidgetContainer.cpp:191~196).
- * 켜질 때 화면의 GetDesiredInputConfig로 입력 모드가 바뀐다.
- */
+/* 스택이 위젯 생성(또는 풀 재사용) → InitFunc → Activate 순으로 부른다 (CommonActivatableWidgetContainer.cpp:191) */
 // [OwnClient]
 UJY_ScreenWidget* UJY_UIManagerSubsystem::PushScreen(FGameplayTag LayerTag, TSubclassOf<UJY_ScreenWidget> ScreenClass, TFunctionRef<void(UJY_ScreenWidget&)> InitFunc)
 {
@@ -91,10 +77,7 @@ UJY_ScreenWidget* UJY_UIManagerSubsystem::PushScreen(FGameplayTag LayerTag, TSub
 	return Layer->AddWidget<UJY_ScreenWidget>(ScreenClass, InitFunc);
 }
 
-/*
- * 팝업 클래스는 GameData에서 — 팝업 모양을 바꿔도 부르는 쪽(종료·환불·포털 등)은 제목·본문·결과 함수만 넘긴다.
- * 글자·결과 함수는 InitFunc로 켜지기 전에 채운다 — 풀에서 재사용한 팝업이 이전 글자·결과 함수를 가진 채 켜지지 않는다.
- */
+/* 글자·결과 함수는 InitFunc로 켜지기 전에 채운다 — 풀에서 재사용한 팝업이 이전 값으로 켜지지 않게 */
 // [OwnClient]
 void UJY_UIManagerSubsystem::ShowConfirm(const FText& Title, const FText& Body, FJY_OnConfirmResult OnResult)
 {
@@ -114,11 +97,8 @@ void UJY_UIManagerSubsystem::ShowConfirm(const FText& Title, const FText& Body, 
 	PushScreen(JYGameplayTags::UI_Layer_Modal, DialogClass, SetupBeforeActivate);
 }
 
-/*
- * LocalPlayer 단위로 보관하는 이유 — 이 서브시스템은 맵을 넘어 살아 있어(LocalPlayer 소유) 위젯·맵이 바뀌어도 값이 남고,
- * 여러 화면이 같은 ViewModel을 공유한다 (예: 허브 HUD와 던전 HUD가 같은 StatsViewModel).
- * 새 ViewModel 추가 = 클래스만 만들면 된다 (여기 수정 없음).
- */
+/* 맵을 넘어 남아 여러 화면이 공유한다 — 월드 물체가 채운 값은 그 물체가 사라질 때 비울 것 (안 비우면 다음 맵 HUD에 남음) */
+/* 값 넣기: 복제 상태는 InitializeLocalUI에서 구독, 로컬 상태는 게임 코드가 직접, 목록 항목은 화면이 직접 */
 // [OwnClient]
 UMVVMViewModelBase* UJY_UIManagerSubsystem::GetOrCreateViewModel(TSubclassOf<UMVVMViewModelBase> ViewModelClass)
 {
@@ -135,11 +115,7 @@ UMVVMViewModelBase* UJY_UIManagerSubsystem::GetOrCreateViewModel(TSubclassOf<UMV
 	return NewViewModel;
 }
 
-/*
- * HUD는 올리기만 한다 — 체력·영혼석 값은 WBP 바인딩이 ViewModel에서 받는다.
- * ViewModel에 원본을 연결하는 건 AJY_PlayerController::InitializeLocalUI라서, 틀과 PlayerState 중 무엇이 먼저 오든 상관없다.
- * 맵 파일 값이라 클라가 맵을 여는 순간 읽힌다 (예: 타이틀 = false → 틀만 있고 HUD 없음).
- */
+/* HUD는 올리기만 한다 — 원본 연결은 AJY_PlayerController::InitializeLocalUI라 틀·PlayerState 도착 순서 무관 */
 // [OwnClient]
 void UJY_UIManagerSubsystem::PushHUD(APlayerController* PC, const UJY_GameData& GameData)
 {
@@ -168,25 +144,17 @@ void UJY_UIManagerSubsystem::DestroyPrimaryLayout()
 	LayoutOwner.Reset();
 }
 
-/*
- * 알림을 띄우는 쪽(PC의 서버 알림 RPC, 이후 제단·상점)은 틀을 모르고 종류만 넘긴다 — ShowConfirm과 같은 자리.
- * 틀이 없는 순간은 없다: 클라 PC가 도착하면 SetPlayer → PlayerControllerChanged에서 틀을 먼저 만들고(NetConnection.cpp:5258),
- * 그 PC로 온 RPC는 그 뒤에 실행된다. 그래서 "틀보다 먼저 온 알림" 보관은 두지 않는다 — RPC가 아닌 호출자가 PC 도착 전에 부르는 경우가 생기면 그때 추가.
- */
+/* 틀 null 검사 없음 — PC가 오면 틀을 먼저 만들고 그 PC의 RPC는 그 뒤 실행된다 (NetConnection.cpp:5258) */
+/* PC 도착 전에 부르는 RPC 아닌 호출자가 생기면 대기열을 추가할 것 */
 // [OwnClient]
 void UJY_UIManagerSubsystem::ShowNotification(EJY_NotificationType Type, const FText& Message)
 {
 	PrimaryLayout->GetNotificationWidget(Type)->EnqueueMessage(Message);
 }
 
-/*
- * 예: 정지 메뉴(정지) 위에 확인 팝업(정지) → 목록 2개. 팝업을 닫으면 1개 → 여전히 정지. 메뉴까지 닫아야 0개 → 해제.
- * 개수(int) 대신 목록 — 같은 화면의 켜짐·꺼짐 알림이 두 번 와도 어긋나지 않는다 (개수면 1 → 0 → -1).
- * 정지는 서버가 건다(SetPause는 서버 GameMode 권한, PlayerController.cpp:1931). 월드가 멈춰도 PC·네트워크는 돌아 해제 RPC가 도착한다.
- * 1인 게임 전제 — 여러 클라가 각자 정지를 걸면 서로 막히므로, 협동을 넣을 때 정지 규칙을 다시 정한다.
- * 주의: 같은 층에 정지 화면을 겹쳐 올리면 가려진 화면이 먼저 꺼져(CommonActivatableWidgetContainer.cpp:165) 목록이 잠깐 0개 → 해제·정지 요청이 연달아 나간다.
- *       지금은 층마다 정지 화면이 하나라 생기지 않는다 — 생기면 판정을 다음 프레임으로 미룬다.
- */
+/* 개수 대신 목록 — 같은 화면의 켜짐·꺼짐 알림이 두 번 와도 어긋나지 않는다 */
+/* 1인 게임 전제 — 정지는 서버가 걸며, 여러 클라가 각자 걸면 서로 막힌다 */
+/* 주의: 같은 층에 정지 화면을 겹치면 가려진 화면이 먼저 꺼져 목록이 잠깐 0이 된다 (CommonActivatableWidgetContainer.cpp:165) */
 // [OwnClient]
 void UJY_UIManagerSubsystem::SetPauseScreenActive(UJY_ScreenWidget* Screen, bool bActive)
 {
@@ -205,10 +173,7 @@ void UJY_UIManagerSubsystem::SetPauseScreenActive(UJY_ScreenWidget* Screen, bool
 	if (bWasPaused == bIsPaused)
 		return;
 
-	/*
-	 * 맵 이동으로 옛 틀이 정리되며 화면이 꺼질 때는 보내지 않는다 — 옛 PC는 곧 사라지고 새 월드는 정지 없이 시작.
-	 * LoadMap이 BeginTearingDown(UnrealEngine.cpp:16183)을 PC 파괴(:16249)보다 먼저 하므로 bIsTearingDown 하나로 걸러진다.
-	 */
+	/* 맵 이동 정리 중엔 보내지 않는다 — LoadMap이 BeginTearingDown을 PC 파괴보다 먼저 한다 (UnrealEngine.cpp:16183) */
 	AJY_PlayerController* PC = Cast<AJY_PlayerController>(GetLocalPlayer()->PlayerController);
 	if (PC == nullptr || PC->GetWorld()->bIsTearingDown == true)
 		return;

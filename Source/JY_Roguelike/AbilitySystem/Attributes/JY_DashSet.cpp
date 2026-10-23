@@ -4,7 +4,7 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(JY_DashSet)
 
-/* 시작 횟수 — HealthSet(100/100)과 같은 방식. 임시 2회 */
+/* 시작 횟수 (임시 2회) */
 UJY_DashSet::UJY_DashSet()
 	: DashCharges(2.0f)
 	, MaxDashCharges(2.0f)
@@ -46,8 +46,8 @@ void UJY_DashSet::PreAttributeChange(const FGameplayAttribute& Attribute, float&
 }
 
 /*
- * 최대 횟수가 줄어 남은 횟수가 넘치면 새 최대치로 덮어쓴다 (UJY_HealthSet::PostAttributeChange와 같음).
- * 늘 때 남은 횟수를 채우는 건 전역 규칙이 아니다 — 최대 횟수를 올리는 축복 GE가 남은 횟수도 함께 올린다.
+ * 최대 횟수가 줄면 남은 횟수를 깎기만 한다
+ * 늘 때 채우는 건 최대 횟수를 올리는 축복 GE 몫
  */
 void UJY_DashSet::PostAttributeChange(const FGameplayAttribute& Attribute, float OldValue, float NewValue) //override
 {

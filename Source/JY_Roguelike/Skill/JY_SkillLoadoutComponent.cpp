@@ -67,7 +67,7 @@ void UJY_SkillLoadoutComponent::AcquireSkill(UJY_SkillDefinition* Skill, int32 S
 	};
 	const int32 OwnedSlotIndex = Slots.IndexOfByPredicate(IsSameSkill);
 
-	/* 중복 획득 = 레벨 +1 + 카드 선택 (사용자 결정) */
+	/* 중복 획득 = 레벨 +1 + 카드 선택 */
 	if (OwnedSlotIndex != INDEX_NONE)
 	{
 		FJY_SkillSlotEntry& OwnedSlot = Slots[OwnedSlotIndex];
@@ -130,7 +130,7 @@ void UJY_SkillLoadoutComponent::DrawUpgradeCards(int32 SlotIndex)
 	OnCardChoicesChanged.Broadcast();
 }
 
-// [Server] 클라 요청(디버그 명령·이후 카드 UI)이 그대로 들어오므로 범위 검사
+// [Server] 클라 요청이 그대로 들어오므로 범위 검사
 void UJY_SkillLoadoutComponent::ChooseUpgradeCard(int32 ChoiceIndex)
 {
 	if (PendingCardChoices.IsValidIndex(ChoiceIndex) == false)
@@ -159,8 +159,8 @@ void UJY_SkillLoadoutComponent::UnlockSlot()
 
 // [Server] [OwnClient]
 /*
- * 피해·범위 카드는 더해서 한 번에 곱한다(20% 두 장 = +40%).
- * 슬롯에 없으면 1레벨 값 — 고정 스킬(FixedSkills), 그리고 클라에 슬롯 복제가 GA 스펙보다 늦게 온 경우(서버 쿨타임 GE가 복제로 덮어쓴다)
+ * 카드 퍼센트는 더해서 한 번에 곱한다 (20% 두 장 = +40%)
+ * 슬롯에 없으면 1레벨 값 — 고정 스킬, 또는 클라에 슬롯 복제가 늦은 경우(서버 쿨타임 GE가 덮어씀)
  */
 FJY_SkillStats UJY_SkillLoadoutComponent::GetSkillStats(const UJY_SkillDefinition* Skill) const
 {

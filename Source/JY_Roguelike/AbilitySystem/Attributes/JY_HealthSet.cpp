@@ -54,7 +54,7 @@ void UJY_HealthSet::OnRep_MaxHealth(const FGameplayAttributeData& OldValue)
 }
 
 // [Server]
-/* 무적이면 들어오는 데미지를 0으로 (LyraHealthSet::PreGameplayEffectExecute와 같음. 자폭·GodMode 예외는 쓰는 곳이 없어 뺐다) */
+/* 무적이면 들어오는 데미지를 0으로 */
 bool UJY_HealthSet::PreGameplayEffectExecute(FGameplayEffectModCallbackData& Data) //override
 {
 	if (Super::PreGameplayEffectExecute(Data) == false)
@@ -148,9 +148,8 @@ void UJY_HealthSet::PostAttributeChange(const FGameplayAttribute& Attribute, flo
 	Super::PostAttributeChange(Attribute, OldValue, NewValue);
 
 	/*
-	 * 최대 체력이 줄어 현재 체력이 넘치면 현재 체력을 새 최대치로 덮어쓴다 (Lyra LyraHealthSet::PostAttributeChange와 같음).
-	 * 늘 때 현재 체력을 채우는 건 전역 규칙이 아니다 — 메타 강화는 AJY_PlayerState::RefreshMetaEffects, 축복은 축복 쪽에서 정한다.
-	 * 속성 값은 서버 GE로만 바뀌고 클라는 복제로 받는다 (예측 GE가 생기면 클라에서도 불릴 수 있어 그때 권한 검사를 넣는다).
+	 * 최대 체력이 줄면 현재 체력을 깎기만 한다 — 늘 때 채우는 건 메타 강화·축복 쪽 몫
+	 * 예측 GE가 생기면 클라에서도 불릴 수 있어 그때 권한 검사를 넣을 것
 	 */
 	if (Attribute == GetMaxHealthAttribute() && GetHealth() > NewValue)
 	{

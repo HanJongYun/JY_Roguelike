@@ -33,9 +33,8 @@ bool UJY_GameplayAbility_Jump::CanActivateAbility(const FGameplayAbilitySpecHand
 
 // [Server] [OwnClient]
 /*
- * 점프 자체는 CMC 몫 — 조종 클라가 Jump()로 점프 플래그를 세우면 이동 RPC와 함께 서버로 가서 서버 CMC가 같은 점프를 한다.
- * 그래서 Jump()는 조종 클라에서만 (LyraGameplayAbility_Jump::CharacterJumpStart와 같음).
- * JumpMaxHoldTime=0이라 플래그는 다음 이동 틱에 엔진이 내린다(ACharacter::ClearJumpInput) → 뗌을 기다리지 않고 바로 끝낸다.
+ * Jump()는 조종 클라에서만 — 점프 플래그가 이동 RPC로 서버 CMC에 전달된다
+ * JumpMaxHoldTime=0이라 플래그는 엔진이 다음 이동 틱에 내린다(ACharacter::ClearJumpInput) → 바로 끝낸다
  */
 void UJY_GameplayAbility_Jump::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) //override
 {

@@ -4,6 +4,7 @@
 #include "Player/JY_PlayerState.h"
 #include "AbilitySystem/JY_AbilitySystemComponent.h"
 #include "Combat/JY_CombatTypes.h"
+#include "Combat/JY_HitReactionComponent.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -39,7 +40,7 @@ AJY_Character::AJY_Character()
 	MovementComp->MaxWalkSpeed = 500.f;
 	MovementComp->MinAnalogWalkSpeed = 20.f;
 
-	/* 가속·제동·회전은 Lyra 값 (ALyraCharacter 생성자·B_Hero_Default). 500cm/s에서 약 0.17초·33cm에 정지 — 멈춤 애니는 거리 매칭으로 그 지점부터 재생 */
+	/* 가속·제동·회전은 Lyra 값. 500cm/s에서 약 33cm에 정지 — 멈춤 애니는 거리 매칭으로 맞춘다 */
 	MovementComp->RotationRate = FRotator(0.0f, 720.0f, 0.0f);
 	MovementComp->MaxAcceleration = 2400.f;
 	MovementComp->GroundFriction = 8.f;
@@ -61,17 +62,17 @@ AJY_Character::AJY_Character()
 	TopDownCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
 	TopDownCamera->bUsePawnControlRotation = false;
 
-	/* Lyra LyraCharacter.cpp:68~69와 같이 생성자에서 죽음 이벤트 연결 */
 	HealthComponent = CreateDefaultSubobject<UJY_HealthComponent>(TEXT("HealthComponent"));
 	InteractionComponent = CreateDefaultSubobject<UJY_InteractionComponent>(TEXT("InteractionComponent"));
+	HitReactionComponent = CreateDefaultSubobject<UJY_HitReactionComponent>(TEXT("HitReactionComponent"));
 	HealthComponent->OnDeathStarted.AddDynamic(this, &ThisClass::OnDeathStarted);
 
-	/* 외형 전용 — 판정은 나중에 전투에서 따로 한다 */
+	/* 외형 전용 — 판정은 따로 한다 */
 	WeaponMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WeaponMesh"));
 	WeaponMesh->SetupAttachment(GetMesh(), WeaponSocketName);
 	WeaponMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
-	/* 화면 연출용이라 복제 없음 — 각 클라가 자기 화면에서만 그린다. 데디 서버는 렌더링하지 않아 비용 없음 */
+	/* 연출용이라 복제 없음 — 각 클라가 자기 화면에서만 그린다 */
 	CharacterLight = CreateDefaultSubobject<UPointLightComponent>(TEXT("CharacterLight"));
 	CharacterLight->SetupAttachment(RootComponent);
 	CharacterLight->SetRelativeLocation(FVector(0.0f, 0.0f, 150.0f));
@@ -159,10 +160,8 @@ void AJY_Character::InitializeAbilitySystem()
 	HealthComponent->InitializeWithAbilitySystem(JYASC);
 
 #if !UE_BUILD_SHIPPING
-	/*
-	 * [임시] 사망 후 다시 시작(로비 복귀)이 생기기 전까지 플레이어는 안 죽는다 — 끄려면 치트 JYUnlimitedHealth 0.
-	 * 체력 판정은 서버만 하므로 서버 ASC에만 붙인다. 폰이 바뀌어 다시 불려도 1개로 맞춘다
-	 */
+	/* [임시] 사망 후 로비 복귀가 생기기 전까지 플레이어는 안 죽는다 (끄기: JYUnlimitedHealth 0) */
+	/* 체력 판정은 서버만 하므로 서버 ASC에만. 다시 불려도 1개로 맞춘다 */
 	if (HasAuthority() == true)
 	{
 		JYASC->SetLooseGameplayTagCount(JYGameplayTags::Cheat_UnlimitedHealth, 1);
@@ -205,8 +204,7 @@ void AJY_Character::Input_AbilityInputTagReleased(FGameplayTag InputTag)
 }
 
 // [Server] [SimulatedProxy]
-/* 서버가 ReplicatedMovement에 가속도를 실어 보내고(ACharacter::GatherCurrentMovement),
-   남의 화면은 그 값을 CMC에 넣는다(UpdateProxyAcceleration). 끄면 속도 방향 단위벡터라 멈춤 시작을 애님이 알 수 없다 */
+/* 끄면 남의 화면 가속도가 속도 방향 단위벡터라 멈춤 시작을 애님이 알 수 없다 */
 bool AJY_Character::ShouldReplicateAcceleration() const //override
 {
 	return true;
@@ -238,7 +236,6 @@ void AJY_Character::OnDeathStarted(AActor* OwningActor)
 	DisableMovementAndCollision();
 }
 
-/* Lyra DisableMovementAndCollision과 같은 목적 — 죽은 뒤 입력·이동·충돌을 막는다 */
 void AJY_Character::DisableMovementAndCollision()
 {
 	if (GetController() != nullptr)
@@ -256,11 +253,7 @@ void AJY_Character::DisableMovementAndCollision()
 	MovementComp->DisableMovement();
 }
 
-/*
- * 노티파이·판정·큐는 UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(캐릭터)로 ASC를 찾는다.
- * ASC가 PlayerState에 있어 인터페이스가 없으면 못 찾는다(AbilitySystemGlobals.cpp:239~249).
- * 반환 타입이 엔진 고정이라 UAbilitySystemComponent* (ASC 타입 통일의 예외)
- */
+/* ASC가 PlayerState에 있어 이 인터페이스가 없으면 노티파이·판정이 캐릭터에서 ASC를 못 찾는다 (AbilitySystemGlobals.cpp:239) */
 UAbilitySystemComponent* AJY_Character::GetAbilitySystemComponent() const //override
 {
 	return GetJYAbilitySystemComponent();

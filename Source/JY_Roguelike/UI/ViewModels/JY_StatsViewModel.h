@@ -64,10 +64,7 @@ private:
 	bool bLowHealth = false;
 
 private:
-	/*
-	 * 설정값 — 지금은 아래 C++ 기본값을 그대로 쓴다
-	 * 에디터에서 바꿔야 할 때가 오면 DA_JY_GameData로 뺀다
-	 */
+	/* 설정값 — 지금은 C++ 기본값을 그대로 쓴다 */
 
 	/* 낮은 체력 기준 비율 */
 	UPROPERTY(EditDefaultsOnly, Category = "JY|Health", meta = (ClampMin = "0.0", ClampMax = "1.0"))
@@ -77,7 +74,7 @@ private:
 	/* 구독 중인 ASC — PlayerState가 소유하므로 약한 참조 */
 	TWeakObjectPtr<UJY_AbilitySystemComponent> AbilitySystemComponent;
 
-	/* 마지막으로 글자를 만든 반올림 값 (-1 = 아직 없음) — 정수가 바뀔 때만 글자를 새로 만든다 */
+	/* 마지막으로 글자를 만든 반올림 값 (-1 = 아직 없음) */
 	int32 DisplayedCurrentHealth = INDEX_NONE;
 
 	int32 DisplayedMaxHealth = INDEX_NONE;

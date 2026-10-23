@@ -26,10 +26,7 @@ enum class EJY_ObjectState : uint8
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FJY_OnObjectStateChanged, EJY_ObjectState /*NewState*/);
 
-/*
- * 월드 물체의 유일한 C++ 클래스 (함정·부서지는 물체·제단·포털·출구 문) — 클래스 조건 2: 복제·휴면 설정.
- * 어떤 컴포넌트(발동 방식·모양·연출 부품)를 가질지는 BP 클래스가 정하고, 상태마다 할 일은 Action으로 조합한다
- */
+/* 월드 물체 (함정·부서지는 물체·제단·포털·출구 문) — 컴포넌트는 BP가, 상태별 할 일은 Action이 정한다 */
 UCLASS()
 class AJY_Object : public AActor
 {
@@ -93,19 +90,16 @@ private:
 	void OnRep_State();
 
 private:
-	/*
-	 * 복제 값 — ReplicatedUsing=OnRep_State: 클라가 상태 Action(연출)을 각자 실행.
-	 * Transient: 실행 중 상태라 맵에 저장하지 않는다. 단 CDO는 Transient도 저장된다(Property.cpp:1064 IsSerializingDefaults).
-	 * 이름이 State가 아닌 이유: BP 부모를 옛 클래스에서 바꿀 때 같은 이름 값(옛 EJY_BreakableState)이 CDO에 복사돼 잘못된 값으로 저장됐다
-	 */
+	/* 복제 — 클라는 OnRep에서 상태 Action 실행 */
+	/* 이름을 State로 바꾸지 말 것 — 옛 BP CDO에 같은 이름 값이 남아 있음 */
 	UPROPERTY(Transient, ReplicatedUsing = OnRep_State)
 	EJY_ObjectState ObjectState = EJY_ObjectState::Idle;
 
-	/* 복제 값 — State가 바뀐 서버 시각. 늦게 받은 상태(늦은 접속·관련성 회복)면 한 번 터지는 연출을 건너뛴다 */
+	/* 복제 — 상태가 바뀐 서버 시각 */
 	UPROPERTY(Transient, Replicated)
 	float StateServerSeconds = 0.0f;
 
-	/* 복제 값 — 발동 방향·세기 (OnRep 없음: State와 같은 묶음으로 와서 OnRep_State에서 읽음) */
+	/* 복제 — 발동 방향·세기 (OnRep_State에서 함께 읽음) */
 	UPROPERTY(Transient, Replicated)
 	FVector_NetQuantize10 ActivationImpulse;
 
@@ -142,7 +136,7 @@ private:
 	TArray<TObjectPtr<UJY_Action>> InActiveActions;
 
 private:
-	/* 이 기기에서 Action을 마지막으로 실행한 상태 — 클라가 여러 상태를 한 번에 받으면 사이 상태도 차례로 실행 */
+	/* 이 기기에서 Action을 마지막으로 실행한 상태 */
 	EJY_ObjectState AppliedState = EJY_ObjectState::Idle;
 
 	TWeakObjectPtr<AActor> ActivationInstigator;

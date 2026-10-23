@@ -31,7 +31,7 @@ void UJY_InputComponent::BindNativeAction(const UJY_InputConfig* InputConfig, co
 	BindAction(InputAction, TriggerEvent, Object, Func);
 }
 
-/* 눌림은 Started — 누르고 있는 동안 매 프레임 오는 Triggered로 묶으면 끝난 어빌리티가 계속 다시 발동된다(대시 자동 연타). 계속 누름이 필요한 어빌리티는 ASC의 누름 목록이 처리 */
+/* 눌림은 Started — Triggered로 묶으면 누르는 동안 끝난 어빌리티가 계속 다시 발동된다 (대시 자동 연타) */
 template<class UserClass, typename PressedFuncType, typename ReleasedFuncType>
 void UJY_InputComponent::BindAbilityActions(const UJY_InputConfig* InputConfig, UserClass* Object, PressedFuncType PressedFunc, ReleasedFuncType ReleasedFunc)
 {

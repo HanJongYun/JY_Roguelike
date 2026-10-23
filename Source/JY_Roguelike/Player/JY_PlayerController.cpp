@@ -39,10 +39,7 @@ void AJY_PlayerController::OnRep_PlayerState() //override
 	InitializeLocalUI();
 }
 
-/*
- * 복제 상태 → ViewModel 연결은 여기 한 곳. 새 복제 ViewModel도 여기 1줄 추가.
- * BeginPlay·OnRep 둘 다 불러도 안전 — PlayerState가 없으면 그냥 돌아가고, Bind 함수들은 먼저 끊고 다시 건다.
- */
+/* BeginPlay·OnRep 둘 다 불러도 안전 — Bind 함수들은 먼저 끊고 다시 건다 */
 // [OwnClient] 로컬 컨트롤러만
 void AJY_PlayerController::InitializeLocalUI()
 {
@@ -68,9 +65,8 @@ void AJY_PlayerController::InitializeLocalUI()
 }
 
 /*
- * 맵에 도착한 뒤 PlayerState(영혼석·체력 원본)와 캐릭터가 둘 다 복제돼 올 때까지 로딩창 유지.
- * 하나라도 없으면 HUD가 빈 값이거나 캐릭터 없는 빈 방이 보인다.
- * 지금은 죽어도 캐릭터가 사라지지 않는다 — 부활(폰 교체)을 만들면 이 조건을 다시 본다.
+ * PlayerState와 캐릭터가 둘 다 복제돼 올 때까지 로딩창 유지 — 하나라도 없으면 빈 HUD·빈 방이 보인다.
+ * 부활(폰 교체)을 만들면 이 조건을 다시 본다
  */
 // [OwnClient]
 bool AJY_PlayerController::ShouldShowLoadingScreen() const //override
@@ -79,8 +75,8 @@ bool AJY_PlayerController::ShouldShowLoadingScreen() const //override
 }
 
 /*
- * 클라는 GameMode가 없어 엔진이 CheatManager를 안 만든다(PlayerController.cpp:1162) — 콘솔 명령을 받아 서버로 보낼 쪽이라 만든다(Lyra AddCheats LyraPlayerController.cpp:323).
- * 실행 여부는 서버 PC의 CheatManager가 정한다 — 서버는 엔진 판단(AllowCheats) 그대로.
+ * 클라는 GameMode가 없어 엔진이 CheatManager를 안 만든다 (PlayerController.cpp:1162).
+ * 콘솔 명령을 서버로 보낼 쪽이라 만들고, 실행 여부는 서버가 정한다
  */
 // [OwnClient]
 void AJY_PlayerController::AddCheats(bool bForce) //override
@@ -90,7 +86,7 @@ void AJY_PlayerController::AddCheats(bool bForce) //override
 }
 
 // [OwnClient] 로컬 컨트롤러만
-/* 템플릿과 같은 자리 — 로컬 플레이어가 붙은 뒤 호출되어 서브시스템을 확실히 얻는다 */
+/* 로컬 플레이어가 붙은 뒤 호출되어 서브시스템을 확실히 얻는다 */
 void AJY_PlayerController::SetupInputComponent() //override
 {
 	Super::SetupInputComponent();
@@ -111,7 +107,7 @@ void AJY_PlayerController::SetupInputComponent() //override
 	}
 }
 
-// [OwnClient] 로컬 컨트롤러만 — 입력 바인딩 실행 뒤 엔진이 호출 (UPlayerInput::ProcessInputStack, PlayerInput.cpp:1310)
+// [OwnClient] 로컬 컨트롤러만 — 입력 바인딩 실행 뒤 엔진이 호출 (PlayerInput.cpp:1310)
 void AJY_PlayerController::PostProcessInput(const float DeltaTime, const bool bGamePaused) //override
 {
 	/* 클라는 PlayerState가 복제로 늦게 올 수 있다 */
@@ -164,8 +160,8 @@ void AJY_PlayerController::Server_ChooseSkillCard_Implementation(int32 ChoiceInd
 }
 
 /*
- * 엔진 ServerPause는 토글이라(PlayerController.cpp:1980 SetPause(!IsPaused())) 요청이 두 번 오면 반대가 된다 → 원하는 상태를 bool로 받는다.
- * 1인 게임이라 클라 요청을 그대로 받는다. SetPause → GameMode::SetPause → WorldSettings 정지 정보 복제 → 클라 월드도 멈춤.
+ * 엔진 ServerPause는 토글이라 요청이 두 번 오면 반대가 된다 (PlayerController.cpp:1980) — 원하는 상태를 bool로 받는다.
+ * 1인 게임이라 클라 요청을 그대로 받는다
  */
 // [Server]
 void AJY_PlayerController::Server_SetUIPaused_Implementation(bool bPaused)
@@ -175,8 +171,8 @@ void AJY_PlayerController::Server_SetUIPaused_Implementation(bool bPaused)
 }
 
 /*
- * 서버가 이 PC에만 보내는 일회성 알림 — 놓쳐도 게임 상태가 틀어지지 않는 것 전용.
- * 서버가 여는 화면(축복 선택 등)은 RPC가 아니라 복제 상태로 연다 (늦게 접속·재접속해도 상태로 복원되게).
+ * 놓쳐도 게임 상태가 틀어지지 않는 일회성 알림 전용.
+ * 서버가 여는 화면(축복 선택 등)은 재접속해도 복원되게 RPC가 아니라 복제 상태로 연다
  */
 // [Server -> Client RPC]
 void AJY_PlayerController::Client_ShowNotification_Implementation(EJY_NotificationType Type, const FText& Message)

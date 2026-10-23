@@ -4,6 +4,8 @@
 #include "SequenceEvaluatorLibrary.h"
 #include "SequencePlayerLibrary.h"
 #include "AnimExecutionContextLibrary.h"
+#include "Animation/AnimSequence.h"
+#include "Combat/JY_HitReactionComponent.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
@@ -32,7 +34,8 @@ void UJY_AnimInstance::NativeUpdateAnimation(float DeltaSeconds) //override
 	WorldVelocity = Character->GetVelocity();
 	LastUpdateVelocity = MovementComp->GetLastUpdateVelocity();
 	WorldAcceleration = MovementComp->GetCurrentAcceleration();
-	bMovingOnGround = MovementComp->IsMovingOnGround();
+	/* 막 생겨 아직 빙의 전이면 이동 모드가 None이라 IsMovingOnGround가 false — 떨어지는 중일 때만 공중으로 본다 (Character.cpp:1388 Restart에서 걷기로) */
+	bOnGroundMode = MovementComp->IsFalling() == false;
 	bUseSeparateBrakingFriction = MovementComp->bUseSeparateBrakingFriction;
 	BrakingFriction = MovementComp->BrakingFriction;
 	GroundFriction = MovementComp->GroundFriction;
@@ -40,6 +43,28 @@ void UJY_AnimInstance::NativeUpdateAnimation(float DeltaSeconds) //override
 	BrakingDecelerationWalking = MovementComp->BrakingDecelerationWalking;
 	JumpCount = Character->JumpCurrentCount;
 	bIsSimulatedProxy = Character->GetLocalRole() == ROLE_SimulatedProxy;
+
+	UpdateHitAdditive(Character);
+}
+
+/* 움찔은 피격 큐(클라)가 컴포넌트에 기록한다 — 애님은 재생 위치만 읽는다 */
+void UJY_AnimInstance::UpdateHitAdditive(const ACharacter* Character)
+{
+	const UJY_HitReactionComponent* HitReactionComponent = Character->FindComponentByClass<UJY_HitReactionComponent>();
+	if (HitReactionComponent == nullptr)
+		return;
+
+	UAnimSequence* Sequence = nullptr;
+	float Time = 0.0f;
+	if (HitReactionComponent->GetHitAdditivePose(OUT Sequence, OUT Time) == false)
+	{
+		HitAdditiveAlpha = 0.0f;
+		return;
+	}
+
+	HitAdditiveSequence = Sequence;
+	HitAdditiveTime = Time;
+	HitAdditiveAlpha = 1.0f;
 }
 
 void UJY_AnimInstance::NativeThreadSafeUpdateAnimation(float DeltaSeconds) //override
@@ -52,7 +77,7 @@ void UJY_AnimInstance::NativeThreadSafeUpdateAnimation(float DeltaSeconds) //ove
 		PreviousWorldLocation = WorldLocation;
 		PreviousVelocityZ = WorldVelocity.Z;
 		PreviousJumpCount = JumpCount;
-		bWasOnGround = bMovingOnGround;
+		bWasOnGround = bOnGroundMode;
 		bIsFirstUpdate = false;
 	}
 
@@ -65,7 +90,7 @@ void UJY_AnimInstance::NativeThreadSafeUpdateAnimation(float DeltaSeconds) //ove
 	Speed2D = Velocity2D.Size();
 	bHasAcceleration = Acceleration2D.IsNearlyZero() == false;
 
-	bIsOnGround = bMovingOnGround;
+	bIsOnGround = bOnGroundMode;
 	bIsJumping = bIsOnGround == false && WorldVelocity.Z > 0.0f;
 	bIsFalling = bIsOnGround == false && WorldVelocity.Z <= 0.0f;
 	bShouldMove = bHasAcceleration == true && bIsOnGround == true;
@@ -73,10 +98,7 @@ void UJY_AnimInstance::NativeThreadSafeUpdateAnimation(float DeltaSeconds) //ove
 	bShouldStop = bHasAcceleration == false;
 	bShouldDistanceMatchStop = Velocity2D.IsNearlyZero() == false && bHasAcceleration == false;
 
-	/*
-	 * 공중 점프 감지. 서버·조종 클라는 점프 횟수(ACharacter::JumpCurrentCount)가 정확하다 — 올라가는 초반 2단 점프는 속도 증가가 작아 속도로는 놓친다.
-	 * 시뮬 프록시는 점프 횟수가 복제되지 않아(Character.cpp GetLifetimeReplicatedProps 목록에 없음) 속도 증가로 본다
-	 */
+	/* 속도로는 상승 초반 2단 점프를 놓쳐 점프 횟수로 본다. 시뮬 프록시는 점프 횟수가 복제되지 않아 속도 증가로 본다 */
 	const bool bStayedInAir = bWasOnGround == false && bIsOnGround == false;
 	const bool bJumpCountIncreased = JumpCount > PreviousJumpCount;
 	const float VelocityZGain = WorldVelocity.Z - PreviousVelocityZ;
@@ -86,13 +108,12 @@ void UJY_AnimInstance::NativeThreadSafeUpdateAnimation(float DeltaSeconds) //ove
 	PreviousJumpCount = JumpCount;
 	bWasOnGround = bIsOnGround;
 
-	/* Lyra GetPredictedStopDistance와 같게 CMC의 마지막 이동 속도로 예측 (보간된 표시 속도가 아니라 실제 이동에 쓴 값) */
+	/* 보간된 표시 속도가 아니라 실제 이동에 쓴 CMC 마지막 속도로 예측 */
 	const FVector LastUpdateVelocity2D(LastUpdateVelocity.X, LastUpdateVelocity.Y, 0.0f);
 	const FVector StopLocation = UAnimCharacterMovementLibrary::PredictGroundMovementStopLocation(LastUpdateVelocity2D, bUseSeparateBrakingFriction, BrakingFriction, GroundFriction, BrakingFrictionFactor, BrakingDecelerationWalking);
 	StopDistance = StopLocation.Size2D();
 }
 
-/* Lyra SetUpStartAnim: 처음부터, 보폭 조절은 0에서 시작 */
 void UJY_AnimInstance::SetupStartAnim(const FAnimUpdateContext& Context, const FAnimNodeReference& Node)
 {
 	EAnimNodeReferenceConversionResult Result;
@@ -101,10 +122,7 @@ void UJY_AnimInstance::SetupStartAnim(const FAnimUpdateContext& Context, const F
 	StrideWarpingStartAlpha = 0.0f;
 }
 
-/*
- * Lyra UpdateStartAnim: 이동한 거리만큼 출발 애니를 진행하고, 앞부분(발 디딤) 이후 보폭 조절을 섞어 넣는다.
- * 섞는 동안 최소 재생 속도를 낮게 시작해 한계값까지 올린다 — Lyra는 Lerp 시작값에 섞는 시간 변수(0.2)를 그대로 쓴다
- */
+/* 앞부분(발 디딤) 이후 보폭 조절을 섞는다. 최소 재생 속도의 Lerp 시작값이 섞는 시간인 건 Lyra 그대로 */
 void UJY_AnimInstance::UpdateStartAnim(const FAnimUpdateContext& Context, const FAnimNodeReference& Node)
 {
 	EAnimNodeReferenceConversionResult Result;
@@ -119,7 +137,7 @@ void UJY_AnimInstance::UpdateStartAnim(const FAnimUpdateContext& Context, const 
 	UAnimDistanceMatchingLibrary::AdvanceTimeByDistanceMatching(Context, Evaluator, DisplacementSinceLastUpdate, DistanceCurveName, PlayRateClamp);
 }
 
-/* Lyra UpdateCycleAnim: 재생 속도를 실제 이동 속도에 맞추고(한계 0.8~1.2), 보폭 조절 Alpha를 1로 따라가게 */
+/* 재생 속도를 실제 이동 속도에 맞추고, 남는 차이는 보폭 조절이 맡는다 */
 void UJY_AnimInstance::UpdateCycleAnim(const FAnimUpdateContext& Context, const FAnimNodeReference& Node)
 {
 	EAnimNodeReferenceConversionResult Result;
@@ -130,7 +148,7 @@ void UJY_AnimInstance::UpdateCycleAnim(const FAnimUpdateContext& Context, const 
 	StrideWarpingCycleAlpha = FMath::FInterpTo(StrideWarpingCycleAlpha, 1.0f, DeltaTime, StrideWarpingCycleAlphaInterpSpeed);
 }
 
-/* Lyra SetUpStopAnim: 이미 섰거나 입력이 있으면 멈춤점(거리 0)으로 바로 맞춘다. 미끄러지는 중이면 Update가 맞춘다 */
+/* 이미 섰거나 입력이 있으면 멈춤점(거리 0)으로 바로. 미끄러지는 중이면 Update가 맞춘다 */
 void UJY_AnimInstance::SetupStopAnim(const FAnimUpdateContext& Context, const FAnimNodeReference& Node)
 {
 	if (bShouldDistanceMatchStop == true)
@@ -141,7 +159,7 @@ void UJY_AnimInstance::SetupStopAnim(const FAnimUpdateContext& Context, const FA
 	UAnimDistanceMatchingLibrary::DistanceMatchToTarget(Evaluator, 0.0f, DistanceCurveName);
 }
 
-/* Lyra UpdateStopAnim: 미끄러지는 동안은 남은 정지 거리에 맞는 프레임, 섰으면 나머지(정리 동작)를 1배속으로 */
+/* 섰으면 나머지(정리 동작)를 1배속으로 */
 void UJY_AnimInstance::UpdateStopAnim(const FAnimUpdateContext& Context, const FAnimNodeReference& Node)
 {
 	EAnimNodeReferenceConversionResult Result;

@@ -4,7 +4,7 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(JY_DistanceCurveModifier)
 
-/* 엔진 UDistanceCurveModifier::OnApply_Implementation(DistanceCurveModifier.cpp:14)과 같은 굽기, 멈춤점 고르는 규칙만 "처음 아래로" */
+/* 엔진 모디파이어는 가장 느린 순간을 멈춤점으로 잡아 끝에서 기어가는 애니가 틀어진다 — 처음 임계 아래로 바꿈 (DistanceCurveModifier.cpp:14) */
 void UJY_DistanceCurveModifier::OnApply_Implementation(UAnimSequence* Animation)
 {
 	/* 루트 모션을 꺼 둔 애니에 적용한 기획 실수 */

@@ -36,7 +36,7 @@ private:
 	void ClampAttribute(const FGameplayAttribute& Attribute, float& NewValue) const;
 
 private:
-	/* 복제 속성 — 서버 GE로 바뀌고(대시 비용은 클라 예측도), 클라는 OnRep으로 받는다. 남은 횟수 표시는 본인만 필요해 본인에게만 복제 */
+	/* 복제 속성 — 본인에게만 복제 */
 
 	/* 남은 대시 횟수 (복제, ReplicatedUsing=OnRep_DashCharges) */
 	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_DashCharges, Category = "JY|Dash", Meta = (AllowPrivateAccess = true))

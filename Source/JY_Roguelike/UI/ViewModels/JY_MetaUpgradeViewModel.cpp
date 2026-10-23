@@ -7,10 +7,7 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(JY_MetaUpgradeViewModel)
 
-/*
- * 영혼석·기록(UJY_ProgressViewModel)과 같은 진행 값을 읽지만 대상이 다른 데이터 묶음이라 따로 둔다 (Epic: 작은 ViewModel 여러 개).
- * 값의 출처는 PlayerState 복제 값 하나 — 서버 CommitProgress → 복제 → OnRep_Progress → OnProgressChanged 방송.
- */
+/* UJY_ProgressViewModel과 같은 진행 값을 읽지만 데이터 묶음이 달라 따로 둔다 (작은 ViewModel 여러 개) */
 // [OwnClient]
 void UJY_MetaUpgradeViewModel::BindPlayerState(AJY_PlayerState* InPlayerState)
 {
@@ -40,10 +37,8 @@ void UJY_MetaUpgradeViewModel::UnbindPlayerState()
 	PlayerState.Reset();
 }
 
-/*
- * 표는 GameData의 DA_JY_MetaUpgrades — 서버 검증과 같은 표라 화면 가격과 실제 가격이 어긋나지 않는다.
- * 줄 ViewModel은 표 크기만큼 처음 1번만 만들고, 이후엔 값만 갱신 — 줄 위젯은 같은 ViewModel을 계속 본다.
- */
+/* 서버 검증과 같은 표(DA_JY_MetaUpgrades)라 화면 가격과 실제 가격이 어긋나지 않는다 */
+/* 줄 ViewModel은 처음 1번만 만든다 — 줄 위젯이 같은 ViewModel을 계속 본다 */
 // [OwnClient]
 void UJY_MetaUpgradeViewModel::RefreshEntries()
 {

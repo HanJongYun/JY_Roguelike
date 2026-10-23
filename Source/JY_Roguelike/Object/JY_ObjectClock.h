@@ -7,10 +7,7 @@
 namespace JY_ObjectClock
 {
 	// [Server] [SimulatedProxy]
-	/*
-	 * 물체의 주기·흔들림·늦은 상태 판단 — 서버 시각 기준이라 서버·클라가 복제 없이 같은 위치를 그린다.
-	 * 클라는 GameState가 아직 안 왔으면 자기 월드 시각을 써서 그동안만 박자가 어긋난다.
-	 */
+	/* 서버·클라가 공유하는 서버 시각 — GameState가 오기 전엔 자기 월드 시각 */
 	inline double GetSyncedSeconds(const UWorld* World)
 	{
 		const AGameStateBase* GameState = World->GetGameState();

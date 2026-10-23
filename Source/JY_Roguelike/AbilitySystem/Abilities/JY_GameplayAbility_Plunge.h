@@ -8,11 +8,14 @@ class UAnimMontage;
 class UAbilityTask_ApplyRootMotionConstantForce;
 class UAbilityTask_ApplyRootMotionJumpForce;
 
-/* 내려찍기 — 땅: 앞으로 높이 도약, 공중: 앞+아래 대각선 돌진 → 둘 다 착지 순간 원형 충격(높을수록 넓음). 데이터는 GA_JY_Skill_Plunge */
+/* 내려찍기 — 땅은 도약, 공중은 대각선 돌진 후 착지 순간 원형 충격 */
 UCLASS(Abstract)
 class UJY_GameplayAbility_Plunge : public UJY_GameplayAbility_Skill
 {
 	GENERATED_BODY()
+
+public:
+	UJY_GameplayAbility_Plunge(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 protected:
 	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
@@ -29,7 +32,8 @@ private:
 	float ComputeSlamPlayRate(float SlamTimeLeft, float FallTime) const;
 
 	/* [Server] [OwnClient] 방향 도착 — 땅/공중 결정·비용·몽타주·땅 도약 */
-	void OnDirectionReceived(const FGameplayAbilityTargetDataHandle& DirectionDataHandle, FGameplayTag ApplicationTag);
+	UFUNCTION()
+	void OnDirectionReceived(const FVector& Direction, FGameplayTag ApplicationTag);
 
 	/* 공중 — 하강 시작 노티파이 */
 	UFUNCTION()
@@ -42,16 +46,10 @@ private:
 	UFUNCTION()
 	void OnLanded(const FHitResult& Hit);
 
-	UFUNCTION()
-	void OnMontageFinished();
-
-	UFUNCTION()
-	void OnMontageInterrupted();
-
 protected:
 	/* 설정값 — GA_JY_Skill_Plunge 의 Class Defaults */
 
-	/* 땅·공중 공용 (AM_JY_Plunge_Air) — 섹션 Start → Loop(반복) / LandSectionName. 노티파이: Event.Skill.DiveStart(Start, 공중만 사용), Event.Skill.SlamPose(칼이 땅을 치는 프레임, 착지와 맞춤), Event.Skill.Hit(착지 섹션) */
+	/* 땅·공중 공용 몽타주 — 노티파이 DiveStart(공중), SlamPose(칼이 땅 치는 프레임), Hit(착지 섹션) */
 	UPROPERTY(EditDefaultsOnly, Category = "JY|Skill")
 	TObjectPtr<UAnimMontage> PlungeMontage;
 
@@ -70,14 +68,6 @@ protected:
 	/* 충격 판정 (범위 배율 전) */
 	UPROPERTY(EditDefaultsOnly, Category = "JY|Skill")
 	FJY_HitShape HitShape;
-
-	/* 피해 (레벨·카드 배율 전) */
-	UPROPERTY(EditDefaultsOnly, Category = "JY|Skill")
-	float Damage = 40.0f;
-
-	/* 맞은 적을 미는 속도 (cm/s) */
-	UPROPERTY(EditDefaultsOnly, Category = "JY|Skill")
-	float KnockbackSpeed = 1200.0f;
 
 	/* 땅 도약 — 최고 높이 (cm) */
 	UPROPERTY(EditDefaultsOnly, Category = "JY|Skill", Meta = (ClampMin = "0"))
@@ -119,9 +109,6 @@ private:
 	/* 땅 도약 루트모션 태스크 (착지하면 스스로 끝남) */
 	UPROPERTY()
 	TObjectPtr<UAbilityTask_ApplyRootMotionJumpForce> LeapTask;
-
-	/* 서버가 방향을 기다리는 구독 */
-	FDelegateHandle DirectionDelegateHandle;
 
 	/* 공중에서 시작했는지 */
 	bool bAirPlunge = false;

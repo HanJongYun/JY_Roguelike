@@ -6,10 +6,7 @@
 UJY_AbilityTask_WaitMoveInput::UJY_AbilityTask_WaitMoveInput(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	/*
-	 * Tick 사용 — 엔진에 이동 입력 이벤트가 없다(입력은 폰이 모으고 CMC가 매 틱 소비).
-	 * 공격 1회(몇 초) 동안만 사는 태스크라 비용은 무시할 수준
-	 */
+	/* 엔진에 이동 입력 이벤트가 없어 Tick — 공격 1회 동안만 살아 비용은 무시할 수준 */
 	bTickingTask = true;
 }
 

@@ -6,16 +6,13 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(JY_TitleGameMode)
 
-/*
- * 캐릭터 클래스가 없으면 엔진이 스폰을 건너뛴다(GameModeBase.cpp:1291).
- * 진행(세이브) 로드는 하지 않는다 — 허브 도착 때 AJY_GameMode가 한다.
- */
+/* 캐릭터 클래스가 없으면 엔진이 스폰을 건너뛴다 (GameModeBase.cpp:1291). 세이브 로드는 로비의 AJY_GameMode가 한다 */
 AJY_TitleGameMode::AJY_TitleGameMode()
 {
 	PlayerControllerClass = AJY_TitlePlayerController::StaticClass();
 	DefaultPawnClass = nullptr;
 
-	/* 타이틀 → 허브도 맵이 바뀌는 이동이라 심리스 */
+	/* 타이틀 → 로비도 맵이 바뀌는 이동이라 심리스 */
 	bUseSeamlessTravel = true;
 }
 

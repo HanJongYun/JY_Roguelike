@@ -4,10 +4,7 @@
 #include "ToolsetRegistry/ToolsetDefinition.h"
 #include "JY_FabToolset.generated.h"
 
-/*
- * MCP 도구: Fab 언리얼 엔진 팩을 프로젝트에 설치한다 (에디터 Fab 창의 '프로젝트에 추가'와 같은 다운로더).
- * 함수 위 문서 주석은 MCP 도구 설명으로 쓰인다(UHT 툴팁)
- */
+/* MCP 도구: Fab 언리얼 엔진 팩을 프로젝트에 설치한다 (함수 문서 주석 = 도구 설명) */
 UCLASS(BlueprintType, Hidden)
 class UJY_FabToolset : public UToolsetDefinition
 {

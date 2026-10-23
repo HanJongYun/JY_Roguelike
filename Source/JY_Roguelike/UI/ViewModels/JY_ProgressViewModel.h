@@ -29,10 +29,7 @@ private:
 	FDelegateHandle ProgressChangedHandle;
 
 private:
-	/*
-	 * 위젯이 바인딩하는 값 (FieldNotify)
-	 * WBP_JY_HUD SoulText가 SoulStonesText 사용. 도전·클리어 횟수는 기록판 화면(이후 장)용
-	 */
+	/* 위젯이 바인딩하는 값 (FieldNotify) — WBP_JY_HUD SoulText가 SoulStonesText 사용 */
 
 	/* 영혼석 수 */
 	UPROPERTY(BlueprintReadOnly, Transient, FieldNotify, Category = "JY|Progress", meta = (AllowPrivateAccess))
@@ -50,7 +47,7 @@ private:
 	/* 구독 중인 PlayerState — 맵 이동 때 바뀌므로 약한 참조 */
 	TWeakObjectPtr<AJY_PlayerState> PlayerState;
 
-	/* 마지막으로 글자를 만든 값 (-1 = 아직 없음) — 숫자가 바뀔 때만 글자를 새로 만든다 (5-7과 같은 이유) */
+	/* 마지막으로 글자를 만든 값 (-1 = 아직 없음) */
 	int32 DisplayedSoulStones = INDEX_NONE;
 
 	int32 DisplayedRunCount = INDEX_NONE;

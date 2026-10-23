@@ -19,11 +19,8 @@ void UJY_MetaAltarScreen::NativeOnInitialized() //override
 	CloseButton->OnClicked().AddUObject(this, &ThisClass::HandleCloseClicked);
 }
 
-/*
- * 열 때마다 줄을 다시 채운다. Reset(false)는 줄 위젯을 지우지 않고 박스의 보관함(풀)에 돌려놓고(DynamicEntryBoxBase.cpp:38),
- * CreateEntry가 보관함에서 다시 꺼낸다 → 두 번째로 열 때부터는 줄 위젯을 새로 만들지 않는다.
- * 처음 1번(NativeOnInitialized)만 채우지 않는 이유: PlayerState가 연결되기 전에 처음 열렸다면 줄 ViewModel이 아직 0개다.
- */
+/* 열 때마다 다시 채운다 — PlayerState 연결 전에 처음 열렸으면 줄 ViewModel이 0개라서 */
+/* Reset(false)는 줄 위젯을 풀에 돌려놓아 CreateEntry가 재사용한다 (DynamicEntryBoxBase.cpp:38) */
 // [OwnClient]
 void UJY_MetaAltarScreen::NativeOnActivated() //override
 {
@@ -44,7 +41,7 @@ void UJY_MetaAltarScreen::NativeOnActivated() //override
 	}
 }
 
-/* 되돌릴 수 없는 행동이라 4장 확인 팝업을 거친다 */
+/* 되돌릴 수 없는 행동이라 확인 팝업을 거친다 */
 // [OwnClient]
 void UJY_MetaAltarScreen::HandleRefundClicked()
 {

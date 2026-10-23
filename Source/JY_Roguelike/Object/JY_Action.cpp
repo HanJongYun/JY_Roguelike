@@ -14,7 +14,7 @@ UWorld* UJY_Action::GetWorld() const //override
 	return Outer != nullptr ? Outer->GetWorld() : nullptr;
 }
 
-/* 부품은 BP가 붙이므로 태그로 찾는다 (ActorComponent.h:181 ComponentTags, Actor.h:3815 GetComponentsByTag) */
+/* 부품은 BP가 붙이므로 태그로 찾는다 */
 UActorComponent* UJY_Action::FindPart(const AJY_Object* Object, FName PartTag, TSubclassOf<UActorComponent> PartClass)
 {
 	if (PartTag.IsNone() == true)

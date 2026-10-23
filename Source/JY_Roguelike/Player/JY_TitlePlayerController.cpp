@@ -16,10 +16,7 @@ AJY_TitlePlayerController::AJY_TitlePlayerController()
 	bShowMouseCursor = true;
 }
 
-/*
- * 클라에 PC가 도착하면 SetPlayer(→ UI 틀 생성)가 BeginPlay보다 먼저다 (DataChannel.cpp:2921 → 3537) → 여기선 틀이 이미 있다.
- * 서버에도 이 PC가 있지만 로컬 플레이어가 없어 화면을 올리지 않는다.
- */
+/* 클라에선 SetPlayer(UI 틀 생성)가 BeginPlay보다 먼저라 여기선 틀이 이미 있다 (DataChannel.cpp:2921) */
 // [OwnClient]
 void AJY_TitlePlayerController::BeginPlay() //override
 {

@@ -16,6 +16,7 @@ class UJY_InputConfig;
 class UJY_AbilitySystemComponent;
 class UJY_HealthComponent;
 class UJY_InteractionComponent;
+class UJY_HitReactionComponent;
 struct FInputActionValue;
 
 /* 쿼터뷰 카메라로 움직이는 플레이어 캐릭터 */
@@ -43,14 +44,12 @@ protected:
 	virtual bool ShouldReplicateAcceleration() const override;
 
 public:
-	/* PlayerState의 ASC. 클라는 PlayerState가 복제로 늦게 올 수 있어 없으면 nullptr */
+	/* PlayerState의 ASC (아직 없으면 nullptr) */
 	UJY_AbilitySystemComponent* GetJYAbilitySystemComponent() const;
 
 protected:
-	/* 이동 입력 처리 */
 	void Move(const FInputActionValue& Value);
 
-	/* 상호작용 입력 처리 */
 	void Interact();
 
 	/* 어빌리티 입력 눌림 → ASC */
@@ -84,11 +83,15 @@ private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "JY|Interaction", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UJY_InteractionComponent> InteractionComponent;
 
+	/* 피격 반응 — 몽타주·번쩍임은 BP_JY_Character 컴포넌트 디테일에서 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "JY|Health", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UJY_HitReactionComponent> HitReactionComponent;
+
 	/* 손에 든 무기 외형. 메시 에셋은 BP_JY_Character에서 지정 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "JY|Weapon", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UStaticMeshComponent> WeaponMesh;
 
-	/* 어두운 맵에서 캐릭터 주변을 밝히는 조명. 밝기·반경·색은 BP_JY_Character의 이 컴포넌트에서 조정 */
+	/* 어두운 맵에서 캐릭터 주변을 밝히는 조명 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "JY|Light", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UPointLightComponent> CharacterLight;
 
@@ -103,7 +106,7 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "JY|Camera")
 	float CameraBoomLength = 1400.0f;
 
-	/* 무기를 붙일 캐릭터 메시 소켓. GhostSamurai 애니가 움직이는 weapon_r 뼈의 소켓 */
+	/* 무기를 붙일 캐릭터 메시 소켓 (weapon_r 뼈) */
 	UPROPERTY(EditDefaultsOnly, Category = "JY|Weapon")
 	FName WeaponSocketName = TEXT("weapon_rSocket");
 

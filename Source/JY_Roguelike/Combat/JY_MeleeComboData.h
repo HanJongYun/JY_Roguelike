@@ -48,7 +48,7 @@ public:
 public:
 	/* 설정값 — DA_JY_Combo_Ground / DA_JY_Combo_Air */
 
-	/* 콤보 몽타주 (루트모션, DefaultSlot). 노티파이: Event.Melee.StepStart(각 AttackN 시작 0.02초 뒤) · Event.Melee.Hit(타격, Attack 섹션 안) */
+	/* 콤보 몽타주 — 노티파이 Event.Melee.StepStart(각 Attack 섹션 시작 직후), Event.Melee.Hit(타격) */
 	UPROPERTY(EditDefaultsOnly)
 	TObjectPtr<UAnimMontage> Montage;
 

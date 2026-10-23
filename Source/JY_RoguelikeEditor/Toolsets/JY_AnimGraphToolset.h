@@ -24,11 +24,7 @@ enum class EJY_AnimNodeFunctionSlot : uint8
 	Update
 };
 
-/*
- * MCP 도구: 애님 블루프린트 상태 머신 편집 + 애니 에셋 작업.
- * 엔진 BlueprintTools는 중첩 그래프(상태·전환 안쪽)에서 실패하고 상태 노드를 못 만들어 보완한다.
- * 함수 위 문서 주석은 MCP 도구 설명으로 쓰인다(UHT 툴팁)
- */
+/* MCP 도구: 애님 블루프린트 상태 머신 편집 + 애니 에셋 작업 (함수 문서 주석 = 도구 설명) */
 UCLASS(BlueprintType, Hidden)
 class UJY_AnimGraphToolset : public UToolsetDefinition
 {
@@ -106,7 +102,7 @@ public:
 	static UEdGraphNode* CreateNode(UEdGraph* Graph, const FString& TypeId, FIntPoint Position);
 
 	/**
-	 * 애님 노드에 노드 함수를 지정한다 (디테일 패널에서 고르는 것과 같은 경로 — ObjectTools.set_properties로 넣으면 노드 관련성 확장이 안 붙어 런타임 check 크래시).
+	 * 애님 노드에 노드 함수를 지정한다 (디테일 패널과 같은 경로. ObjectTools.set_properties로 넣으면 런타임 check 크래시).
 	 * @param Node 애님 그래프 노드 (SequenceEvaluator 등)
 	 * @param Slot 함수 칸
 	 * @param FunctionName 애님 인스턴스(부모 C++ 포함)의 BlueprintThreadSafe 함수 이름
@@ -115,8 +111,7 @@ public:
 	static void SetNodeFunction(UEdGraphNode* Node, EJY_AnimNodeFunctionSlot Slot, FName FunctionName);
 
 	/**
-	 * 오브젝트의 최상위 속성 하나를 디테일 패널에서 바꾼 것처럼 넣는다 (Modify → PreEditChange → 값 → PostEditChangeProperty).
-	 * ObjectTools.set_properties는 편집 이벤트가 안 돌아 재압축·확장 요청·노드 갱신 같은 후처리가 빠질 때 쓴다.
+	 * 오브젝트의 최상위 속성 하나를 디테일 패널에서 바꾼 것처럼 넣는다 (편집 이벤트·후처리 포함, ObjectTools.set_properties 대신).
 	 * 블루프린트 에셋을 넣으면 CDO가 아니라 에셋 자체를 고친다.
 	 * @param Object 대상 오브젝트
 	 * @param PropertyName 속성 이름 (예: AlwaysDynamicProperties, CurveCompressionSettings)
@@ -182,6 +177,14 @@ public:
 	 */
 	UFUNCTION(meta = (AICallable), Category = "JY|Animation")
 	static TArray<FString> ListAnimNotifies(UAnimSequenceBase* Animation);
+
+	/**
+	 * 상태 머신의 전환을 나열한다 — 출발·도착 상태와 전환 규칙(규칙 그래프를 식으로 풀어 씀). 전환 규칙 그래프는 read_graph_dsl로 안 읽힌다.
+	 * @param StateMachineGraph 상태 머신 그래프 (GetSubGraphs(상태 머신 노드)로 얻음)
+	 * @return "출발 -> 도착 | 규칙=식 | 자동=bool 블렌드=초 우선순위=n" 문자열 목록
+	 */
+	UFUNCTION(meta = (AICallable), Category = "JY|Animation")
+	static TArray<FString> ListStateMachineTransitions(UEdGraph* StateMachineGraph);
 
 	/**
 	 * 애님 블루프린트를 만든다 (콘텐츠 브라우저 '애니메이션 블루프린트 생성'과 같은 팩토리).
@@ -273,14 +276,7 @@ public:
 	static int32 CopyAnimNotifies(UAnimSequenceBase* Source, UAnimMontage* Destination, float TimeOffset, const FString& ClassFilter);
 
 	/**
-	 * 몽타주가 쓰는 애니를 다른 애니로 바꿔 끼운다 (엔진 UAnimMontage::ReplaceReferredAnimations — 섹션·노티파이 유지).
-	 * @param Montage 대상 몽타주
-	 * @param FromAnimations 지금 쓰는 애니
-	 * @param ToAnimations 바꿀 애니 (FromAnimations와 같은 순서·개수)
-	 * @return 성공 여부
-	 */
-	/**
-	 * 몽타주에서 이름이 같은 노티파이를 지운다 (엔진 AnimationBlueprintLibrary.RemoveAnimationNotifyEventsByName — 클래스 이름이 바뀐 노티파이 정리 등).
+	 * 몽타주에서 이름이 같은 노티파이를 지운다 (클래스 이름이 바뀐 노티파이 정리 등).
 	 * @param Montage 대상 몽타주
 	 * @param NotifyName 노티파이 이름 (ListAnimNotifies 세 번째 칸)
 	 * @return 지운 개수
@@ -288,6 +284,13 @@ public:
 	UFUNCTION(meta = (AICallable), Category = "JY|Animation")
 	static int32 RemoveMontageNotifies(UAnimMontage* Montage, FName NotifyName);
 
+	/**
+	 * 몽타주가 쓰는 애니를 다른 애니로 바꿔 끼운다 (섹션·노티파이 유지).
+	 * @param Montage 대상 몽타주
+	 * @param FromAnimations 지금 쓰는 애니
+	 * @param ToAnimations 바꿀 애니 (FromAnimations와 같은 순서·개수)
+	 * @return 성공 여부
+	 */
 	UFUNCTION(meta = (AICallable), Category = "JY|Animation")
 	static bool ReplaceMontageAnimations(UAnimMontage* Montage, const TArray<UAnimSequenceBase*>& FromAnimations, const TArray<UAnimSequenceBase*>& ToAnimations);
 };

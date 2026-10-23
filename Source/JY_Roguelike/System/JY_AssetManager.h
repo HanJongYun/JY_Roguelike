@@ -13,7 +13,7 @@ class UJY_AssetManager : public UAssetManager
 	GENERATED_BODY()
 
 public:
-	/* 엔진이 만든 에셋 관리자 (DefaultEngine.ini AssetManagerClassName) */
+	/* 엔진이 만든 에셋 관리자 */
 	static UJY_AssetManager& Get();
 
 	/* 공용 데이터 (처음 부를 때 로드, 실패하면 nullptr) */

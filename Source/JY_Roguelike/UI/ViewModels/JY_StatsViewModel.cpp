@@ -10,10 +10,7 @@ UJY_StatsViewModel::UJY_StatsViewModel()
 	HealthText = INVTEXT("-- / --");
 }
 
-/*
- * 1장 HUD(UJY_HUDLayout::BindAbilitySystem)에 있던 구독을 그대로 옮겨 왔다 — 화면이 몇 개든 구독은 여기 1번.
- * ASC 값 변경 델리게이트는 서버 GE 적용과 클라 복제(OnRep) 둘 다에서 방송된다 (GameplayEffect.cpp:3783, 3945~3973).
- */
+/* ASC 값 변경 델리게이트는 서버 GE 적용과 클라 OnRep 둘 다에서 방송된다 (GameplayEffect.cpp:3783) */
 // [OwnClient]
 void UJY_StatsViewModel::BindAbilitySystem(UJY_AbilitySystemComponent* InAbilitySystemComponent)
 {
@@ -53,10 +50,7 @@ void UJY_StatsViewModel::HandleHealthChanged(const FOnAttributeChangeData& Chang
 	RefreshHealthValues();
 }
 
-/*
- * HUD의 RefreshHealth와 같은 계산 — 다만 위젯에 그리지 않고 값만 바꾼다. 그리는 건 WBP 바인딩(5-5).
- * UE_MVVM_SET_PROPERTY_VALUE는 값이 실제로 바뀐 칸만 알린다 (MVVMViewModelBase.h:81).
- */
+/* UE_MVVM_SET_PROPERTY_VALUE는 값이 실제로 바뀐 칸만 알린다 (MVVMViewModelBase.h:81) */
 // [OwnClient]
 void UJY_StatsViewModel::RefreshHealthValues()
 {
@@ -73,10 +67,8 @@ void UJY_StatsViewModel::RefreshHealthValues()
 	const float NewPercent = NewMaxHealth > 0.0f ? FMath::Clamp(NewCurrentHealth / NewMaxHealth, 0.0f, 1.0f) : 0.0f;
 	UE_MVVM_SET_PROPERTY_VALUE(HealthPercent, NewPercent);
 
-	/*
-	 * FText는 새로 만들면 글자가 같아도 "다르다"로 비교돼(Text.cpp:1455~1475, 깊은 비교는 옵션) 매번 알림이 나간다
-	 * → 반올림 정수가 바뀔 때만 글자를 만든다. 예: 99.6 → 99.8은 둘 다 100이라 알림 0번. 번역 대상이 아닌 숫자 형식이라 INVTEXT.
-	 */
+	/* FText는 글자가 같아도 "다르다"로 비교돼 매번 알림이 나가므로 반올림 정수가 바뀔 때만 만든다 (Text.cpp:1455) */
+	/* 번역 대상이 아닌 숫자 형식이라 INVTEXT */
 	const int32 RoundedCurrentHealth = FMath::RoundToInt(NewCurrentHealth);
 	const int32 RoundedMaxHealth = FMath::RoundToInt(NewMaxHealth);
 	if (RoundedCurrentHealth != DisplayedCurrentHealth || RoundedMaxHealth != DisplayedMaxHealth)

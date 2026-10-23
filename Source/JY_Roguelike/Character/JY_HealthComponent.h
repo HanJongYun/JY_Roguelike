@@ -37,7 +37,6 @@ public:
 	/* ASC의 체력 세트에 연결 */
 	void InitializeWithAbilitySystem(UJY_AbilitySystemComponent* InASC);
 
-	/* 연결 해제 */
 	void UninitializeFromAbilitySystem();
 
 	UFUNCTION(BlueprintCallable, Category = "JY|Health")
@@ -46,7 +45,6 @@ public:
 protected:
 	void HandleOutOfHealth(AActor* DamageInstigator, AActor* DamageCauser, const FGameplayEffectSpec* DamageEffectSpec, float DamageMagnitude, float OldValue, float NewValue);
 
-	/* 죽음 시작 처리 */
 	void StartDeath();
 
 	UFUNCTION()
@@ -66,7 +64,7 @@ private:
 	UPROPERTY()
 	TObjectPtr<const UJY_HealthSet> HealthSet;
 
-	/* 죽음 단계 (복제, ReplicatedUsing=OnRep_DeathState) */
+	/* 죽음 단계 (복제) */
 	UPROPERTY(ReplicatedUsing = OnRep_DeathState)
 	EJY_DeathState DeathState;
 };

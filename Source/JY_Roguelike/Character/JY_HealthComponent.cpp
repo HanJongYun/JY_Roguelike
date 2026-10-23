@@ -69,11 +69,7 @@ void UJY_HealthComponent::UninitializeFromAbilitySystem()
 }
 
 // [Server]
-/*
- * Lyra는 여기서 GameplayEvent.Death를 보내 사망 어빌리티가 StartDeath를 부른다.
- * 이번 조각은 사망 어빌리티가 없어 직접 호출 (스펙 합의 축소).
- * 클라 OnRep_Health도 OnOutOfHealth를 방송하므로 권한 검사로 걸러낸다.
- */
+/* 클라 OnRep_Health도 OnOutOfHealth를 방송하므로 권한 검사로 걸러낸다 */
 void UJY_HealthComponent::HandleOutOfHealth(AActor* DamageInstigator, AActor* DamageCauser, const FGameplayEffectSpec* DamageEffectSpec, float DamageMagnitude, float OldValue, float NewValue)
 {
 	if (GetOwner()->HasAuthority() == false)
@@ -94,8 +90,8 @@ void UJY_HealthComponent::StartDeath()
 	AActor* Owner = GetOwner();
 	check(Owner);
 
-	/* 모든 어빌리티 차단 (LyraHealthComponent::StartDeath와 같음). 서버·클라 모두 여기를 지나 클라 예측도 막힌다.
-	   시뮬 프록시는 죽음 복제가 PlayerState(ASC)보다 먼저 올 수 있어 ASC가 아직 없을 수 있다 */
+	/* 모든 어빌리티 차단 — 클라도 여기를 지나 예측도 막힌다 */
+	/* 시뮬 프록시는 죽음 복제가 PlayerState(ASC)보다 먼저 올 수 있다 */
 	if (AbilitySystemComponent != nullptr)
 	{
 		AbilitySystemComponent->SetLooseGameplayTagCount(JYGameplayTags::Status_Death_Dying, 1);
@@ -119,6 +115,6 @@ void UJY_HealthComponent::OnRep_DeathState(EJY_DeathState OldDeathState)
 		StartDeath();
 	}
 
-	/* DeathFinished는 이번 범위 밖. 서버 값에 맞춰만 둔다 */
+	/* DeathFinished는 아직 처리 없음. 서버 값에 맞춰만 둔다 */
 	DeathState = NewDeathState;
 }

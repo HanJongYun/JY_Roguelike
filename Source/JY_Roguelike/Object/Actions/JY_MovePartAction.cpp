@@ -4,7 +4,7 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(JY_MovePartAction)
 
-/* 늦게 받았거나 속도가 0이면 바로 목표로, 아니면 물체 Tick을 빌려 따라감 (Action엔 Tick이 없다) */
+/* 늦게 받았거나 시간이 0이면 바로 목표로, 아니면 물체 Tick을 빌려 따라감 (Action엔 Tick이 없다) */
 // [Client]
 void UJY_MovePartAction::OnClientEnter(AJY_Object* Object, bool bCatchUp) //override
 {
@@ -12,12 +12,15 @@ void UJY_MovePartAction::OnClientEnter(AJY_Object* Object, bool bCatchUp) //over
 	if (Part == nullptr)
 		return;
 
-	if (bCatchUp == true || MoveSpeed <= 0.0f)
+	if (bCatchUp == true || MoveSeconds <= 0.0f)
 	{
 		Part->SetRelativeLocation(TargetLocation);
 		return;
 	}
 
+	/* 이전 상태 이동이 덜 끝났으면 그 자리에서 출발 — 겹친 상태 전환에도 튀지 않는다 */
+	StartLocation = Part->GetRelativeLocation();
+	ElapsedSeconds = 0.0f;
 	Object->AddTickingAction(this);
 }
 
@@ -35,7 +38,9 @@ bool UJY_MovePartAction::TickClient(AJY_Object* Object, float DeltaSeconds) //ov
 	if (Part == nullptr)
 		return false;
 
-	const FVector NewLocation = FMath::VInterpTo(Part->GetRelativeLocation(), TargetLocation, DeltaSeconds, MoveSpeed);
+	ElapsedSeconds += DeltaSeconds;
+	const float Alpha = FMath::Clamp(ElapsedSeconds / MoveSeconds, 0.0f, 1.0f);
+	const FVector NewLocation = UKismetMathLibrary::VEase(StartLocation, TargetLocation, Alpha, EasingFunc, BlendExp);
 	Part->SetRelativeLocation(NewLocation);
-	return NewLocation.Equals(TargetLocation, 0.1f) == false;
+	return Alpha < 1.0f;
 }

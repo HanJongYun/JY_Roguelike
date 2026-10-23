@@ -12,10 +12,7 @@ FJY_CursorInputProcessor::FJY_CursorInputProcessor(UJY_CursorSubsystem& InOwner)
 {
 }
 
-/*
- * 버튼 위든 HUD든 화면 어디서 눌러도 같은 반응.
- * false 반환 = 이벤트를 먹지 않음 → 클릭은 원래대로 버튼·게임에 간다.
- */
+/* false 반환 = 이벤트를 먹지 않음 → 클릭은 원래대로 버튼·게임에 간다 */
 // [OwnClient]
 bool FJY_CursorInputProcessor::HandleMouseButtonDownEvent(FSlateApplication& SlateApp, const FPointerEvent& MouseEvent) //override
 {
@@ -62,10 +59,7 @@ void UJY_CursorSubsystem::Deinitialize() //override
 	Super::Deinitialize();
 }
 
-/*
- * 맵마다 새 PC가 붙을 때 불린다 — 이때는 뷰포트가 있어 커서를 바꿀 수 있다.
- * 엔진이 경로별로 한 번 읽어 캐시하므로(GameViewportClient.cpp:4785) 두 번째 맵부터는 파일을 읽지 않는다.
- */
+/* 맵마다 새 PC가 붙을 때 불린다 — 이때는 뷰포트가 있어 커서를 바꿀 수 있다 */
 // [OwnClient]
 void UJY_CursorSubsystem::PlayerControllerChanged(APlayerController* NewPlayerController) //override
 {

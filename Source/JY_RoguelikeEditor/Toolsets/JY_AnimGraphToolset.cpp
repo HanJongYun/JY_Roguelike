@@ -5,6 +5,10 @@
 #include "AnimStateEntryNode.h"
 #include "AnimGraphNode_Base.h"
 #include "AnimStateTransitionNode.h"
+#include "AnimationTransitionGraph.h"
+#include "AnimGraphNode_TransitionResult.h"
+#include "AnimStateNodeBase.h"
+#include "EdGraphSchema_K2.h"
 #include "AnimationModifier.h"
 #include "Animation/AnimMontage.h"
 #include "Animation/AnimSequence.h"
@@ -37,10 +41,7 @@ namespace JY_AnimGraphToolset
 		return FString::Printf(TEXT("%s|%s"), *Category.Replace(TEXT(" "), TEXT("")), *MenuName.Replace(TEXT(" "), TEXT("")));
 	}
 
-	/*
-	 * 그래프에 쓸 수 있는 노드 생성기를 하나씩 넘긴다. Visitor가 false를 돌려주면 멈춘다.
-	 * 블루프린트는 그래프 바깥 사슬을 따라 찾는다(FindBlueprintForGraph) — 엔진 Python 툴셋은 바로 위 Outer만 봐서 중첩 그래프에서 실패한다
-	 */
+	/* Visitor가 false면 멈춘다. FindBlueprintForGraph로 Outer 사슬을 따라가야 중첩 그래프에서도 동작 */
 	void ForEachAvailableAction(UEdGraph* Graph, TFunctionRef<bool(const FString& TypeId, const UBlueprintNodeSpawner* Spawner, const FBlueprintActionInfo& ActionInfo)> Visitor)
 	{
 		UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForGraph(Graph);
@@ -246,10 +247,7 @@ UEdGraphNode* UJY_AnimGraphToolset::CreateNode(UEdGraph* Graph, const FString& T
 	return SpawnedNode;
 }
 
-/*
- * 디테일 패널과 같은 순서(PreEditChange → 값 → PostEditChangeProperty).
- * UAnimGraphNode_Base::PostEditChangeProperty(AnimGraphNode_Base.cpp:103)가 런타임 노드 함수 연결·확장 요청(NodeRelevancy)·노드 재구성을 한다
- */
+/* PostEditChangeProperty가 노드 함수 연결·확장 요청을 해야 런타임 크래시가 안 난다 (AnimGraphNode_Base.cpp:103) */
 void UJY_AnimGraphToolset::SetNodeFunction(UEdGraphNode* Node, EJY_AnimNodeFunctionSlot Slot, FName FunctionName)
 {
 	UAnimGraphNode_Base* AnimNode = Cast<UAnimGraphNode_Base>(Node);
@@ -299,10 +297,7 @@ void UJY_AnimGraphToolset::SetPropertyAsText(UObject* Object, FName PropertyName
 		return;
 	}
 
-	/*
-	 * 인라인 하위 오브젝트(Instanced·EditInline, 예: 커브 압축 Codec)는 텍스트로 클래스 경로를 준다 — 디테일 패널 클래스 선택처럼 새 인스턴스를 만든다.
-	 * 오브젝트 속성인데 값이 그 속성 타입의 하위 클래스면 인라인 생성으로 본다 (에셋 참조는 클래스가 아니라 이 분기에 안 걸린다)
-	 */
+	/* 값이 속성 타입의 하위 클래스 경로면 인라인 하위 오브젝트로 보고 새 인스턴스를 만든다 (예: 커브 압축 Codec) */
 	FObjectProperty* ObjectProperty = CastField<FObjectProperty>(Property);
 	UClass* InstanceClass = nullptr;
 	if (ObjectProperty != nullptr && ObjectProperty->PropertyClass != UClass::StaticClass())
@@ -473,7 +468,72 @@ TArray<FString> UJY_AnimGraphToolset::SampleBoneComponentSpace(UAnimSequence* Se
 	return Result;
 }
 
-/* 노티파이 클래스마다 헤더를 넣지 않고 리플렉션으로 오브젝트·이름 속성만 꺼낸다 (팩 전용 노티파이도 읽힘) */
+namespace JY_AnimGraphToolset
+{
+	/* 입력 핀에 연결된 노드를 "노드 제목(핀=값, ...)" 식으로 풀어 쓴다. 연결이 없으면 핀 기본값 */
+	FString DescribeInputPin(const UEdGraphPin* Pin, int32 Depth)
+	{
+		if (Pin->LinkedTo.Num() == 0)
+			return Pin->DefaultValue.IsEmpty() == true ? TEXT("(비어 있음)") : Pin->DefaultValue;
+
+		const UEdGraphNode* SourceNode = Pin->LinkedTo[0]->GetOwningNode();
+		const FString Title = SourceNode->GetNodeTitle(ENodeTitleType::ListView).ToString();
+		if (Depth >= 8)
+			return Title;
+
+		TArray<FString> Arguments;
+		for (const UEdGraphPin* InputPin : SourceNode->Pins)
+		{
+			const bool bDataInput = InputPin->Direction == EGPD_Input && InputPin->PinType.PinCategory != UEdGraphSchema_K2::PC_Exec && InputPin->bHidden == false;
+			if (bDataInput == false || InputPin->PinName == UEdGraphSchema_K2::PN_Self)
+				continue;
+
+			Arguments.Add(FString::Printf(TEXT("%s=%s"), *InputPin->PinName.ToString(), *DescribeInputPin(InputPin, Depth + 1)));
+		}
+		return Arguments.Num() == 0 ? Title : FString::Printf(TEXT("%s(%s)"), *Title, *FString::Join(Arguments, TEXT(", ")));
+	}
+}
+
+/* 전환 규칙 그래프의 결과 노드 bCanEnterTransition 핀을 거꾸로 따라가 식으로 만든다 */
+TArray<FString> UJY_AnimGraphToolset::ListStateMachineTransitions(UEdGraph* StateMachineGraph)
+{
+	if (StateMachineGraph == nullptr)
+	{
+		UKismetSystemLibrary::RaiseScriptError(TEXT("StateMachineGraph is required."));
+		return {};
+	}
+
+	TArray<FString> Result;
+	for (const UEdGraphNode* Node : StateMachineGraph->Nodes)
+	{
+		const UAnimStateTransitionNode* Transition = Cast<UAnimStateTransitionNode>(Node);
+		if (Transition == nullptr)
+			continue;
+
+		const UAnimStateNodeBase* PreviousState = Transition->GetPreviousState();
+		const UAnimStateNodeBase* NextState = Transition->GetNextState();
+		const FString FromName = PreviousState != nullptr ? PreviousState->GetStateName() : TEXT("?");
+		const FString ToName = NextState != nullptr ? NextState->GetStateName() : TEXT("?");
+
+		FString Rule = TEXT("(규칙 그래프 없음)");
+		UAnimationTransitionGraph* RuleGraph = Cast<UAnimationTransitionGraph>(Transition->BoundGraph);
+		if (RuleGraph != nullptr)
+		{
+			const UAnimGraphNode_TransitionResult* ResultNode = RuleGraph->GetResultNode();
+			const UEdGraphPin* CanEnterPin = ResultNode != nullptr ? ResultNode->FindPin(TEXT("bCanEnterTransition")) : nullptr;
+			if (CanEnterPin != nullptr)
+			{
+				Rule = JY_AnimGraphToolset::DescribeInputPin(CanEnterPin, 0);
+			}
+		}
+
+		Result.Add(FString::Printf(TEXT("%s -> %s | 규칙=%s | 자동=%s 블렌드=%.2f 우선순위=%d"), *FromName, *ToName, *Rule,
+			Transition->bAutomaticRuleBasedOnSequencePlayerInState == true ? TEXT("true") : TEXT("false"), Transition->CrossfadeDuration, Transition->PriorityOrder));
+	}
+	return Result;
+}
+
+/* 노티파이 클래스마다 헤더를 넣지 않고 리플렉션으로 클래스 기본값과 다른 속성을 꺼낸다 (태그·숫자 포함, 팩 전용 노티파이도 읽힘) */
 TArray<FString> UJY_AnimGraphToolset::ListAnimNotifies(UAnimSequenceBase* Animation)
 {
 	if (Animation == nullptr)
@@ -487,27 +547,18 @@ TArray<FString> UJY_AnimGraphToolset::ListAnimNotifies(UAnimSequenceBase* Animat
 		if (Object == nullptr)
 			return TEXT("");
 
+		const UObject* DefaultObject = Object->GetClass()->GetDefaultObject();
 		FString Text = Object->GetClass()->GetName();
 		for (TFieldIterator<FProperty> It(Object->GetClass()); It; ++It)
 		{
 			const FProperty* Property = *It;
+			if (Property->Identical_InContainer(Object, DefaultObject) == true)
+				continue;
+
+			FString ValueText;
 			const void* ValuePtr = Property->ContainerPtrToValuePtr<void>(Object);
-			if (const FObjectPropertyBase* ObjectProperty = CastField<FObjectPropertyBase>(Property))
-			{
-				const UObject* Value = ObjectProperty->GetObjectPropertyValue(ValuePtr);
-				if (Value != nullptr)
-				{
-					Text += FString::Printf(TEXT(" %s=%s"), *Property->GetName(), *Value->GetPathName());
-				}
-			}
-			else if (const FNameProperty* NameProperty = CastField<FNameProperty>(Property))
-			{
-				const FName Value = NameProperty->GetPropertyValue(ValuePtr);
-				if (Value.IsNone() == false)
-				{
-					Text += FString::Printf(TEXT(" %s=%s"), *Property->GetName(), *Value.ToString());
-				}
-			}
+			Property->ExportTextItem_Direct(ValueText, ValuePtr, nullptr, nullptr, PPF_None);
+			Text += FString::Printf(TEXT(" %s=%s"), *Property->GetName(), *ValueText);
 		}
 		return Text;
 	};
@@ -544,7 +595,7 @@ TArray<FString> UJY_AnimGraphToolset::ListAnimNotifies(UAnimSequenceBase* Animat
 	return Result;
 }
 
-/* 콘텐츠 브라우저 '애니메이션 블루프린트 생성'과 같은 팩토리 — 대상 스켈레톤은 생성 때만 정할 수 있다 */
+/* 대상 스켈레톤은 생성 때만 정할 수 있다 */
 UAnimBlueprint* UJY_AnimGraphToolset::CreateAnimBlueprint(USkeleton* Skeleton, UClass* ParentClass, USkeletalMesh* PreviewMesh, const FString& FolderPath, const FString& AssetName)
 {
 	if (Skeleton == nullptr || ParentClass == nullptr)
@@ -576,7 +627,7 @@ UAnimBlueprint* UJY_AnimGraphToolset::CreateAnimBlueprint(USkeleton* Skeleton, U
 	return AnimBlueprint;
 }
 
-/* 콘텐츠 브라우저 '애님 몽타주 생성'과 같은 팩토리 — 슬롯·구간·길이를 원본 애니에서 채운다 (AnimMontageFactory.cpp FactoryCreateNew) */
+/* 팩토리가 슬롯·구간·길이를 원본 애니에서 채운다 */
 UAnimMontage* UJY_AnimGraphToolset::CreateMontage(UAnimSequence* Sequence, const FString& FolderPath, const FString& AssetName)
 {
 	if (Sequence == nullptr)
@@ -600,7 +651,7 @@ UAnimMontage* UJY_AnimGraphToolset::CreateMontage(UAnimSequence* Sequence, const
 	return Montage;
 }
 
-/* Animation Data Modifiers 창의 Apply와 같은 함수(UAnimationModifier::ApplyToAnimationSequence) — 적용 기록도 애니 에셋에 남는다 */
+/* 적용 기록도 애니 에셋에 남는다 */
 void UJY_AnimGraphToolset::ApplyAnimationModifier(UAnimSequence* Sequence, UClass* ModifierClass, const TMap<FName, FString>& PropertyValues)
 {
 	if (Sequence == nullptr || ModifierClass == nullptr)
@@ -638,7 +689,7 @@ void UJY_AnimGraphToolset::ApplyAnimationModifier(UAnimSequence* Sequence, UClas
 	Modifier->ApplyToAnimationSequence(Sequence);
 }
 
-/* Animation Data Modifiers 창의 Revert와 같은 함수 — 그 클래스로 적용된 기록을 찾아 되돌린다 (UAnimationModifier::RevertFromAnimationSequence) */
+/* 그 클래스로 적용된 기록을 찾아 되돌린다 */
 void UJY_AnimGraphToolset::RevertAnimationModifier(UAnimSequence* Sequence, UClass* ModifierClass)
 {
 	if (Sequence == nullptr || ModifierClass == nullptr || ModifierClass->IsChildOf(UAnimationModifier::StaticClass()) == false)
@@ -669,10 +720,9 @@ TArray<FString> UJY_AnimGraphToolset::ImportFiles(const TArray<FString>& Filenam
 
 namespace JY_AnimGraphToolset
 {
-	/* 노티파이를 넣을 트랙 이름 */
 	const FName NotifyTrackName(TEXT("JY"));
 
-	/* 몽타주 편집기 SortAndUpdateMontage와 같은 순서 (SAnimMontagePanel.cpp:354) — 링크 갱신 → 길이 → 섹션 정렬 → 노티파이 트리거 오프셋 → 저장 표시 */
+	/* 몽타주 편집기 SortAndUpdateMontage와 같은 순서 (SAnimMontagePanel.cpp:354) */
 	void RefreshMontage(UAnimMontage* Montage)
 	{
 		Montage->UpdateLinkableElements();
@@ -866,10 +916,7 @@ bool UJY_AnimGraphToolset::ReplaceMontageAnimations(UAnimMontage* Montage, const
 	Montage->Modify();
 	Montage->ReplaceReferredAnimations(ReplacementMap);
 
-	/*
-	 * 엔진 교체는 구간 시작·끝 시각을 그대로 둔다 → 길이가 다른 애니면 구간이 어긋난다.
-	 * 바꾼 구간은 몽타주 편집기 "Reset Segment Length"처럼 새 애니 길이로 다시 맞추고 뒤 구간을 이어 붙인다
-	 */
+	/* 엔진 교체는 구간 시각을 그대로 둬 길이가 다르면 어긋난다 — 새 애니 길이로 맞추고 뒤 구간을 이어 붙인다 */
 	for (FSlotAnimationTrack& SlotTrack : Montage->SlotAnimTracks)
 	{
 		float NextStartPos = 0.0f;

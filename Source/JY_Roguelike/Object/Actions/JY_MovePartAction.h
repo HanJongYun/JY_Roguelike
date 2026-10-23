@@ -2,9 +2,10 @@
 
 #include "CoreMinimal.h"
 #include "Object/JY_Action.h"
+#include "Kismet/KismetMathLibrary.h"
 #include "JY_MovePartAction.generated.h"
 
-/* 부품 이동 — BP 부품을 상대 위치로 옮김 (가시 숨음·경고·솟음, 화염판 발판 눌림). 화면 연출 전용, 서버 판정은 범위 피해가 한다 */
+/* BP 부품을 상대 위치로 옮기는 화면 연출 (가시 솟음, 화염판 발판 눌림) */
 UCLASS(meta = (DisplayName = "Move Part"))
 class UJY_MovePartAction : public UJY_Action
 {
@@ -26,7 +27,20 @@ private:
 	UPROPERTY(EditAnywhere, Category = "JY|MovePart")
 	FVector TargetLocation = FVector::ZeroVector;
 
-	/* 따라가는 속도 (FInterpTo, 클수록 빠름) — 0이면 바로 */
+	/* 목표까지 걸리는 시간 (초) — 0이면 바로 */
 	UPROPERTY(EditAnywhere, Category = "JY|MovePart", Meta = (ClampMin = "0.0"))
-	float MoveSpeed = 0.0f;
+	float MoveSeconds = 0.0f;
+
+	/* 움직임 모양 — ExpoOut(처음에 확 튀어나옴), EaseIn(천천히 출발해 빨라짐) 등 */
+	UPROPERTY(EditAnywhere, Category = "JY|MovePart", Meta = (EditCondition = "MoveSeconds > 0"))
+	TEnumAsByte<EEasingFunc::Type> EasingFunc = EEasingFunc::Linear;
+
+	/* Ease 계열의 곡선 세기 (클수록 급함) */
+	UPROPERTY(EditAnywhere, Category = "JY|MovePart", Meta = (ClampMin = "1.0", EditCondition = "MoveSeconds > 0"))
+	float BlendExp = 2.0f;
+
+private:
+	/* 이번 이동의 출발 위치·지난 시간 */
+	FVector StartLocation = FVector::ZeroVector;
+	float ElapsedSeconds = 0.0f;
 };

@@ -12,17 +12,7 @@ class UJY_GameData;
 class UJY_PrimaryLayout;
 class UJY_ScreenWidget;
 
-/*
- * 로컬 플레이어의 화면과 ViewModel을 관리 — 클라에만 있다(데디 서버엔 로컬 플레이어가 없음)
- *
- * ViewModel에 값을 넣는 규칙 3가지 (새 화면을 만들 때 이 중 하나를 고른다)
- *   1. 복제 상태(체력·영혼석·강화 단계) → ViewModel이 원본을 구독한다. 연결은 AJY_PlayerController::InitializeLocalUI 한 곳
- *   2. 로컬 전용 상태(상호작용 초점)   → 그 상태를 가진 게임 코드가 GetOrCreateViewModel로 직접 값을 넣는다
- *   3. 목록 항목(제단 줄)             → 화면이 항목 위젯마다 ViewModel을 직접 넣는다 (WBP Creation Type = Manual)
- *
- * ViewModel 수명 규칙: ViewModel은 맵을 넘어 남는다 → 월드 물체가 채운 값은 그 물체 쪽이 사라질 때 비운다
- *   (예: UJY_InteractionComponent가 "[E] 포털" 안내를 지움 — 안 지우면 던전 HUD에 남는다)
- */
+/* 로컬 플레이어의 화면과 ViewModel을 관리 — 클라에만 있다 */
 UCLASS()
 class UJY_UIManagerSubsystem : public ULocalPlayerSubsystem
 {
@@ -65,7 +55,7 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UJY_PrimaryLayout> PrimaryLayout;
 
-	/* 틀을 만든 PC — 맵 이동 후엔 위젯의 GetOwningPlayer가 새 PC를 돌려줘 비교에 못 쓴다 */
+	/* 틀을 만든 PC */
 	TWeakObjectPtr<APlayerController> LayoutOwner;
 
 	/* 지금 켜져 있는 정지 화면들 */

@@ -4,10 +4,7 @@
 #include "Components/ActorComponent.h"
 #include "JY_SwingMotionComponent.generated.h"
 
-/*
- * 진자 흔들림 — BP 부품 하나를 피치(Y축)로 앞뒤로 흔든다 (도끼).
- * 각도를 서버 시각의 사인으로 계산해 복제하지 않는다 — 서버·클라가 각자 같은 각도를 그린다
- */
+/* BP 부품 하나를 서버 시각 기준으로 피치(Y축) 진자 흔들림 (도끼) */
 UCLASS(ClassGroup = (JY), meta = (BlueprintSpawnableComponent))
 class UJY_SwingMotionComponent : public UActorComponent
 {

@@ -15,11 +15,7 @@ namespace JY_Object
 	static constexpr int32 MaxStateSteps = 4;
 }
 
-/*
- * 서버는 상태 하나(ObjectState)만 판정·복제하고, 연출은 각 클라가 OnRep에서 Action으로 재생한다.
- * 방마다 여러 개 배치되는 물체라 처음부터 휴면(DORM_Initial, 배치 액터 복제 비용 0, EngineTypes.h:3607) — 상태를 바꿀 때만 FlushNetDormancy로 한 번 보낸다.
- * Tick은 부드러운 움직임을 그리는 Action이 있는 동안만 켠다 (AddTickingAction)
- */
+/* 방마다 여러 개 배치돼 처음부터 휴면 — 상태를 바꿀 때만 FlushNetDormancy로 보낸다 */
 AJY_Object::AJY_Object()
 {
 	PrimaryActorTick.bCanEverTick = true;
@@ -38,10 +34,7 @@ void AJY_Object::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifeti
 	DOREPLIFETIME(AJY_Object, ActivationImpulse);
 }
 
-/*
- * Idle Action은 시작하자마자 실행한다 (가시 숨김 위치, 도끼 피해).
- * 클라가 BeginPlay 전에 다른 상태를 받았으면(스폰 액터) 그 상태까지 결과만 맞춘다
- */
+/* 클라가 BeginPlay 전에 다른 상태를 받았으면(스폰 액터) 그 상태까지 결과만 맞춘다 */
 // [Server] [Client]
 void AJY_Object::BeginPlay() //override
 {
@@ -206,8 +199,8 @@ float AJY_Object::GetStateSeconds(EJY_ObjectState InState) const
 }
 
 /*
- * 클라는 상태를 하나씩 받는다는 보장이 없다 — 항아리는 Active → InActive가 같은 프레임이라 InActive만 온다.
- * 그래서 마지막으로 실행한 상태부터 받은 상태까지 차례(GetNextState)대로 나가고 들어가 사이 상태 연출(파편)도 실행한다
+ * 클라는 중간 상태를 건너뛰고 받을 수 있다 (항아리 Active → InActive가 같은 프레임).
+ * 차례대로 거쳐 사이 상태 연출(파편)도 실행한다
  */
 // [Server] [Client]
 void AJY_Object::ApplyStateLocally(EJY_ObjectState TargetState, bool bCatchUp)
@@ -219,7 +212,7 @@ void AJY_Object::ApplyStateLocally(EJY_ObjectState TargetState, bool bCatchUp)
 		AppliedState = NextState;
 		EnterState(NextState, bCatchUp);
 
-		/* [Server] Action·발동 컴포넌트가 들어간 김에 다시 발동시킴(쿨타임 끝에 올라와 있는 폰) — 그쪽 SetState가 이어서 진행했다 */
+		/* [Server] 들어간 김에 다시 발동됨(쿨타임 끝에 올라와 있는 폰) — 그쪽 SetState가 이어서 진행했다 */
 		if (ObjectState != TargetState)
 			return;
 	}
@@ -299,7 +292,7 @@ const TArray<TObjectPtr<UJY_Action>>& AJY_Object::GetActions(EJY_ObjectState InS
 	}
 }
 
-/* 같은 묶음의 복제 값(StateServerSeconds·ActivationImpulse)이 모두 들어온 뒤에 불린다 (DataReplication.cpp FObjectReplicator::PostReceivedBunch → CallRepNotifies) */
+/* 같은 묶음의 복제 값이 모두 들어온 뒤 불린다 (DataReplication.cpp PostReceivedBunch) */
 // [Client]
 void AJY_Object::OnRep_State()
 {

@@ -1,7 +1,7 @@
 #include "Player/JY_CheatManager.h"
 #include "Player/JY_PlayerState.h"
 #include "AbilitySystem/JY_AbilitySystemComponent.h"
-#include "AbilitySystem/Effects/JY_DebugGameplayEffects.h"
+#include "Combat/JY_CombatQuerySubsystem.h"
 #include "Interfaces/JY_HitReactable.h"
 #include "Interfaces/JY_InterfaceUtils.h"
 #include "Room/JY_RoomFlowSubsystem.h"
@@ -18,8 +18,8 @@
 #include UE_INLINE_GENERATED_CPP_BY_NAME(JY_CheatManager)
 
 /*
- * BlueprintAuthorityOnly 명령은 클라에서 치면 엔진이 ServerExec로 서버에 보내고(CheatManager.cpp:125) 서버 PC의 CheatManager가 실행한다(Player.cpp:145).
- * 서버 PC의 CheatManager는 GameMode AllowCheats일 때만 생긴다(PlayerController.cpp:1162, PIE는 허용) — 개발 빌드 전용 서버에서 개조 클라가 무한 회복하는 것을 막는 관문.
+ * BlueprintAuthorityOnly 명령은 클라에서 치면 엔진이 서버로 보낸다 (CheatManager.cpp:125).
+ * 서버 PC의 CheatManager는 AllowCheats일 때만 생겨 개조 클라의 치트를 막는다
  */
 
 // [Server]
@@ -45,7 +45,6 @@ void UJY_CheatManager::JYHeal(float Amount)
 // [Server]
 void UJY_CheatManager::ApplyHealthDelta(float Delta)
 {
-	/* NaN·무한대 차단 */
 	if (FMath::IsFinite(Delta) == false)
 		return;
 
@@ -56,7 +55,10 @@ void UJY_CheatManager::ApplyHealthDelta(float Delta)
 	UJY_AbilitySystemComponent* JYASC = JYPlayerState->GetJYAbilitySystemComponent();
 
 	const bool bIsDamage = Delta < 0.0f;
-	const TSubclassOf<UGameplayEffect> EffectClass = bIsDamage == true ? UJY_GameplayEffect_DebugDamage::StaticClass() : UJY_GameplayEffect_DebugHeal::StaticClass();
+	const UJY_GameData* GameData = UJY_AssetManager::Get().GetGameData();
+	const TSubclassOf<UGameplayEffect> EffectClass = bIsDamage == true ? GameData->DamageGameplayEffect : GameData->HealGameplayEffect;
+	if (ensureMsgf(EffectClass != nullptr, TEXT("DA_JY_GameData에 DamageGameplayEffect 또는 HealGameplayEffect가 없음")) == false)
+		return;
 	const FGameplayTag MagnitudeTag = bIsDamage == true ? JYGameplayTags::SetByCaller_Damage : JYGameplayTags::SetByCaller_Heal;
 
 	FGameplayEffectContextHandle EffectContext = JYASC->MakeEffectContext();
@@ -120,8 +122,8 @@ void UJY_CheatManager::JYUnlockSkillSlot()
 }
 
 /*
- * 엔진 치트 변수 AbilitySystem.IgnoreCooldowns(AbilitySystemGlobals.cpp:39)를 켠다 — 발동 검사·커밋 검사에서 쿨타임을 건너뜀(GameplayAbility.cpp:508·613·671).
- * 발동 검사는 조종 클라 예측에서도 돌므로 내 쪽에 켜고 서버에도 같은 명령을 보낸다 (PIE 한 프로세스면 같은 변수)
+ * 엔진 치트 변수 AbilitySystem.IgnoreCooldowns를 켠다 (GameplayAbility.cpp:508).
+ * 발동 검사는 조종 클라 예측에서도 돌므로 내 쪽에 켜고 서버에도 같은 명령을 보낸다
  */
 // [Server] [OwnClient]
 void UJY_CheatManager::JYNoCooldown(bool bEnable)
@@ -167,6 +169,56 @@ void UJY_CheatManager::JYBreakProps(float Radius)
 		/* 밀어내기 없는 타격과 같음 — 플레이어 → 물체 방향 최소 세기 */
 		HitReactable->ReceiveHit(Pawn, 0.0f, FVector::ZeroVector);
 	}
+}
+
+/* 함정과 같은 서버 진입점(환경 피해)으로 1 피해 — 무적 검사·피격 큐 복제·클라 반응까지 실제 경로를 그대로 탄다 */
+// [Server]
+void UJY_CheatManager::JYHitReact(const FString& Direction, const FString& CueName)
+{
+	APawn* Pawn = GetOuterAPlayerController()->GetPawn();
+	if (Pawn == nullptr)
+		return;
+
+	/* 때린 쪽 위치 = 내 앞·뒤·왼·오 */
+	const FVector ForwardVector = Pawn->GetActorForwardVector();
+	const FVector RightVector = Pawn->GetActorRightVector();
+	FVector AttackerOffset = ForwardVector;
+	if (Direction.Equals(TEXT("B"), ESearchCase::IgnoreCase) == true)
+	{
+		AttackerOffset = -ForwardVector;
+	}
+	else if (Direction.Equals(TEXT("L"), ESearchCase::IgnoreCase) == true)
+	{
+		AttackerOffset = -RightVector;
+	}
+	else if (Direction.Equals(TEXT("R"), ESearchCase::IgnoreCase) == true)
+	{
+		AttackerOffset = RightVector;
+	}
+
+	const FString CueTagName = FString(TEXT("GameplayCue.Hit.")) + (CueName.IsEmpty() == true ? TEXT("Spike") : CueName);
+	const FGameplayTag CueTag = FGameplayTag::RequestGameplayTag(FName(*CueTagName), false);
+	if (ensureMsgf(CueTag.IsValid() == true, TEXT("JYHitReact: 없는 피격 큐 %s"), *CueTagName) == false)
+		return;
+
+	FJY_HitPayload HitPayload;
+	HitPayload.Damage = 1.0f;
+	HitPayload.HitCueTag = CueTag;
+
+	const FVector Origin = Pawn->GetActorLocation() + AttackerOffset * 100.0f;
+	const UJY_CombatQuerySubsystem* CombatQuery = GetWorld()->GetSubsystem<UJY_CombatQuerySubsystem>();
+	CombatQuery->ApplyEnvironmentDamage(Pawn, HitPayload, Origin);
+}
+
+/* 그림은 각 기기 화면에만 보여 내 쪽(클라)에서 켠다 */
+// [OwnClient]
+void UJY_CheatManager::JYShowRanges()
+{
+	IConsoleVariable* ShowRangesVariable = IConsoleManager::Get().FindConsoleVariable(TEXT("jy.Debug.ShowRanges"));
+	IConsoleVariable* DrawHitShapesVariable = IConsoleManager::Get().FindConsoleVariable(TEXT("jy.Combat.DrawHitShapes"));
+	const bool bShow = ShowRangesVariable->GetInt() == 0;
+	ShowRangesVariable->Set(bShow == true ? 1 : 0, ECVF_SetByConsole);
+	DrawHitShapesVariable->Set(bShow == true ? 1 : 0, ECVF_SetByConsole);
 }
 
 // [Server]

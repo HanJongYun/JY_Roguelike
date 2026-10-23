@@ -61,7 +61,7 @@ private:
 	void OnRep_PendingCardChoices();
 
 public:
-	/* 델리게이트 — 서버: 바꾼 직후 / 소유 클라: 복제 도착. HUD 슬롯 ViewModel이 구독 예정 */
+	/* 델리게이트 — 서버: 바꾼 직후 / 소유 클라: 복제 도착 */
 
 	FJY_SkillLoadoutChanged OnSlotsChanged;
 

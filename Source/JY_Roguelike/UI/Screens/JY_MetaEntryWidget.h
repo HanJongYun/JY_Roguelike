@@ -18,7 +18,7 @@ protected:
 	virtual void NativeOnInitialized() override;
 
 public:
-	/* 이 줄이 보여 줄 ViewModel(WBP의 ViewModel "MetaEntry", Creation Type = Manual)과 구매 요청에 실을 제단 지정 + 아이콘 */
+	/* 이 줄의 ViewModel과 구매 요청에 실을 제단 지정 */
 	void SetEntry(UJY_MetaEntryViewModel* InEntryViewModel, AActor* InAltar);
 
 private:
@@ -28,7 +28,7 @@ private:
 protected:
 	/* WBP_JY_MetaEntry 안의 같은 이름 위젯과 연결 (BindWidget) */
 
-	/* 강화 버튼 — 활성 여부를 WBP 바인딩(MetaEntry.bCanBuy → bIsEnabled)이 바꿔서 BlueprintReadOnly 필요 */
+	/* 강화 버튼 — WBP 바인딩이 bIsEnabled를 바꿔서 BlueprintReadOnly 필요 */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	TObjectPtr<UJY_ButtonBase> BuyButton;
 

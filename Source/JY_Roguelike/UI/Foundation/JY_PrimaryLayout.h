@@ -40,7 +40,6 @@ protected:
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UCommonActivatableWidgetStack> GameMenuLayer;
 
-	/* UI.Layer.Menu — 정지 메뉴·설정 */
 	/* 지역 이름 배너 — 스택이 아닌 미리 배치한 위젯 (NotificationOverlay 안) */
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UJY_NotificationWidget> BannerWidget;

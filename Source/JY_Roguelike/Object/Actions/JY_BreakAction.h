@@ -9,7 +9,7 @@ class UGeometryCollectionComponent;
 class UNiagaraSystem;
 class UPrimitiveComponent;
 
-/* 부서짐 — 몸체를 숨기고 충돌을 끈 뒤, 화면마다 파편을 만들어 바깥·맞은 방향으로 튀게 함 (항아리·상자·통) */
+/* 몸체를 숨기고 화면마다 파편을 튀게 함 (항아리·상자·통) */
 UCLASS(meta = (DisplayName = "Break"))
 class UJY_BreakAction : public UJY_Action
 {
@@ -20,13 +20,16 @@ public:
 	virtual void OnClientEnter(AJY_Object* Object, bool bCatchUp) override;
 
 private:
-	/* [Server] [Client] 몸체(와 붙은 부품)를 숨기고 충돌을 끔 — 서버 판정에서도 빠져야 한다 */
+	/* [Server] [Client] 몸체(와 붙은 부품)를 숨기고 충돌을 끔 */
 	void HideBody(AJY_Object* Object) const;
 
-	/* [Client] 파편을 만들어 깨뜨리고 바깥으로 튀게 함 (연출 전용, 복제 안 함) */
+	/* [Client] 파편을 만들어 바깥으로 튀게 함 (복제 안 함) */
 	void SpawnDebris(AJY_Object* Object);
 
 	void DestroyDebris();
+
+	/* 파편이 터지는 점 — 맞은 쪽 표면, 방향이 없으면 바닥 중심 */
+	FVector GetBurstCenter(const UPrimitiveComponent* Body, const FVector& PushVelocity) const;
 
 private:
 	/* 설정값 */
@@ -39,7 +42,7 @@ private:
 	UPROPERTY(EditAnywhere, Category = "JY|Break")
 	TObjectPtr<UNiagaraSystem> BreakFX;
 
-	/* 쪼개져 흩어지는 파편 (GC_JY_* — MCP CreateFracturedGeometryCollection로 만듦). 비우면 파편 없이 사라짐 */
+	/* 쪼개져 흩어지는 파편 (GC_JY_*). 비우면 파편 없이 사라짐 */
 	UPROPERTY(EditAnywhere, Category = "JY|Break")
 	TObjectPtr<UGeometryCollection> BreakGeometry;
 
@@ -47,7 +50,7 @@ private:
 	UPROPERTY(EditAnywhere, Category = "JY|Break", Meta = (ClampMin = "0.0", EditCondition = "BreakGeometry != nullptr"))
 	float DebrisSpeed = 400.0f;
 
-	/* 파편을 지우는 최대 시간 (초) — 멈추면 에셋 설정(Remove on Sleep)으로 먼저 사라지고, 계속 굴러도 이 시간이 지나면 지움 */
+	/* 파편을 지우는 최대 시간 (초) — 멈추면 에셋 설정(Remove on Sleep)으로 먼저 사라짐 */
 	UPROPERTY(EditAnywhere, Category = "JY|Break", Meta = (ClampMin = "0.5", EditCondition = "BreakGeometry != nullptr"))
 	float DebrisMaxLifeSeconds = 6.0f;
 

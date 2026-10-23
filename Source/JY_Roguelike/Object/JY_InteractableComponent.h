@@ -6,10 +6,7 @@
 #include "Interfaces/JY_InteractableTarget.h"
 #include "JY_InteractableComponent.generated.h"
 
-/*
- * E키 발동 — 이 구가 사용 범위. 플레이어 몸이 겹치면 상호작용 후보가 되고(UJY_InteractionComponent), 쓰면 물체를 발동시킨다.
- * 범위는 물체마다 크기가 달라 구 자체가 컴포넌트다 — BP 뷰포트에서 눈으로 맞춘다
- */
+/* E키 발동 범위 구 — 플레이어가 겹치면 상호작용 후보, 쓰면 물체를 발동 */
 UCLASS(ClassGroup = (JY), meta = (BlueprintSpawnableComponent))
 class UJY_InteractableComponent : public USphereComponent, public IJY_InteractableTarget
 {

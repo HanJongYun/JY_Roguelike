@@ -56,7 +56,7 @@ public:
 	FSimpleMulticastDelegate OnProgressChanged;
 
 private:
-	/* 복제 값 — 소유자에게만 (영혼석·메타는 남에게 보일 필요 없음). ReplicatedUsing = OnRep_Progress */
+	/* 복제 — 소유자에게만 */
 
 	/* 영혼석·기록·메타 단계 */
 	UPROPERTY(ReplicatedUsing = OnRep_Progress)
@@ -75,7 +75,7 @@ private:
 	UPROPERTY()
 	TObjectPtr<const UJY_DashSet> DashSet;
 
-	/* 이번 런 스킬 슬롯 — PlayerState에 있어 캐릭터가 바뀌어도 유지 */
+	/* 이번 런 스킬 슬롯 */
 	UPROPERTY(VisibleAnywhere, Category = "JY|PlayerState")
 	TObjectPtr<UJY_SkillLoadoutComponent> SkillLoadoutComponent;
 

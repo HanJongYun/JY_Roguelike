@@ -10,10 +10,7 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(JY_OpenScreenAction)
 
-/*
- * E를 누를 때 처음 로드하면 그 프레임이 멈춘다 → 맵 시작 때 비동기로 미리 로드해 두고, E에서는 LoadSynchronous가 바로 돌려준다.
- * 데디 서버는 화면을 열지 않으므로 로드하지 않는다
- */
+/* E를 누를 때 첫 로드로 프레임이 멈추지 않게 맵 시작 때 비동기로 미리 로드 */
 // [Server] [Client]
 void UJY_OpenScreenAction::Initialize(AJY_Object* Object) //override
 {

@@ -16,10 +16,7 @@ void UJY_MetaEntryWidget::NativeOnInitialized() //override
 	BuyButton->OnClicked().AddUObject(this, &ThisClass::HandleBuyClicked);
 }
 
-/*
- * 같은 클래스 ViewModel이 줄마다 따로라 Resolver(클래스당 1개)가 아니라 Manual — 화면이 줄마다 직접 넣는다.
- * 넣는 순간 이 위젯의 MVVM View가 바인딩 5개를 그 ViewModel 값으로 한 번 실행하고, 이후엔 알림이 올 때마다 갱신.
- */
+/* 줄마다 ViewModel이 따로라 Resolver(클래스당 1개) 대신 Manual — 화면이 줄마다 직접 넣는다 */
 // [OwnClient]
 void UJY_MetaEntryWidget::SetEntry(UJY_MetaEntryViewModel* InEntryViewModel, AActor* InAltar)
 {
@@ -37,10 +34,7 @@ void UJY_MetaEntryWidget::SetEntry(UJY_MetaEntryViewModel* InEntryViewModel, AAc
 	View->SetViewModelByClass(InEntryViewModel);
 }
 
-/*
- * 버튼이 꺼져 있는 건 표시일 뿐 — 가격·최대 단계·보유량·제단·거리는 서버가 다시 검증한다(AJY_GameMode::TryBuyMetaUpgrade).
- * 제단이 사라졌으면 nullptr이 가고 서버가 거절한다.
- */
+/* 버튼 비활성은 표시일 뿐 — 가격·제단·거리는 서버가 다시 검증한다 (AJY_GameMode::TryBuyMetaUpgrade) */
 // [OwnClient]
 void UJY_MetaEntryWidget::HandleBuyClicked()
 {

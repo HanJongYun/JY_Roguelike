@@ -4,10 +4,7 @@
 #include "ToolsetRegistry/ToolsetDefinition.h"
 #include "JY_LevelToolset.generated.h"
 
-/*
- * MCP 도구: 열린 맵(지역 맵)에 방 맵을 하위 레벨로 등록한다 — 엔진 MCP 도구에 하위 레벨 추가가 없어 보완.
- * 함수 위 문서 주석은 MCP 도구 설명으로 쓰인다(UHT 툴팁)
- */
+/* MCP 도구: 하위 레벨 등록·네비 굽기·경로 검사·PIE 콘솔 명령 (함수 문서 주석 = 도구 설명) */
 UCLASS(BlueprintType, Hidden)
 class UJY_LevelToolset : public UToolsetDefinition
 {
@@ -57,7 +54,7 @@ public:
 
 	/**
 	 * PIE 월드에서 콘솔 명령을 실행한다 — 클라면 플레이어 컨트롤러로(JYClearRoom 등 치트), 데디 서버면 월드에 직접(servertravel 등).
-	 * 다음 엔진 틱에 실행한다: 도구 실행 중엔 액터 함수가 에디터 스크립트로 취급돼(GAllowActorScriptExecutionInEditor) 서버 RPC가 안 가기 때문.
+	 * 다음 엔진 틱에 실행한다 (도구 실행 중엔 서버 RPC가 안 감).
 	 * @param PIEInstance PIE 월드 번호 (Play As Client면 0 = 서버, 1 = 첫 클라)
 	 * @param Command 콘솔 명령 (예: JYClearRoom)
 	 * @return 예약했으면 "Scheduled", 아니면 실패 이유

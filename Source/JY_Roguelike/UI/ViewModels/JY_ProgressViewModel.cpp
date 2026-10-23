@@ -3,10 +3,7 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(JY_ProgressViewModel)
 
-/*
- * 1장 HUD(UJY_HUDLayout::BindProgress)에 있던 구독을 옮겨 왔다.
- * 값의 출처는 PlayerState 복제 값 하나 — 서버 CommitProgress → 복제 → OnRep_Progress → OnProgressChanged 방송.
- */
+/* 값의 출처는 PlayerState 복제 값 — OnRep_Progress가 OnProgressChanged를 방송 */
 // [OwnClient]
 void UJY_ProgressViewModel::BindPlayerState(AJY_PlayerState* InPlayerState)
 {
@@ -36,7 +33,7 @@ void UJY_ProgressViewModel::UnbindPlayerState()
 	PlayerState.Reset();
 }
 
-/* FText는 새로 만들면 항상 "다른 값"이라(5-7) 숫자로 먼저 비교하고 바뀐 것만 글자를 만든다 */
+/* FText는 새로 만들면 항상 "다른 값"이라 숫자로 먼저 비교하고 바뀐 것만 글자를 만든다 */
 // [OwnClient]
 void UJY_ProgressViewModel::RefreshProgress()
 {

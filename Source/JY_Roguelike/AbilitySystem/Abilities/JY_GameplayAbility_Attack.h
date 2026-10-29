@@ -27,9 +27,6 @@ protected:
 	/* 아바타 위치 + 수평 방향 */
 	FTransform GetAvatarHitOrigin() const;
 
-	/* [Server] [OwnClient] 재생 중인 몽타주에서 이 뼈가 직전 SampleSeconds 동안 움직인 수평 방향 (월드). 못 구하면 0 */
-	FVector GetMontageSwingDirection(FName BoneName, float SampleSeconds) const;
-
 private:
 	/* [Server] [OwnClient] 실행 중인 공격 중 다른 공격의 시작을 막는 것이 있는지 */
 	static bool IsBlockingAttackActive(const FGameplayAbilityActorInfo* ActorInfo);

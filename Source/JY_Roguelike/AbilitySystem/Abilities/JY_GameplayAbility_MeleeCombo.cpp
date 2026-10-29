@@ -3,9 +3,11 @@
 #include "AbilitySystem/Tasks/JY_AbilityTask_WaitDirection.h"
 #include "AbilitySystem/Tasks/JY_AbilityTask_WaitLanded.h"
 #include "AbilitySystem/Tasks/JY_AbilityTask_WaitMoveInput.h"
+#include "Animation/JY_MontageBoneMotion.h"
 #include "Combat/JY_MeleeComboData.h"
 #include "System/JY_GameplayTags.h"
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
+#include "Components/SkeletalMeshComponent.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(JY_GameplayAbility_MeleeCombo)
 
@@ -162,7 +164,9 @@ void UJY_GameplayAbility_MeleeCombo::OnHitEvent(FGameplayEventData Payload)
 	const FJY_MeleeComboStep& Step = ActiveCombo->Steps[ActiveStepIndex];
 	const FTransform HitOrigin = GetAvatarHitOrigin();
 
-	const FVector ObjectPushDirection = GetMontageSwingDirection(SwingBoneName, SwingSampleSeconds);
+	const UAnimInstance* AnimInstance = CurrentActorInfo->GetAnimInstance();
+	const USkeletalMeshComponent* MeshComponent = CurrentActorInfo->SkeletalMeshComponent.Get();
+	const FVector ObjectPushDirection = JY_MontageBoneMotion::GetMontageBoneMoveDirection(AnimInstance, MeshComponent, SwingBoneName, SwingSampleSeconds);
 	ApplyHitInShape(Step.HitShape, HitOrigin, Step.Damage, Step.KnockbackSpeed, ActiveCombo->HitCueTag, Step.HitCameraShake, ObjectPushDirection);
 }
 

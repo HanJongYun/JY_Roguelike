@@ -121,15 +121,25 @@ public:
 	static void SetPropertyAsText(UObject* Object, FName PropertyName, const FString& ValueText);
 
 	/**
+	 * 구조체·배열 안쪽 값 하나만 디테일 패널에서 바꾼 것처럼 넣는다 (나머지 칸은 그대로. 편집 이벤트·후처리 포함).
+	 * @param Object 대상 오브젝트
+	 * @param PropertyPath 속성 경로 (예: LODInfo[0].BuildSettings.bOptimizeForInstancing)
+	 * @param ValueText 언리얼 텍스트 형식 값 (예: True, 0.5)
+	 */
+	UFUNCTION(meta = (AICallable), Category = "JY|Editor")
+	static void SetPropertyPathAsText(UObject* Object, const FString& PropertyPath, const FString& ValueText);
+
+	/**
 	 * 팩토리로 에셋을 만든다 (콘텐츠 브라우저 '새로 만들기'와 같은 경로).
 	 * @param AssetClass 만들 에셋 클래스
 	 * @param FactoryClass UFactory 하위 클래스 (예: /Script/UnrealEd.AnimCurveCompressionSettingsFactory)
 	 * @param FolderPath 저장 폴더
 	 * @param AssetName 에셋 이름
+	 * @param FactoryPropertyValues 팩토리 설정값 (속성 이름 → 텍스트 값, 예: ProviderDataClass → /Script/Engine.AnimSequenceTransformProviderData). 만들 때 뜨는 선택 창 대신. 빈 맵이면 기본값
 	 * @return 만든 에셋
 	 */
 	UFUNCTION(meta = (AICallable), Category = "JY|Editor")
-	static UObject* CreateAssetWithFactory(UClass* AssetClass, UClass* FactoryClass, const FString& FolderPath, const FString& AssetName);
+	static UObject* CreateAssetWithFactory(UClass* AssetClass, UClass* FactoryClass, const FString& FolderPath, const FString& AssetName, const TMap<FName, FString>& FactoryPropertyValues);
 
 	/**
 	 * 디스크 파일(wav·fbx·png 등)을 에셋으로 가져온다 (콘텐츠 브라우저 '가져오기'와 같은 경로, 대화창 없음).

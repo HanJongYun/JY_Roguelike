@@ -57,6 +57,18 @@ public:
 	UFUNCTION(Exec, BlueprintAuthorityOnly)
 	void JYUnlimitedHealth(bool bEnable);
 
+	/* 지금 방의 적 스폰 지점마다 Mass 적을 둘레에 만들기 (예: JYMassSpawn 3) */
+	UFUNCTION(Exec, BlueprintAuthorityOnly)
+	void JYMassSpawn(int32 CountPerPoint);
+
+	/* Mass 적 전부를 X로 옮기기 — 클라에 따라오는지 보기 (예: JYMassMove 300) */
+	UFUNCTION(Exec, BlueprintAuthorityOnly)
+	void JYMassMove(float Distance);
+
+	/* Mass 적 전부의 체력 깎기 — 클라 머리 위 숫자가 바뀌는지 보기 (예: JYMassDamageAll 10) */
+	UFUNCTION(Exec, BlueprintAuthorityOnly)
+	void JYMassDamageAll(float Damage);
+
 private:
 	/* 음수=데미지, 양수=회복 */
 	void ApplyHealthDelta(float Delta);

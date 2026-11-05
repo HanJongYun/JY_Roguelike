@@ -33,6 +33,9 @@ public:
 	/* 지금 방 레벨 (지역 맵이 아니거나 첫 방 전이면 nullptr) */
 	const ULevel* GetCurrentRoomLevel() const;
 
+	/* 지금 방의 PlayerStart 위치 */
+	FVector GetCurrentRoomStartLocation() const;
+
 	/* 시작 지점 바로 아래 바닥에 캐릭터가 딱 서는 위치 (바닥이 없으면 그대로) */
 	FVector FindStandLocation(const ACharacter* Character, const FVector& StartLocation) const;
 

@@ -99,6 +99,24 @@ const ULevel* UJY_RoomFlowSubsystem::GetCurrentRoomLevel() const
 }
 
 // [Server]
+FVector UJY_RoomFlowSubsystem::GetCurrentRoomStartLocation() const
+{
+	const ULevel* RoomLevel = GetCurrentRoomLevel();
+	check(RoomLevel != nullptr);
+
+	for (const AActor* Actor : RoomLevel->Actors)
+	{
+		const APlayerStart* PlayerStart = Cast<APlayerStart>(Actor);
+		if (PlayerStart != nullptr)
+			return PlayerStart->GetActorLocation();
+	}
+
+	const UObject* LevelOuter = RoomLevel->GetOuter();
+	ensureMsgf(false, TEXT("%s에 PlayerStart가 없음"), *LevelOuter->GetName());
+	return FVector::ZeroVector;
+}
+
+// [Server]
 void UJY_RoomFlowSubsystem::EnterRoom(const ULevel* RoomLevel)
 {
 	bCurrentRoomCleared = true;
@@ -277,7 +295,8 @@ void UJY_RoomFlowSubsystem::MovePlayersToStart(const ULevel* Level) const
 		}
 	}
 
-	if (ensureMsgf(PlayerStarts.Num() > 0, TEXT("%s에 PlayerStart가 없음"), *Level->GetOuter()->GetName()) == false)
+	const UObject* LevelOuter = Level->GetOuter();
+	if (ensureMsgf(PlayerStarts.Num() > 0, TEXT("%s에 PlayerStart가 없음"), *LevelOuter->GetName()) == false)
 		return;
 
 	int32 StartIndex = 0;

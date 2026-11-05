@@ -28,7 +28,20 @@ public class JY_Roguelike : ModuleRules
 			"CommonInput",
 			"Niagara",
 			"AnimGraphRuntime",
-			"AnimationLocomotionLibraryRuntime"
+			"AnimationLocomotionLibraryRuntime",
+			// Mass 웨이브 적 — 5.8에서 FMassFragment 등 기본 타입은 MassCore. MassReplication은 쓰지 않는다(복제는 직접 만든 Actor)
+			"MassEntity",
+			"MassCore",
+			"MassCommon",
+			"MassSpawner",
+			"MassRepresentation",
+			"MassMovement",
+			"MassNavigation",
+			"MassSignals",
+			"MassLOD",
+			"MassSimulation",
+			"NavigationSystem",
+			"NetCore"
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[] {

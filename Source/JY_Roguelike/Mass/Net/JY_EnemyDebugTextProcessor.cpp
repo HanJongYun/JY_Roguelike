@@ -1,0 +1,51 @@
+#include "Mass/Net/JY_EnemyDebugTextProcessor.h"
+
+#include "Mass/JY_MassFragments.h"
+#include "Mass/EntityFragments.h"
+#include "DrawDebugHelpers.h"
+#include "MassExecutionContext.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(JY_EnemyDebugTextProcessor)
+
+namespace JY_EnemyDebugText
+{
+	const FVector TextOffset(0.0, 0.0, 120.0);
+}
+
+UJY_EnemyDebugTextProcessor::UJY_EnemyDebugTextProcessor()
+	: EntityQuery(*this)
+{
+	ExecutionFlags = static_cast<int32>(EProcessorExecutionFlags::Client);
+	ProcessingPhase = EMassProcessingPhase::PostPhysics;
+
+	/* DrawDebugString은 게임 스레드에서만 HUD 목록을 고칠 수 있다 */
+	bRequiresGameThreadExecution = true;
+}
+
+void UJY_EnemyDebugTextProcessor::ConfigureQueries(const TSharedRef<FMassEntityManager>& EntityManager) //override
+{
+	EntityQuery.AddRequirement<FTransformFragment>(EMassFragmentAccess::ReadOnly);
+	EntityQuery.AddRequirement<FJY_EnemyVisualFragment>(EMassFragmentAccess::ReadOnly);
+}
+
+// [OwnClient]
+void UJY_EnemyDebugTextProcessor::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context) //override
+{
+	const UWorld* World = EntityManager.GetWorld();
+
+	auto DrawHealthTexts = [World](FMassExecutionContext& ChunkContext)
+	{
+		const TConstArrayView<FTransformFragment> Transforms = ChunkContext.GetFragmentView<FTransformFragment>();
+		const TConstArrayView<FJY_EnemyVisualFragment> Visuals = ChunkContext.GetFragmentView<FJY_EnemyVisualFragment>();
+
+		for (FMassExecutionContext::FEntityIterator EntityIt = ChunkContext.CreateEntityIterator(); EntityIt; ++EntityIt)
+		{
+			const FVector TextLocation = Transforms[EntityIt].GetTransform().GetLocation() + JY_EnemyDebugText::TextOffset;
+			const FString HealthText = FString::FromInt(Visuals[EntityIt].HealthPct);
+
+			/* 시간 0 = 이번 프레임만 그린다 (HUD.cpp:764) */
+			DrawDebugString(World, TextLocation, HealthText, nullptr, FColor::Green, 0.0f);
+		}
+	};
+	EntityQuery.ForEachEntityChunk(Context, DrawHealthTexts);
+}

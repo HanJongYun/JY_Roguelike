@@ -15,6 +15,7 @@ class UJY_ScreenWidget;
 class UUserWidget;
 class UJY_SkillDefinition;
 class UGameplayEffect;
+class UJY_EnemyDefinition;
 
 /* 게임 전체가 같이 쓰는 데이터 한 벌 (에셋 DA_JY_GameData) */
 UCLASS(BlueprintType, Const)
@@ -96,4 +97,8 @@ public:
 	/* 스킬 쿨타임 GE (GE_JY_SkillCooldown) — 길이는 SetByCaller.Cooldown, 태그는 스킬 GA가 스펙에 넣음 */
 	UPROPERTY(EditDefaultsOnly, Category = "GameplayEffect")
 	TSubclassOf<UGameplayEffect> SkillCooldownGameplayEffect;
+
+	/* Mass 적 종류 — 배열 번호가 복제되는 정의 번호(DefinitionIndex). 서버·클라가 같은 순서로 읽는다 */
+	UPROPERTY(EditDefaultsOnly, Category = "Mass")
+	TArray<TObjectPtr<const UJY_EnemyDefinition>> EnemyDefinitions;
 };

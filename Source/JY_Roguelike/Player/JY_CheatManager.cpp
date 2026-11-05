@@ -4,7 +4,10 @@
 #include "Combat/JY_CombatQuerySubsystem.h"
 #include "Interfaces/JY_HitReactable.h"
 #include "Interfaces/JY_InterfaceUtils.h"
+#include "Mass/Core/JY_EnemyDefinition.h"
+#include "Mass/Core/JY_MassEnemySubsystem.h"
 #include "Room/JY_RoomFlowSubsystem.h"
+#include "Room/JY_RoomMarker.h"
 #include "Skill/JY_SkillDefinition.h"
 #include "Skill/JY_SkillLoadoutComponent.h"
 #include "System/JY_AssetManager.h"
@@ -229,6 +232,59 @@ void UJY_CheatManager::JYUnlimitedHealth(bool bEnable)
 		return;
 
 	JYPlayerState->GetJYAbilitySystemComponent()->SetLooseGameplayTagCount(JYGameplayTags::Cheat_UnlimitedHealth, bEnable == true ? 1 : 0);
+}
+
+/* 지점 둘레 원 위에 같은 간격으로 자리를 나눈다 — 웨이브 디렉터가 격자 칸 검사로 자리를 고르기 전까지 쓰는 시험용 배치 */
+// [Server]
+void UJY_CheatManager::JYMassSpawn(int32 CountPerPoint)
+{
+	if (CountPerPoint <= 0)
+		return;
+
+	const UJY_GameData* GameData = UJY_AssetManager::Get().GetGameData();
+	if (ensureMsgf(GameData->EnemyDefinitions.Num() > 0, TEXT("DA_JY_GameData에 EnemyDefinitions가 없음")) == false)
+		return;
+
+	UJY_RoomFlowSubsystem* RoomFlow = GetWorld()->GetSubsystem<UJY_RoomFlowSubsystem>();
+	const ULevel* RoomLevel = RoomFlow->GetCurrentRoomLevel();
+	if (RoomLevel == nullptr)
+		return;
+
+	/* 한 마리면 지점 위, 여러 마리면 서로 겹치지 않게 둘레로 */
+	const float RingRadius = CountPerPoint == 1 ? 0.0f : 150.0f;
+	TArray<FVector> SpawnLocations;
+	for (const AActor* Actor : RoomLevel->Actors)
+	{
+		const AJY_RoomEnemySpawnPoint* SpawnPoint = Cast<AJY_RoomEnemySpawnPoint>(Actor);
+		if (SpawnPoint == nullptr)
+			continue;
+
+		const FVector PointLocation = SpawnPoint->GetActorLocation();
+		for (int32 Index = 0; Index < CountPerPoint; ++Index)
+		{
+			const float AngleRadians = UE_TWO_PI * Index / CountPerPoint;
+			const FVector RingOffset(FMath::Cos(AngleRadians) * RingRadius, FMath::Sin(AngleRadians) * RingRadius, 0.0f);
+			SpawnLocations.Add(PointLocation + RingOffset);
+		}
+	}
+
+	UJY_MassEnemySubsystem* MassEnemySubsystem = GetWorld()->GetSubsystem<UJY_MassEnemySubsystem>();
+	const UJY_EnemyDefinition* EnemyDefinition = GameData->EnemyDefinitions[0];
+	MassEnemySubsystem->SpawnWave(*EnemyDefinition, SpawnLocations);
+}
+
+// [Server]
+void UJY_CheatManager::JYMassMove(float Distance)
+{
+	UJY_MassEnemySubsystem* MassEnemySubsystem = GetWorld()->GetSubsystem<UJY_MassEnemySubsystem>();
+	MassEnemySubsystem->MoveAllEnemies(FVector(Distance, 0.0f, 0.0f));
+}
+
+// [Server]
+void UJY_CheatManager::JYMassDamageAll(float Damage)
+{
+	UJY_MassEnemySubsystem* MassEnemySubsystem = GetWorld()->GetSubsystem<UJY_MassEnemySubsystem>();
+	MassEnemySubsystem->DamageAllEnemies(Damage);
 }
 
 /* 접속 직후엔 PlayerState가 아직 없을 수 있다 */

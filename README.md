@@ -17,8 +17,6 @@
 
 ## 진행 상황 참고자료 (스크린샷)
 
-> 2026-10-16 기준 PIE(Play As Client) 화면
-
 | 타이틀 | 로비 도착 배너 |
 |---|---|
 | ![타이틀](Docs/Screenshots/01_title.png) | ![로비 도착 배너](Docs/Screenshots/02_lobby_banner.png) |

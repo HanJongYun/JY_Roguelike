@@ -4,7 +4,6 @@
 #include "Animation/JY_AnimNotifyState_CancelWindow.h"
 #include "Skill/JY_SkillData.h"
 #include "System/JY_AssetManager.h"
-#include "System/JY_GameData.h"
 #include "System/JY_GameplayTags.h"
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimMontage.h"
@@ -61,8 +60,8 @@ void UJY_GameplayAbility_Skill::ApplyCooldown(const FGameplayAbilitySpecHandle H
 	if (SkillEntry == nullptr)
 		return;
 
-	const UJY_GameData* GameData = UJY_AssetManager::Get().GetGameData();
-	const TSubclassOf<UGameplayEffect> CooldownEffectClass = GameData->SkillData->CooldownGameplayEffect;
+	const UJY_SkillData* SkillData = UJY_AssetManager::Get().GetSkillData();
+	const TSubclassOf<UGameplayEffect> CooldownEffectClass = SkillData->CooldownGameplayEffect;
 	if (ensureMsgf(CooldownEffectClass != nullptr, TEXT("DA_JY_SkillData에 CooldownGameplayEffect가 없음")) == false)
 		return;
 
@@ -95,11 +94,11 @@ const FJY_SkillEntry* UJY_GameplayAbility_Skill::FindSkillEntry(const FGameplayA
 	if (ActorInfo == nullptr)
 		return nullptr;
 
-	const UAbilitySystemComponent* AbilitySystemComponent = ActorInfo->AbilitySystemComponent.Get();
-	if (AbilitySystemComponent == nullptr)
+	const UJY_AbilitySystemComponent* JYASC = Cast<UJY_AbilitySystemComponent>(ActorInfo->AbilitySystemComponent.Get());
+	if (JYASC == nullptr)
 		return nullptr;
 
-	const FGameplayAbilitySpec* AbilitySpec = AbilitySystemComponent->FindAbilitySpecFromHandle(Handle);
+	const FGameplayAbilitySpec* AbilitySpec = JYASC->FindAbilitySpecFromHandle(Handle);
 	if (AbilitySpec == nullptr)
 		return nullptr;
 
@@ -107,8 +106,8 @@ const FJY_SkillEntry* UJY_GameplayAbility_Skill::FindSkillEntry(const FGameplayA
 	const FGameplayTagContainer SkillTags = AbilitySpec->GetDynamicSpecSourceTags().Filter(SkillRootTags);
 	const FGameplayTag SkillTag = SkillTags.First();
 
-	const UJY_GameData* GameData = UJY_AssetManager::Get().GetGameData();
-	const FJY_SkillEntry* SkillEntry = GameData->SkillData->FindSkill(SkillTag);
+	const UJY_SkillData* SkillData = UJY_AssetManager::Get().GetSkillData();
+	const FJY_SkillEntry* SkillEntry = SkillData->FindSkill(SkillTag);
 	ensureMsgf(SkillEntry != nullptr, TEXT("%s: 스펙의 스킬 태그(%s) 칸이 DA_JY_SkillData에 없음"), *GetNameSafe(this), *SkillTag.ToString());
 	return SkillEntry;
 }

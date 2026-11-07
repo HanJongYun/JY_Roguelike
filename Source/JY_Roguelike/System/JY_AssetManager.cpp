@@ -1,5 +1,6 @@
 #include "System/JY_AssetManager.h"
 #include "System/JY_GameData.h"
+#include "Skill/JY_SkillData.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(JY_AssetManager)
 
@@ -28,4 +29,12 @@ const UJY_GameData* UJY_AssetManager::GetGameData()
 		return nullptr;
 
 	return GameData;
+}
+
+/* 스킬 GA·스킬 컴포넌트가 매번 쓰는 필수 데이터 — 빠지면 스킬이 하나도 동작하지 않는다 */
+const UJY_SkillData* UJY_AssetManager::GetSkillData()
+{
+	const UJY_GameData* LoadedGameData = GetGameData();
+	check(LoadedGameData != nullptr && LoadedGameData->SkillData != nullptr);
+	return LoadedGameData->SkillData;
 }

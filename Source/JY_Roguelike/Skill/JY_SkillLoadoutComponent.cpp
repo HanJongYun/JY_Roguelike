@@ -3,7 +3,6 @@
 #include "AbilitySystem/Abilities/JY_GameplayAbility_Skill.h"
 #include "Skill/JY_SkillData.h"
 #include "System/JY_AssetManager.h"
-#include "System/JY_GameData.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(JY_SkillLoadoutComponent)
 
@@ -17,7 +16,7 @@ UJY_SkillLoadoutComponent::UJY_SkillLoadoutComponent(const FObjectInitializer& O
 // [Server]
 void UJY_SkillLoadoutComponent::GiveStartSkills(UJY_AbilitySystemComponent* AbilitySystemComponent)
 {
-	const UJY_SkillData* SkillData = GetSkillData();
+	const UJY_SkillData* SkillData = UJY_AssetManager::Get().GetSkillData();
 	Slots.SetNum(SkillData->SlotInputTags.Num());
 
 	const int32 StartSkillCount = FMath::Min(SkillData->StartSlotSkills.Num(), Slots.Num());
@@ -59,17 +58,17 @@ void UJY_SkillLoadoutComponent::SetSlotSkill(UJY_AbilitySystemComponent* Ability
 	FJY_SkillSlotEntry& Slot = Slots[SlotIndex];
 	AbilitySystemComponent->ClearAbility(Slot.GrantedHandle);
 
-	const UJY_SkillData* SkillData = GetSkillData();
+	const UJY_SkillData* SkillData = UJY_AssetManager::Get().GetSkillData();
 	const FGameplayTag& InputTag = SkillData->SlotInputTags[SlotIndex];
-	Slot.SkillTag = SkillTag;
 	Slot.GrantedHandle = GiveSkillAbility(AbilitySystemComponent, SkillTag, InputTag);
+	Slot.SkillTag = Slot.GrantedHandle.IsValid() == true ? SkillTag : FGameplayTag();
 }
 
 // [Server]
 /* 기본 어빌리티 세트(UJY_AbilitySet::GiveToAbilitySystem)와 같은 입력 태그 방식 — 스킬 태그도 같은 자리에 심는다 */
 FGameplayAbilitySpecHandle UJY_SkillLoadoutComponent::GiveSkillAbility(UJY_AbilitySystemComponent* AbilitySystemComponent, const FGameplayTag& SkillTag, const FGameplayTag& InputTag) const
 {
-	const UJY_SkillData* SkillData = GetSkillData();
+	const UJY_SkillData* SkillData = UJY_AssetManager::Get().GetSkillData();
 	const FJY_SkillEntry* SkillEntry = SkillData->FindSkill(SkillTag);
 	if (ensureMsgf(SkillEntry != nullptr && SkillEntry->AbilityClass != nullptr, TEXT("DA_JY_SkillData에 %s 칸 또는 AbilityClass가 없음"), *SkillTag.ToString()) == false)
 		return FGameplayAbilitySpecHandle();
@@ -82,11 +81,4 @@ FGameplayAbilitySpecHandle UJY_SkillLoadoutComponent::GiveSkillAbility(UJY_Abili
 	}
 
 	return AbilitySystemComponent->GiveAbility(AbilitySpec);
-}
-
-const UJY_SkillData* UJY_SkillLoadoutComponent::GetSkillData() const
-{
-	const UJY_GameData* GameData = UJY_AssetManager::Get().GetGameData();
-	check(GameData->SkillData != nullptr);
-	return GameData->SkillData;
 }

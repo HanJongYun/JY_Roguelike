@@ -3,7 +3,6 @@
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
 #include "GameplayTagContainer.h"
-#include "Skill/JY_SkillTypes.h"
 #include "UI/JY_UITypes.h"
 #include "JY_GameData.generated.h"
 
@@ -13,7 +12,7 @@ class UJY_ConfirmDialog;
 class UJY_MetaUpgradeData;
 class UJY_ScreenWidget;
 class UUserWidget;
-class UJY_SkillDefinition;
+class UJY_SkillData;
 class UGameplayEffect;
 class UJY_EnemyDefinition;
 
@@ -58,33 +57,9 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "UI")
 	FJY_CursorData Cursor;
 
-	/* 런 시작 스킬 슬롯 수 */
-	UPROPERTY(EditDefaultsOnly, Category = "Skill", Meta = (ClampMin = "1"))
-	int32 StartSkillSlotCount = 1;
-
-	/* 슬롯 번호 → 입력 태그 (InputTag.Skill.Slot1~). 개수 = 최대 슬롯 수 */
-	UPROPERTY(EditDefaultsOnly, Category = "Skill", Meta = (Categories = "InputTag.Skill"))
-	TArray<FGameplayTag> SkillSlotInputTags;
-
-	/* 강화 카드 선택지 수 */
-	UPROPERTY(EditDefaultsOnly, Category = "Skill", Meta = (ClampMin = "1"))
-	int32 SkillCardChoiceCount = 3;
-
-	/* 카드로 줄일 수 있는 쿨타임 하한 (초) */
-	UPROPERTY(EditDefaultsOnly, Category = "Skill", Meta = (ClampMin = "0"))
-	float MinSkillCooldown = 0.5f;
-
-	/* 런 시작 때 슬롯 순서대로 장착할 스킬 — 보상으로 얻기 전 테스트용. 개수만큼 슬롯이 열림 */
+	/* 모든 스킬 정보·시작 배치·쿨타임 GE (DA_JY_SkillData) */
 	UPROPERTY(EditDefaultsOnly, Category = "Skill")
-	TArray<TObjectPtr<UJY_SkillDefinition>> StartSkills;
-
-	/* 슬롯과 별개로 런 내내 가진 스킬 (우클릭 찌르기). 보상 풀(SkillDefinitions)에 넣지 않는다 */
-	UPROPERTY(EditDefaultsOnly, Category = "Skill")
-	TArray<FJY_FixedSkill> FixedSkills;
-
-	/* 획득 가능한 스킬 (디버그 명령·보상 풀) */
-	UPROPERTY(EditDefaultsOnly, Category = "Skill")
-	TArray<TObjectPtr<UJY_SkillDefinition>> SkillDefinitions;
+	TObjectPtr<UJY_SkillData> SkillData;
 
 	/* 피해 GE (GE_JY_Damage) — 크기는 SetByCaller.Damage */
 	UPROPERTY(EditDefaultsOnly, Category = "GameplayEffect")
@@ -93,10 +68,6 @@ public:
 	/* 회복 GE (GE_JY_Heal) — 크기는 SetByCaller.Heal */
 	UPROPERTY(EditDefaultsOnly, Category = "GameplayEffect")
 	TSubclassOf<UGameplayEffect> HealGameplayEffect;
-
-	/* 스킬 쿨타임 GE (GE_JY_SkillCooldown) — 길이는 SetByCaller.Cooldown, 태그는 스킬 GA가 스펙에 넣음 */
-	UPROPERTY(EditDefaultsOnly, Category = "GameplayEffect")
-	TSubclassOf<UGameplayEffect> SkillCooldownGameplayEffect;
 
 	/* Mass 적 종류 — 배열 번호가 복제되는 정의 번호(DefinitionIndex). 서버·클라가 같은 순서로 읽는다 */
 	UPROPERTY(EditDefaultsOnly, Category = "Mass")

@@ -17,7 +17,7 @@ protected:
 protected:
 	/* 설정값 — GA_JY_Skill_IaiDash · GA_JY_Skill_Thrust 의 Class Defaults */
 
-	/* 경로 상자 폭 (cm, 범위 배율 전) */
+	/* 경로 상자 폭 (cm) */
 	UPROPERTY(EditDefaultsOnly, Category = "JY|Skill", Meta = (ClampMin = "0"))
 	float PathWidth = 200.0f;
 

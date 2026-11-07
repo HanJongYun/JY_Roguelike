@@ -4,7 +4,6 @@
 #include "Camera/JY_CameraOcclusionFadeComponent.h"
 #include "AbilitySystem/JY_AbilitySystemComponent.h"
 #include "System/JY_GameMode.h"
-#include "Skill/JY_SkillLoadoutComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "Engine/LocalPlayer.h"
 #include "InputMappingContext.h"
@@ -140,23 +139,6 @@ void AJY_PlayerController::Server_RefundAllMetaUpgrades_Implementation(AActor* A
 		return;
 
 	GameMode->RefundAllMetaUpgrades(this, Altar);
-}
-
-// [OwnClient]
-void AJY_PlayerController::JYChooseSkillCard(int32 ChoiceIndex)
-{
-	Server_ChooseSkillCard(ChoiceIndex);
-}
-
-// [Server]
-void AJY_PlayerController::Server_ChooseSkillCard_Implementation(int32 ChoiceIndex)
-{
-	AJY_PlayerState* JYPlayerState = GetPlayerState<AJY_PlayerState>();
-	if (JYPlayerState == nullptr)
-		return;
-
-	UJY_SkillLoadoutComponent* SkillLoadout = JYPlayerState->GetSkillLoadoutComponent();
-	SkillLoadout->ChooseUpgradeCard(ChoiceIndex);
 }
 
 /*

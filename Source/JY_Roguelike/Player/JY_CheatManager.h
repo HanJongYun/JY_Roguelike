@@ -25,14 +25,6 @@ public:
 	UFUNCTION(Exec, BlueprintAuthorityOnly)
 	void JYAddSoul(int32 Amount);
 
-	/* 스킬 얻기 (예: JYGiveSkill Plunge 1) — 이름 = Skill 태그 끝 이름, 숫자 = 슬롯 키 번호(1부터) */
-	UFUNCTION(Exec, BlueprintAuthorityOnly)
-	void JYGiveSkill(const FString& SkillName, int32 SlotNumber);
-
-	/* 스킬 슬롯 1칸 늘리기 */
-	UFUNCTION(Exec, BlueprintAuthorityOnly)
-	void JYUnlockSkillSlot();
-
 	/* 쿨타임 무시 켜기·끄기 (예: JYNoCooldown 1) — 내 쪽과 서버 양쪽에 켠다 */
 	UFUNCTION(Exec)
 	void JYNoCooldown(bool bEnable);

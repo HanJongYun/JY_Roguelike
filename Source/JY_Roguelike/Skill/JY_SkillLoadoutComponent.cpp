@@ -1,268 +1,92 @@
 #include "Skill/JY_SkillLoadoutComponent.h"
 #include "AbilitySystem/JY_AbilitySystemComponent.h"
 #include "AbilitySystem/Abilities/JY_GameplayAbility_Skill.h"
-#include "Player/JY_PlayerState.h"
-#include "Skill/JY_SkillDefinition.h"
-#include "Skill/JY_SkillUpgradeCard.h"
+#include "Skill/JY_SkillData.h"
 #include "System/JY_AssetManager.h"
 #include "System/JY_GameData.h"
-#include "Net/UnrealNetwork.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(JY_SkillLoadoutComponent)
 
 UJY_SkillLoadoutComponent::UJY_SkillLoadoutComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	/* 이벤트로만 동작 */
+	/* 빙의·교체 때만 동작 */
 	PrimaryComponentTick.bCanEverTick = false;
-
-	SetIsReplicatedByDefault(true);
-}
-
-void UJY_SkillLoadoutComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const //override
-{
-	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-
-	/* 남의 슬롯은 볼 일이 없다 */
-	DOREPLIFETIME_CONDITION(UJY_SkillLoadoutComponent, Slots, COND_OwnerOnly);
-	DOREPLIFETIME_CONDITION(UJY_SkillLoadoutComponent, PendingCardChoices, COND_OwnerOnly);
 }
 
 // [Server]
-void UJY_SkillLoadoutComponent::BeginPlay() //override
+void UJY_SkillLoadoutComponent::GiveStartSkills(UJY_AbilitySystemComponent* AbilitySystemComponent)
 {
-	Super::BeginPlay();
+	const UJY_SkillData* SkillData = GetSkillData();
+	Slots.SetNum(SkillData->SlotInputTags.Num());
 
-	if (GetOwner()->HasAuthority() == false)
-		return;
-
-	const UJY_GameData* GameData = UJY_AssetManager::Get().GetGameData();
-	const int32 StartSlotCount = FMath::Max(GameData->StartSkillSlotCount, GameData->StartSkills.Num());
-	Slots.SetNum(StartSlotCount);
-
-	for (int32 SlotIndex = 0; SlotIndex < GameData->StartSkills.Num(); ++SlotIndex)
+	const int32 StartSkillCount = FMath::Min(SkillData->StartSlotSkills.Num(), Slots.Num());
+	for (int32 SlotIndex = 0; SlotIndex < StartSkillCount; ++SlotIndex)
 	{
-		UJY_SkillDefinition* StartSkill = GameData->StartSkills[SlotIndex];
-		if (StartSkill != nullptr)
-		{
-			AcquireSkill(StartSkill, SlotIndex);
-		}
+		SetSlotSkill(AbilitySystemComponent, SlotIndex, SkillData->StartSlotSkills[SlotIndex]);
 	}
 
-	/* 고정 스킬은 슬롯·레벨·카드가 없어 핸들을 들고 있지 않는다 — PlayerState(ASC)와 수명이 같다 */
-	for (const FJY_FixedSkill& FixedSkill : GameData->FixedSkills)
+	for (const FJY_FixedSkill& FixedSkill : SkillData->FixedSkills)
 	{
-		GrantSkillAbility(FixedSkill.Skill, FixedSkill.InputTag);
+		const FGameplayAbilitySpecHandle Handle = GiveSkillAbility(AbilitySystemComponent, FixedSkill.SkillTag, FixedSkill.InputTag);
+		FixedSkillHandles.Add(Handle);
 	}
-
-	OnSlotsChanged.Broadcast();
 }
 
 // [Server]
-void UJY_SkillLoadoutComponent::AcquireSkill(UJY_SkillDefinition* Skill, int32 SlotIndex)
+/* 실행 중인 스킬은 엔진이 끝낸다 (ClearAbility) */
+void UJY_SkillLoadoutComponent::RemoveAllSkills(UJY_AbilitySystemComponent* AbilitySystemComponent)
 {
-	auto IsSameSkill = [Skill](const FJY_SkillSlotEntry& Slot)
+	for (FJY_SkillSlotEntry& Slot : Slots)
 	{
-		return Slot.Skill == Skill;
-	};
-	const int32 OwnedSlotIndex = Slots.IndexOfByPredicate(IsSameSkill);
-
-	/* 중복 획득 = 레벨 +1 + 카드 선택 */
-	if (OwnedSlotIndex != INDEX_NONE)
-	{
-		FJY_SkillSlotEntry& OwnedSlot = Slots[OwnedSlotIndex];
-		const int32 MaxLevel = Skill->GetMaxLevel();
-		OwnedSlot.Level = FMath::Min(OwnedSlot.Level + 1, MaxLevel);
-		DrawUpgradeCards(OwnedSlotIndex);
-		OnSlotsChanged.Broadcast();
-		return;
+		AbilitySystemComponent->ClearAbility(Slot.GrantedHandle);
 	}
+	Slots.Reset();
 
-	if (ensureMsgf(Slots.IsValidIndex(SlotIndex) == true, TEXT("슬롯 %d 없음 (열린 칸 %d)"), SlotIndex, Slots.Num()) == false)
-		return;
-
-	/* 교체되는 슬롯의 카드 선택은 무효 */
-	if (PendingCardSlotIndex == SlotIndex)
+	for (const FGameplayAbilitySpecHandle& Handle : FixedSkillHandles)
 	{
-		PendingCardChoices.Reset();
-		PendingCardSlotIndex = INDEX_NONE;
-		OnCardChoicesChanged.Broadcast();
+		AbilitySystemComponent->ClearAbility(Handle);
 	}
+	FixedSkillHandles.Reset();
+}
 
-	RemoveSlotAbility(SlotIndex);
+// [Server]
+void UJY_SkillLoadoutComponent::SetSlotSkill(UJY_AbilitySystemComponent* AbilitySystemComponent, int32 SlotIndex, const FGameplayTag& SkillTag)
+{
+	if (ensureMsgf(Slots.IsValidIndex(SlotIndex) == true, TEXT("슬롯 %d 없음 (칸 %d)"), SlotIndex, Slots.Num()) == false)
+		return;
 
 	FJY_SkillSlotEntry& Slot = Slots[SlotIndex];
-	Slot.Skill = Skill;
-	Slot.Level = 1;
-	Slot.Cards.Reset();
-	GrantSlotAbility(SlotIndex);
-	OnSlotsChanged.Broadcast();
+	AbilitySystemComponent->ClearAbility(Slot.GrantedHandle);
+
+	const UJY_SkillData* SkillData = GetSkillData();
+	const FGameplayTag& InputTag = SkillData->SlotInputTags[SlotIndex];
+	Slot.SkillTag = SkillTag;
+	Slot.GrantedHandle = GiveSkillAbility(AbilitySystemComponent, SkillTag, InputTag);
 }
 
 // [Server]
-/* 이미 고른 카드는 다시 나오지 않는다 */
-void UJY_SkillLoadoutComponent::DrawUpgradeCards(int32 SlotIndex)
+/* 기본 어빌리티 세트(UJY_AbilitySet::GiveToAbilitySystem)와 같은 입력 태그 방식 — 스킬 태그도 같은 자리에 심는다 */
+FGameplayAbilitySpecHandle UJY_SkillLoadoutComponent::GiveSkillAbility(UJY_AbilitySystemComponent* AbilitySystemComponent, const FGameplayTag& SkillTag, const FGameplayTag& InputTag) const
 {
-	const FJY_SkillSlotEntry& Slot = Slots[SlotIndex];
-
-	TArray<TObjectPtr<const UJY_SkillUpgradeCard>> Candidates;
-	for (const TObjectPtr<const UJY_SkillUpgradeCard>& Card : Slot.Skill->UpgradeCards)
-	{
-		if (Slot.Cards.Contains(Card) == false)
-		{
-			Candidates.Add(Card);
-		}
-	}
-
-	/* 피셔-예이츠 섞기 */
-	for (int32 CandidateIndex = Candidates.Num() - 1; CandidateIndex > 0; --CandidateIndex)
-	{
-		const int32 SwapIndex = FMath::RandRange(0, CandidateIndex);
-		Candidates.Swap(CandidateIndex, SwapIndex);
-	}
-
-	const UJY_GameData* GameData = UJY_AssetManager::Get().GetGameData();
-	const int32 ChoiceCount = FMath::Min(GameData->SkillCardChoiceCount, Candidates.Num());
-	Candidates.SetNum(ChoiceCount);
-
-	PendingCardChoices = MoveTemp(Candidates);
-	PendingCardSlotIndex = PendingCardChoices.Num() > 0 ? SlotIndex : INDEX_NONE;
-	OnCardChoicesChanged.Broadcast();
-}
-
-// [Server] 클라 요청이 그대로 들어오므로 범위 검사
-void UJY_SkillLoadoutComponent::ChooseUpgradeCard(int32 ChoiceIndex)
-{
-	if (PendingCardChoices.IsValidIndex(ChoiceIndex) == false)
-		return;
-
-	FJY_SkillSlotEntry& Slot = Slots[PendingCardSlotIndex];
-	Slot.Cards.Add(PendingCardChoices[ChoiceIndex]);
-
-	PendingCardChoices.Reset();
-	PendingCardSlotIndex = INDEX_NONE;
-	OnSlotsChanged.Broadcast();
-	OnCardChoicesChanged.Broadcast();
-}
-
-// [Server]
-/* 입력 태그가 없는 칸은 누를 수 없으므로 태그 수가 상한 — 슬롯 추가 = IA·IMC·태그·배열 1칸, 코드 0 */
-void UJY_SkillLoadoutComponent::UnlockSlot()
-{
-	const UJY_GameData* GameData = UJY_AssetManager::Get().GetGameData();
-	if (Slots.Num() >= GameData->SkillSlotInputTags.Num())
-		return;
-
-	Slots.AddDefaulted();
-	OnSlotsChanged.Broadcast();
-}
-
-// [Server] [OwnClient]
-/*
- * 카드 퍼센트는 더해서 한 번에 곱한다 (20% 두 장 = +40%)
- * 슬롯에 없으면 1레벨 값 — 고정 스킬, 또는 클라에 슬롯 복제가 늦은 경우(서버 쿨타임 GE가 덮어씀)
- */
-FJY_SkillStats UJY_SkillLoadoutComponent::GetSkillStats(const UJY_SkillDefinition* Skill) const
-{
-	auto IsSameSkill = [Skill](const FJY_SkillSlotEntry& Slot)
-	{
-		return Slot.Skill == Skill;
-	};
-	const FJY_SkillSlotEntry* Slot = Slots.FindByPredicate(IsSameSkill);
-	const int32 Level = Slot != nullptr ? Slot->Level : 1;
-	const FJY_SkillLevelData& LevelData = Skill->GetLevelData(Level);
-
-	float DamagePercent = 0.0f;
-	float RadiusPercent = 0.0f;
-	float CooldownPercent = 0.0f;
-	if (Slot != nullptr)
-	{
-		for (const TObjectPtr<const UJY_SkillUpgradeCard>& Card : Slot->Cards)
-		{
-			switch (Card->Kind)
-			{
-			case EJY_SkillUpgradeKind::DamagePercent:
-				DamagePercent += Card->Percent;
-				break;
-			case EJY_SkillUpgradeKind::RadiusPercent:
-				RadiusPercent += Card->Percent;
-				break;
-			case EJY_SkillUpgradeKind::CooldownPercent:
-				CooldownPercent += Card->Percent;
-				break;
-			}
-		}
-	}
-
-	const UJY_GameData* GameData = UJY_AssetManager::Get().GetGameData();
-	const float CooldownScale = 1.0f - CooldownPercent / 100.0f;
-
-	FJY_SkillStats Stats;
-	Stats.DamageScale = LevelData.DamageScale * (1.0f + DamagePercent / 100.0f);
-	Stats.RadiusScale = LevelData.RadiusScale * (1.0f + RadiusPercent / 100.0f);
-	Stats.Cooldown = FMath::Max(LevelData.Cooldown * CooldownScale, GameData->MinSkillCooldown);
-	return Stats;
-}
-
-// [Server]
-void UJY_SkillLoadoutComponent::GrantSlotAbility(int32 SlotIndex)
-{
-	FJY_SkillSlotEntry& Slot = Slots[SlotIndex];
-
-	const UJY_GameData* GameData = UJY_AssetManager::Get().GetGameData();
-	FGameplayTag InputTag;
-	if (GameData->SkillSlotInputTags.IsValidIndex(SlotIndex) == true)
-	{
-		InputTag = GameData->SkillSlotInputTags[SlotIndex];
-	}
-
-	Slot.GrantedHandle = GrantSkillAbility(Slot.Skill, InputTag);
-}
-
-// [Server]
-/* 기본 어빌리티 세트(UJY_AbilitySet::GiveToAbilitySystem)와 같은 입력 태그 방식 */
-FGameplayAbilitySpecHandle UJY_SkillLoadoutComponent::GrantSkillAbility(UJY_SkillDefinition* Skill, FGameplayTag InputTag)
-{
-	if (ensureMsgf(Skill != nullptr && Skill->AbilityClass != nullptr, TEXT("스킬 정의 또는 AbilityClass가 없음 (%s)"), *GetNameSafe(Skill)) == false)
+	const UJY_SkillData* SkillData = GetSkillData();
+	const FJY_SkillEntry* SkillEntry = SkillData->FindSkill(SkillTag);
+	if (ensureMsgf(SkillEntry != nullptr && SkillEntry->AbilityClass != nullptr, TEXT("DA_JY_SkillData에 %s 칸 또는 AbilityClass가 없음"), *SkillTag.ToString()) == false)
 		return FGameplayAbilitySpecHandle();
 
-	/* 같은 GA 클래스를 여러 스킬이 쓸 수 있어 GA는 SourceObject로 자기 스킬을 찾는다 (Lyra 장비 어빌리티와 같음) */
-	FGameplayAbilitySpec AbilitySpec(Skill->AbilityClass, 1, INDEX_NONE, Skill);
+	FGameplayAbilitySpec AbilitySpec(SkillEntry->AbilityClass, 1, INDEX_NONE, GetOwner());
+	AbilitySpec.GetDynamicSpecSourceTags().AddTag(SkillTag);
 	if (InputTag.IsValid() == true)
 	{
 		AbilitySpec.GetDynamicSpecSourceTags().AddTag(InputTag);
 	}
 
-	UJY_AbilitySystemComponent* JYASC = GetAbilitySystemComponent();
-	return JYASC->GiveAbility(AbilitySpec);
+	return AbilitySystemComponent->GiveAbility(AbilitySpec);
 }
 
-// [Server]
-void UJY_SkillLoadoutComponent::RemoveSlotAbility(int32 SlotIndex)
+const UJY_SkillData* UJY_SkillLoadoutComponent::GetSkillData() const
 {
-	FJY_SkillSlotEntry& Slot = Slots[SlotIndex];
-	if (Slot.GrantedHandle.IsValid() == false)
-		return;
-
-	UJY_AbilitySystemComponent* JYASC = GetAbilitySystemComponent();
-	JYASC->ClearAbility(Slot.GrantedHandle);
-	Slot.GrantedHandle = FGameplayAbilitySpecHandle();
-}
-
-UJY_AbilitySystemComponent* UJY_SkillLoadoutComponent::GetAbilitySystemComponent() const
-{
-	const AJY_PlayerState* JYPlayerState = CastChecked<AJY_PlayerState>(GetOwner());
-	return JYPlayerState->GetJYAbilitySystemComponent();
-}
-
-// [OwnClient]
-void UJY_SkillLoadoutComponent::OnRep_Slots()
-{
-	OnSlotsChanged.Broadcast();
-}
-
-// [OwnClient]
-void UJY_SkillLoadoutComponent::OnRep_PendingCardChoices()
-{
-	OnCardChoicesChanged.Broadcast();
+	const UJY_GameData* GameData = UJY_AssetManager::Get().GetGameData();
+	check(GameData->SkillData != nullptr);
+	return GameData->SkillData;
 }

@@ -8,8 +8,6 @@
 #include "Mass/Core/JY_MassEnemySubsystem.h"
 #include "Room/JY_RoomFlowSubsystem.h"
 #include "Room/JY_RoomMarker.h"
-#include "Skill/JY_SkillDefinition.h"
-#include "Skill/JY_SkillLoadoutComponent.h"
 #include "System/JY_AssetManager.h"
 #include "System/JY_GameData.h"
 #include "System/JY_GameMode.h"
@@ -83,45 +81,6 @@ void UJY_CheatManager::JYAddSoul(int32 Amount)
 		return;
 
 	GameMode->AddSoulStones(GetOuterAPlayerController(), Amount);
-}
-
-/* 태그 끝 이름(Skill.Plunge → Plunge)으로 GameData 목록에서 찾는다. 슬롯 키 번호(1부터)를 슬롯 인덱스로 */
-// [Server]
-void UJY_CheatManager::JYGiveSkill(const FString& SkillName, int32 SlotNumber)
-{
-	AJY_PlayerState* JYPlayerState = GetJYPlayerState();
-	if (JYPlayerState == nullptr)
-		return;
-
-	UJY_SkillLoadoutComponent* SkillLoadout = JYPlayerState->GetSkillLoadoutComponent();
-	const int32 SlotIndex = SlotNumber - 1;
-	const TArray<FJY_SkillSlotEntry>& Slots = SkillLoadout->GetSlots();
-	if (Slots.IsValidIndex(SlotIndex) == false)
-		return;
-
-	const FString TagSuffix = FString(TEXT(".")) + SkillName;
-	const UJY_GameData* GameData = UJY_AssetManager::Get().GetGameData();
-	auto IsNamedSkill = [&TagSuffix](const TObjectPtr<UJY_SkillDefinition>& Skill)
-	{
-		const FString TagString = Skill->SkillTag.ToString();
-		return TagString.EndsWith(TagSuffix);
-	};
-	const TObjectPtr<UJY_SkillDefinition>* FoundSkill = GameData->SkillDefinitions.FindByPredicate(IsNamedSkill);
-	if (FoundSkill == nullptr)
-		return;
-
-	SkillLoadout->AcquireSkill(*FoundSkill, SlotIndex);
-}
-
-// [Server]
-void UJY_CheatManager::JYUnlockSkillSlot()
-{
-	AJY_PlayerState* JYPlayerState = GetJYPlayerState();
-	if (JYPlayerState == nullptr)
-		return;
-
-	UJY_SkillLoadoutComponent* SkillLoadout = JYPlayerState->GetSkillLoadoutComponent();
-	SkillLoadout->UnlockSlot();
 }
 
 /*

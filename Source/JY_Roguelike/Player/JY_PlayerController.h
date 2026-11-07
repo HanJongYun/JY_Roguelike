@@ -30,14 +30,6 @@ public:
 	virtual bool ShouldShowLoadingScreen() const override;
 
 public:
-	/* 콘솔 명령: 강화 카드 고르기 (예: JYChooseSkillCard 0) */
-	UFUNCTION(Exec)
-	void JYChooseSkillCard(int32 ChoiceIndex);
-
-	/* 강화 카드 선택 요청 (카드 UI도 이걸 부름) */
-	UFUNCTION(Server, Reliable)
-	void Server_ChooseSkillCard(int32 ChoiceIndex);
-
 	/* 메타 강화 1단계 구매 요청 — Altar = 제단 화면을 연 제단 */
 	UFUNCTION(Server, Reliable)
 	void Server_BuyMetaUpgrade(FGameplayTag UpgradeTag, AActor* Altar);

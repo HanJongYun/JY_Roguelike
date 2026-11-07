@@ -31,6 +31,7 @@ namespace JYGameplayTags
 	/* Ability */
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Type_Attack,     "Ability.Type.Attack",     "기본 공격. 대시·점프·스킬이 이 태그로 공격을 취소한다.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Type_Skill,      "Ability.Type.Skill",      "스킬 공통. 스킬끼리 겹치지 않게 막는 태그.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Skill,                   "Skill",                   "스킬 식별 루트 (Skill.Plunge 등) — 지급 때 스펙에 붙여 스킬 GA가 DA_JY_SkillData 칸을 찾는다.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Type_Jump,       "Ability.Type.Jump",       "점프. 스킬 중엔 막힌다.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Start_Air,       "Ability.Start.Air",       "공중에서 시작 표시 (첫 방향 TargetData의 ApplicationTag) — 공중 콤보·공중 내려찍기.");
 

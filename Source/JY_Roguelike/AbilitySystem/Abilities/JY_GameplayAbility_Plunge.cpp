@@ -1,4 +1,5 @@
 #include "AbilitySystem/Abilities/JY_GameplayAbility_Plunge.h"
+#include "Skill/JY_SkillData.h"
 #include "AbilitySystem/JY_AbilitySystemComponent.h"
 #include "AbilitySystem/Tasks/JY_AbilityTask_WaitDirection.h"
 #include "AbilitySystem/Tasks/JY_AbilityTask_WaitLanded.h"
@@ -17,7 +18,6 @@
 UJY_GameplayAbility_Plunge::UJY_GameplayAbility_Plunge(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	Damage = 40.0f;
 	KnockbackSpeed = 1200.0f;
 }
 
@@ -274,7 +274,7 @@ void UJY_GameplayAbility_Plunge::OnLanded(const FHitResult& Hit)
  */
 void UJY_GameplayAbility_Plunge::OnHitEvent(FGameplayEventData Payload)
 {
-	const FJY_SkillStats Stats = GetSkillStats();
+	const FJY_SkillEntry& SkillEntry = GetCurrentSkillEntry();
 	const FTransform HitOrigin = GetAvatarHitOrigin();
 
 	const FVector HitLocation = HitOrigin.GetLocation();
@@ -282,9 +282,8 @@ void UJY_GameplayAbility_Plunge::OnHitEvent(FGameplayEventData Payload)
 	const float FallAlpha = FMath::Clamp(FallHeight / FallHeightForMaxRadius, 0.0f, 1.0f);
 	const float FallRadiusScale = FMath::Lerp(1.0f, MaxFallRadiusScale, FallAlpha);
 
-	const FJY_HitShape ScaledShape = ScaleHitShape(HitShape, Stats.RadiusScale * FallRadiusScale);
-	const float ScaledDamage = Damage * Stats.DamageScale;
-	ApplyHitInShape(ScaledShape, HitOrigin, ScaledDamage, KnockbackSpeed, HitCueTag, HitCameraShake);
+	const FJY_HitShape ScaledShape = ScaleHitShape(HitShape, FallRadiusScale);
+	ApplyHitInShape(ScaledShape, HitOrigin, SkillEntry.Damage, KnockbackSpeed, HitCueTag, HitCameraShake);
 }
 
 void UJY_GameplayAbility_Plunge::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) //override

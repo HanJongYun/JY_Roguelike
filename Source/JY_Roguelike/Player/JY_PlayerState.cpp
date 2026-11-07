@@ -3,13 +3,12 @@
 #include "AbilitySystem/Attributes/JY_HealthSet.h"
 #include "AbilitySystem/Attributes/JY_DashSet.h"
 #include "Progress/JY_MetaUpgradeData.h"
-#include "Skill/JY_SkillLoadoutComponent.h"
 #include "System/JY_GameplayTags.h"
 #include "Net/UnrealNetwork.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(JY_PlayerState)
 
-/* ASC·스킬 슬롯을 PlayerState에 둔다 — 캐릭터가 죽거나 바뀌어도 속성·능력이 유지된다 (Lyra와 같음) */
+/* ASC를 PlayerState에 둔다 — 캐릭터가 죽거나 바뀌어도 속성이 유지된다 (Lyra와 같음) */
 AJY_PlayerState::AJY_PlayerState(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -22,8 +21,6 @@ AJY_PlayerState::AJY_PlayerState(const FObjectInitializer& ObjectInitializer)
 	/* 서브오브젝트로 만들면 ASC InitializeComponent가 자동 등록 */
 	HealthSet = CreateDefaultSubobject<UJY_HealthSet>(TEXT("HealthSet"));
 	DashSet = CreateDefaultSubobject<UJY_DashSet>(TEXT("DashSet"));
-
-	SkillLoadoutComponent = CreateDefaultSubobject<UJY_SkillLoadoutComponent>(TEXT("SkillLoadoutComponent"));
 
 	/* PlayerState 기본 업데이트 빈도는 낮아 체력 복제가 늦게 보인다 */
 	SetNetUpdateFrequency(100.0f);

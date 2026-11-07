@@ -7,7 +7,6 @@
 #include "JY_SkillLoadoutComponent.generated.h"
 
 class UJY_AbilitySystemComponent;
-class UJY_SkillData;
 
 /* 슬롯 한 칸 (서버만) */
 USTRUCT()
@@ -16,7 +15,6 @@ struct FJY_SkillSlotEntry
 	GENERATED_BODY()
 
 	/* 비면 빈 슬롯 */
-	UPROPERTY()
 	FGameplayTag SkillTag;
 
 	/* 지급한 어빌리티 */
@@ -45,8 +43,6 @@ public:
 private:
 	/* [Server] 스킬 GA 지급 (스펙에 스킬 태그·입력 태그를 심음). 실패하면 빈 핸들 */
 	FGameplayAbilitySpecHandle GiveSkillAbility(UJY_AbilitySystemComponent* AbilitySystemComponent, const FGameplayTag& SkillTag, const FGameplayTag& InputTag) const;
-
-	const UJY_SkillData* GetSkillData() const;
 
 private:
 	/* 슬롯 (개수 = 슬롯 입력 태그 수) */

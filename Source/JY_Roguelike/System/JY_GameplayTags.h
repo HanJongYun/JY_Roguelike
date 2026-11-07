@@ -34,9 +34,11 @@ namespace JYGameplayTags
 	/* Ability — 어빌리티 종류 (다른 어빌리티가 취소·차단 대상으로 씀) */
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Type_Attack);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Type_Skill);
-	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Skill);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Type_Jump);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Start_Air);
+
+	/* Skill — 스킬 종류 식별 (스펙에 붙여 DA_JY_SkillData 칸을 찾음) */
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Skill);
 
 	/* Event — 몽타주 노티파이·상호작용이 어빌리티로 보내는 이벤트 */
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Melee_Hit);

@@ -5,6 +5,7 @@
 #include "JY_AssetManager.generated.h"
 
 class UJY_GameData;
+class UJY_SkillData;
 
 /* 프로젝트 에셋 관리자 — 공용 데이터(GameData)를 한 곳에서 꺼내 준다 */
 UCLASS(Config = Game)
@@ -18,6 +19,9 @@ public:
 
 	/* 공용 데이터 (처음 부를 때 로드, 실패하면 nullptr) */
 	const UJY_GameData* GetGameData();
+
+	/* 스킬 데이터 (DA_JY_SkillData). 없으면 멈춤 */
+	const UJY_SkillData* GetSkillData();
 
 protected:
 	/* 설정값 — Config/DefaultGame.ini [/Script/JY_Roguelike.JY_AssetManager]에서 지정 */

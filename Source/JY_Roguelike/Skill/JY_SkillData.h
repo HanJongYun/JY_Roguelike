@@ -15,7 +15,7 @@ struct FJY_SkillEntry
 {
 	GENERATED_BODY()
 
-	/* 스킬 식별 (Skill.Plunge 등) — 지급할 때 스펙에 붙여 GA가 이 칸을 찾는다 */
+	/* 스킬 식별 (Skill.Plunge 등) — 지급할 때 스펙에 붙여 GA가 이 칸을 찾는다. 피해 행동 태그로도 쓴다 */
 	UPROPERTY(EditDefaultsOnly, Meta = (Categories = "Skill"))
 	FGameplayTag SkillTag;
 
@@ -31,9 +31,9 @@ struct FJY_SkillEntry
 	UPROPERTY(EditDefaultsOnly, Meta = (Categories = "Cooldown"))
 	FGameplayTagContainer CooldownTags;
 
-	/* 타격 1회 피해 */
+	/* 타격 1회 행동 배율 (만분율, 10000 = 공격력 그대로) */
 	UPROPERTY(EditDefaultsOnly, Meta = (ClampMin = "0"))
-	float Damage = 30.0f;
+	int32 ActionMultiplier = 10000;
 
 	UPROPERTY(EditDefaultsOnly)
 	FText DisplayName;

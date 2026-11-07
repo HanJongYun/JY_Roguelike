@@ -283,7 +283,7 @@ void UJY_GameplayAbility_Plunge::OnHitEvent(FGameplayEventData Payload)
 	const float FallRadiusScale = FMath::Lerp(1.0f, MaxFallRadiusScale, FallAlpha);
 
 	const FJY_HitShape ScaledShape = ScaleHitShape(HitShape, FallRadiusScale);
-	ApplyHitInShape(ScaledShape, HitOrigin, SkillEntry.Damage, KnockbackSpeed, HitCueTag, HitCameraShake);
+	ApplyHitInShape(ScaledShape, HitOrigin, SkillEntry.ActionMultiplier, SkillEntry.SkillTag, KnockbackSpeed, HitCueTag, HitCameraShake);
 }
 
 void UJY_GameplayAbility_Plunge::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) //override

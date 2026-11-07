@@ -35,6 +35,12 @@ public:
 	static void DrawHitShape(const UWorld* World, const FJY_HitShape& Shape, const FTransform& Origin, bool bHitAny, float DrawSeconds = 1.0f);
 
 private:
+	/* [Server] 맞는 순간 최종 피해 — 공격자 전투 속성을 모아 피해 공식에 넣는다 */
+	FJY_DamageResult ComputeDamage(const FJY_HitPayload& Payload) const;
+
+	/* 피해 공식 — 공격력 × 행동 배율 × (1 + 증가분) × (1 − 방어율) × (1 − 저항) × 치명 */
+	static FJY_DamageResult CalculateDamage(const FJY_DamageInput& Input);
+
 	/* [Server] 체력 있는 대상에 피해 GE·밀어내기·피격 큐. Origin = 때린 위치 (맞은 방향 계산). 죽는 중·무적이면 false */
-	bool ApplyHitToCharacter(AActor* TargetActor, UJY_AbilitySystemComponent* TargetASC, UJY_AbilitySystemComponent* SourceASC, const FJY_HitPayload& Payload, const FVector& Origin) const;
+	bool ApplyHitToCharacter(AActor* TargetActor, UJY_AbilitySystemComponent* TargetASC, UJY_AbilitySystemComponent* SourceASC, const FJY_HitPayload& Payload, float Damage, const FVector& Origin) const;
 };

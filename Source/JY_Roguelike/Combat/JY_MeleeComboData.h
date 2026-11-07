@@ -22,9 +22,9 @@ struct FJY_MeleeComboStep
 	UPROPERTY(EditDefaultsOnly)
 	FJY_HitShape HitShape;
 
-	/* 타격 이벤트 1회 피해 */
-	UPROPERTY(EditDefaultsOnly)
-	float Damage = 10.0f;
+	/* 타격 이벤트 1회 행동 배율 (만분율, 10000 = 공격력 그대로) */
+	UPROPERTY(EditDefaultsOnly, Meta = (ClampMin = "0"))
+	int32 ActionMultiplier = 10000;
 
 	/* 맞은 적을 바깥으로 미는 속도 (cm/s) */
 	UPROPERTY(EditDefaultsOnly)
@@ -54,6 +54,10 @@ public:
 
 	UPROPERTY(EditDefaultsOnly)
 	float PlayRate = 1.0f;
+
+	/* 피해 행동 태그 (Skill.BasicAttack) — 축복 증가분 조건 */
+	UPROPERTY(EditDefaultsOnly, Meta = (Categories = "Skill"))
+	FGameplayTag ActionTag;
 
 	/* 타 순서대로. 개수 = 콤보 길이 */
 	UPROPERTY(EditDefaultsOnly, Meta = (TitleProperty = "AttackSection"))

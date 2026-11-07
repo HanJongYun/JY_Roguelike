@@ -2,6 +2,7 @@
 #include "AbilitySystem/JY_AbilitySystemComponent.h"
 #include "AbilitySystem/Attributes/JY_HealthSet.h"
 #include "AbilitySystem/Attributes/JY_DashSet.h"
+#include "AbilitySystem/Attributes/JY_CombatSet.h"
 #include "Progress/JY_MetaUpgradeData.h"
 #include "System/JY_GameplayTags.h"
 #include "Net/UnrealNetwork.h"
@@ -21,6 +22,7 @@ AJY_PlayerState::AJY_PlayerState(const FObjectInitializer& ObjectInitializer)
 	/* 서브오브젝트로 만들면 ASC InitializeComponent가 자동 등록 */
 	HealthSet = CreateDefaultSubobject<UJY_HealthSet>(TEXT("HealthSet"));
 	DashSet = CreateDefaultSubobject<UJY_DashSet>(TEXT("DashSet"));
+	CombatSet = CreateDefaultSubobject<UJY_CombatSet>(TEXT("CombatSet"));
 
 	/* PlayerState 기본 업데이트 빈도는 낮아 체력 복제가 늦게 보인다 */
 	SetNetUpdateFrequency(100.0f);

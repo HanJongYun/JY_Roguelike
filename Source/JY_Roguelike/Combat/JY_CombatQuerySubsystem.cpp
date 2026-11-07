@@ -1,5 +1,6 @@
 #include "Combat/JY_CombatQuerySubsystem.h"
 #include "AbilitySystem/JY_AbilitySystemComponent.h"
+#include "AbilitySystem/Attributes/JY_CombatSet.h"
 #include "System/JY_AssetManager.h"
 #include "System/JY_GameData.h"
 #include "Combat/JY_HitReactionComponent.h"
@@ -181,6 +182,7 @@ void UJY_CombatQuerySubsystem::ApplyHit(const FJY_CombatTarget& Target, const FJ
 		return;
 
 	AActor* InstigatorActor = Payload.Instigator.Get();
+	const FJY_DamageResult DamageResult = ComputeDamage(Payload);
 
 	/* 맞으면 발동하는 물체는 맞은 뒤 일을 스스로 정한다(항아리는 부서짐) — 밀어내기 속도가 파편이 튀는 방향·세기 */
 	IJY_HitReactable* HitReactable = JY_FindInterface<IJY_HitReactable>(TargetActor);
@@ -193,7 +195,7 @@ void UJY_CombatQuerySubsystem::ApplyHit(const FJY_CombatTarget& Target, const FJ
 		{
 			HitVelocity = Payload.ObjectPushDirection.GetSafeNormal2D() * FMath::Max(HitVelocity.Size(), 1.0f);
 		}
-		HitReactable->ReceiveHit(InstigatorActor, Payload.Damage, HitVelocity);
+		HitReactable->ReceiveHit(InstigatorActor, DamageResult.Damage, HitVelocity);
 		return;
 	}
 
@@ -203,7 +205,7 @@ void UJY_CombatQuerySubsystem::ApplyHit(const FJY_CombatTarget& Target, const FJ
 	UJY_AbilitySystemComponent* TargetJYASC = CastChecked<UJY_AbilitySystemComponent>(TargetASC);
 	UJY_AbilitySystemComponent* SourceJYASC = CastChecked<UJY_AbilitySystemComponent>(SourceASC);
 	const FVector InstigatorLocation = InstigatorActor->GetActorLocation();
-	ApplyHitToCharacter(TargetActor, TargetJYASC, SourceJYASC, Payload, InstigatorLocation);
+	ApplyHitToCharacter(TargetActor, TargetJYASC, SourceJYASC, Payload, DamageResult.Damage, InstigatorLocation);
 }
 
 // [Server]
@@ -226,7 +228,74 @@ bool UJY_CombatQuerySubsystem::ApplyEnvironmentDamage(AActor* TargetActor, const
 		SourceJYASC = CastChecked<UJY_AbilitySystemComponent>(InstigatorASC);
 	}
 
-	return ApplyHitToCharacter(TargetActor, TargetJYASC, SourceJYASC, Payload, Origin);
+	const FJY_DamageResult DamageResult = ComputeDamage(Payload);
+	return ApplyHitToCharacter(TargetActor, TargetJYASC, SourceJYASC, Payload, DamageResult.Damage, Origin);
+}
+
+// [Server]
+/*
+ * 공격자 값은 타격일 때만 읽는다 — 함정·폭발에 부순 사람의 공격력·치명이 섞이면 안 된다.
+ * 속성 세트는 %로 들고(제단·HUD와 같은 단위) 계산에서만 만분율로 바꾼다. Actor 적은 아직 적 정의가 없어 방어·저항 0
+ */
+FJY_DamageResult UJY_CombatQuerySubsystem::ComputeDamage(const FJY_HitPayload& Payload) const
+{
+	FJY_DamageInput DamageInput;
+	DamageInput.DamageType = Payload.DamageType;
+	DamageInput.ActionMultiplier = Payload.ActionMultiplier;
+	DamageInput.BaseDamage = Payload.BaseDamage;
+
+	if (Payload.DamageType == EJY_DamageType::Strike)
+	{
+		const AActor* InstigatorActor = Payload.Instigator.Get();
+		const UAbilitySystemComponent* InstigatorASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(InstigatorActor);
+		const UJY_AbilitySystemComponent* InstigatorJYASC = CastChecked<UJY_AbilitySystemComponent>(InstigatorASC);
+		const float PercentToRate = 100.0f;
+		DamageInput.BaseAttack = InstigatorJYASC->GetNumericAttribute(UJY_CombatSet::GetBaseAttackAttribute());
+		DamageInput.AttackBonus = FMath::RoundToInt(InstigatorJYASC->GetNumericAttribute(UJY_CombatSet::GetAttackBonusAttribute()) * PercentToRate);
+		DamageInput.CritChance = FMath::RoundToInt(InstigatorJYASC->GetNumericAttribute(UJY_CombatSet::GetCritChanceAttribute()) * PercentToRate);
+		DamageInput.CritMultiplier = FMath::RoundToInt(InstigatorJYASC->GetNumericAttribute(UJY_CombatSet::GetCritMultiplierAttribute()) * PercentToRate);
+	}
+
+	return CalculateDamage(DamageInput);
+}
+
+// [Server]
+/* 종류마다 첫 숫자만 다르고 방어·저항은 같이 탄다. 음수 저항 = 약점이라 피해가 는다 */
+FJY_DamageResult UJY_CombatQuerySubsystem::CalculateDamage(const FJY_DamageInput& Input)
+{
+	const float RateScale = 10000.0f;
+	FJY_DamageResult Result;
+
+	float Damage = Input.BaseDamage;
+	if (Input.DamageType == EJY_DamageType::Strike)
+	{
+		const float AttackPower = Input.BaseAttack * (RateScale + Input.AttackBonus) / RateScale;
+		Damage = AttackPower * Input.ActionMultiplier / RateScale;
+	}
+
+	/* 증가분은 합연산 — 고정 피해는 받지 않는다 */
+	if (Input.DamageType != EJY_DamageType::Fixed)
+	{
+		Damage *= (RateScale + Input.IncreaseRate) / RateScale;
+	}
+
+	Damage *= (RateScale - Input.DefenseRate) / RateScale;
+	Damage *= (RateScale - Input.ElementResistance) / RateScale;
+
+	/* 치명은 타격만, 맞은 대상마다 따로 굴린다 */
+	if (Input.DamageType == EJY_DamageType::Strike)
+	{
+		const int32 Roll = FMath::RandRange(0, static_cast<int32>(RateScale) - 1);
+		Result.bCritical = Roll < Input.CritChance;
+	}
+
+	if (Result.bCritical == true)
+	{
+		Damage *= Input.CritMultiplier / RateScale;
+	}
+
+	Result.Damage = FMath::Max(Damage, 0.0f);
+	return Result;
 }
 
 // [Server]
@@ -234,7 +303,7 @@ bool UJY_CombatQuerySubsystem::ApplyEnvironmentDamage(AActor* TargetActor, const
  * 큐를 피해 GE에 묶지 않는다 — 스킬·함정마다 다른 피격 연출을 GE를 늘리지 않고 큐 태그로 바꾼다.
  * 넉백·반응 몽타주는 맞은 쪽(UJY_HitReactionComponent)이 정한다
  */
-bool UJY_CombatQuerySubsystem::ApplyHitToCharacter(AActor* TargetActor, UJY_AbilitySystemComponent* TargetASC, UJY_AbilitySystemComponent* SourceASC, const FJY_HitPayload& Payload, const FVector& Origin) const
+bool UJY_CombatQuerySubsystem::ApplyHitToCharacter(AActor* TargetActor, UJY_AbilitySystemComponent* TargetASC, UJY_AbilitySystemComponent* SourceASC, const FJY_HitPayload& Payload, float Damage, const FVector& Origin) const
 {
 	/* 무적이면 HealthSet이 피해만 0으로 만든다(UJY_HealthSet::PreGameplayEffectExecute) — 피격 큐·밀림까지 나가지 않게 여기서 거른다 */
 	if (TargetASC->HasMatchingGameplayTag(JYGameplayTags::Status_Death) == true || TargetASC->HasMatchingGameplayTag(JYGameplayTags::Gameplay_DamageImmunity) == true)
@@ -245,7 +314,7 @@ bool UJY_CombatQuerySubsystem::ApplyHitToCharacter(AActor* TargetActor, UJY_Abil
 	EffectContext.AddOrigin(Origin);
 
 	/* 화염 지대처럼 상태이상만 거는 범위는 즉시 피해가 0 */
-	if (Payload.Damage > 0.0f)
+	if (Damage > 0.0f)
 	{
 		const UJY_GameData* GameData = UJY_AssetManager::Get().GetGameData();
 		const TSubclassOf<UGameplayEffect> DamageEffectClass = GameData->DamageGameplayEffect;
@@ -254,7 +323,7 @@ bool UJY_CombatQuerySubsystem::ApplyHitToCharacter(AActor* TargetActor, UJY_Abil
 
 		const FGameplayEffectSpecHandle DamageSpecHandle = SourceASC->MakeOutgoingSpec(DamageEffectClass, 1.0f, EffectContext);
 		FGameplayEffectSpec* DamageSpec = DamageSpecHandle.Data.Get();
-		DamageSpec->SetSetByCallerMagnitude(JYGameplayTags::SetByCaller_Damage, Payload.Damage);
+		DamageSpec->SetSetByCallerMagnitude(JYGameplayTags::SetByCaller_Damage, Damage);
 		SourceASC->ApplyGameplayEffectSpecToTarget(*DamageSpec, TargetASC);
 	}
 
@@ -283,7 +352,7 @@ bool UJY_CombatQuerySubsystem::ApplyHitToCharacter(AActor* TargetActor, UJY_Abil
 		CueParameters.Normal = FromOrigin.GetSafeNormal2D();
 		CueParameters.Instigator = Payload.Instigator.Get();
 		CueParameters.EffectContext = EffectContext;
-		CueParameters.RawMagnitude = Payload.Damage;
+		CueParameters.RawMagnitude = Damage;
 
 		/* 서버가 부르면 모든 클라로 멀티캐스트, 데디 서버 자신은 연출 생략(GameplayCueManager.cpp:178) */
 		TargetASC->ExecuteGameplayCue(Payload.HitCueTag, CueParameters);

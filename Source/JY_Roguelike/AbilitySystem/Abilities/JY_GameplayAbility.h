@@ -42,8 +42,8 @@ protected:
 	/* [Server] [OwnClient] 몸을 수평 방향으로 돌리기 */
 	void FaceDirection(const FVector& Direction) const;
 
-	/* [Server] [OwnClient] 모양 안 적 판정 — 서버는 피해·밀기·피격 연출, 조종 클라는 맞으면 화면만 흔듦 */
-	void ApplyHitInShape(const FJY_HitShape& Shape, const FTransform& Origin, float Damage, float KnockbackSpeed, FGameplayTag HitCueTag, TSubclassOf<UCameraShakeBase> HitCameraShake, const FVector& ObjectPushDirection = FVector::ZeroVector) const;
+	/* [Server] [OwnClient] 모양 안 적 판정 — 서버는 피해·밀기·피격 연출, 조종 클라는 맞으면 화면만 흔듦. ActionMultiplier = 행동 배율(만분율), ActionTag = 행동(Skill.*) */
+	void ApplyHitInShape(const FJY_HitShape& Shape, const FTransform& Origin, int32 ActionMultiplier, const FGameplayTag& ActionTag, float KnockbackSpeed, FGameplayTag HitCueTag, TSubclassOf<UCameraShakeBase> HitCameraShake, const FVector& ObjectPushDirection = FVector::ZeroVector) const;
 
 	/* [Server] [OwnClient] 몽타주 재생 — 끝나면 어빌리티 정상 종료, 끊기면 취소 종료 */
 	void PlayMontageUntilEnd(UAnimMontage* MontageToPlay, float MontagePlayRate, FName StartSection = NAME_None, float RootMotionScale = 1.0f);

@@ -23,6 +23,15 @@ void FJY_FastArrayEnemyContainer::PostReplicatedChange(const TArrayView<int32>& 
 	MassEnemySubsystem->UpdateReplicatedEnemies(*this, ChangedIndices);
 }
 
+/* 지워지기 직전에 불려 원소의 ReplicationID를 아직 읽을 수 있다 (FastArraySerializer.h:1148) */
+// [OwnClient]
+void FJY_FastArrayEnemyContainer::PreReplicatedRemove(const TArrayView<int32>& RemovedIndices, int32 FinalSize)
+{
+	UWorld* World = OwnerActor->GetWorld();
+	UJY_MassEnemySubsystem* MassEnemySubsystem = World->GetSubsystem<UJY_MassEnemySubsystem>();
+	MassEnemySubsystem->DestroyReplicatedEnemies(*this, RemovedIndices);
+}
+
 AJY_RoomEnemyNetActor::AJY_RoomEnemyNetActor()
 	: EnemyContainer(this)
 {
@@ -60,6 +69,15 @@ void AJY_RoomEnemyNetActor::UpdateEnemy(int32 ReplicationID, const FJY_EnemyStat
 	FJY_FastArrayEnemyItem& EnemyItem = EnemyContainer.Items[ItemIndex];
 	EnemyItem.EnemyState = EnemyState;
 	EnemyContainer.MarkItemDirty(EnemyItem);
+}
+
+/* 원소를 빼고 배열 전체를 바뀐 것으로 표시하면 클라는 없어진 원소마다 PreReplicatedRemove를 받는다 */
+// [Server]
+void AJY_RoomEnemyNetActor::RemoveAllEnemies()
+{
+	EnemyContainer.Items.Reset();
+	EnemyContainer.MarkArrayDirty();
+	ItemIndexByReplicationID.Reset();
 }
 
 /* 일반 속성은 FastArray보다 먼저 받으므로, 같은 틱에 추가한 적을 풀 때 클라에 이미 새 기준점이 있다 (DataReplication.cpp:1052) */

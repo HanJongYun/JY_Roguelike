@@ -5,6 +5,17 @@
 #include "Mass/EntityElementTypes.h"
 #include "JY_MassFragments.generated.h"
 
+/* 적이 지금 무엇을 하나 — 서버가 정하고 클라는 표현(모션 고르기)에 쓴다 */
+UENUM()
+enum class EJY_EnemyState : uint8
+{
+	/* 막 생겨 예고 중 — 움직이지도 때리지도 않는다 */
+	Spawning,
+
+	/* 플레이어를 쫓는다 */
+	Chase,
+};
+
 /* ---------- 서버 → 클라: 복제로 넘기는 데이터 ---------- */
 
 /* 적 1마리 복제 데이터 — 필드별로 바뀐 것만 전송된다 */
@@ -24,7 +35,7 @@ struct FJY_EnemyState
 	uint8 Yaw = 0;
 
 	UPROPERTY()
-	uint8 State = 0;
+	EJY_EnemyState State = EJY_EnemyState::Spawning;
 
 	/* 체력 비율 0~255 */
 	UPROPERTY()
@@ -80,6 +91,20 @@ struct FJY_EnemyHealthFragment : public FMassFragment
 	uint8 HitSerial = 0;
 };
 
+/* 행동 상태와 그 상태가 끝나는 시각 */
+USTRUCT()
+struct FJY_EnemyBehaviorFragment : public FMassFragment
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	EJY_EnemyState State = EJY_EnemyState::Spawning;
+
+	/* Spawning이 끝나는 월드 시각 (초) */
+	UPROPERTY()
+	double SpawningEndSeconds = 0.0;
+};
+
 /* ---------- 클라 전용 ---------- */
 
 /* 복제받은 표시 값 */
@@ -87,6 +112,9 @@ USTRUCT()
 struct FJY_EnemyVisualFragment : public FMassFragment
 {
 	GENERATED_BODY()
+
+	UPROPERTY()
+	EJY_EnemyState State = EJY_EnemyState::Spawning;
 
 	UPROPERTY()
 	uint8 HealthPct = 255;

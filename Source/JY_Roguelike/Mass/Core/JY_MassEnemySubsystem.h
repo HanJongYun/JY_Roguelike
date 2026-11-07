@@ -22,8 +22,11 @@ public:
 	virtual void OnWorldBeginPlay(UWorld& InWorld) override;
 
 public:
-	/* 적 종류의 설계도로 위치마다 1마리씩 만들고 복제 데이터를 붙인다 */
-	TArray<FMassEntityHandle> SpawnWave(const UJY_EnemyDefinition& EnemyDefinition, TConstArrayView<FVector> Locations);
+	/* 적 종류의 설계도로 위치마다 1마리씩 만들고 복제 데이터를 붙인다 — SpawnWarningSeconds 동안 예고(Spawning) 뒤 움직인다 */
+	TArray<FMassEntityHandle> SpawnWave(const UJY_EnemyDefinition& EnemyDefinition, TConstArrayView<FVector> Locations, float SpawnWarningSeconds);
+
+	/* 서버 적을 전부 지운다 — 클라 적도 복제로 따라 지워진다 */
+	void DestroyAllEnemies();
 
 	/* 서버 적 전부를 한 방향으로 옮긴다 (치트 시험용) */
 	void MoveAllEnemies(const FVector& Offset);
@@ -36,6 +39,9 @@ public:
 
 	/* 값이 바뀐 복제 데이터를 클라 엔티티에 반영한다 */
 	void UpdateReplicatedEnemies(const FJY_FastArrayEnemyContainer& EnemyContainer, TConstArrayView<int32> ChangedIndices);
+
+	/* 지워질 복제 데이터의 클라 엔티티를 지운다 */
+	void DestroyReplicatedEnemies(const FJY_FastArrayEnemyContainer& EnemyContainer, TConstArrayView<int32> RemovedIndices);
 
 	AJY_RoomEnemyNetActor* GetRoomEnemyNetActor() const { return RoomEnemyNetActor; }
 

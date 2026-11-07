@@ -229,7 +229,8 @@ void UJY_CheatManager::JYMassSpawn(int32 CountPerPoint)
 
 	UJY_MassEnemySubsystem* MassEnemySubsystem = GetWorld()->GetSubsystem<UJY_MassEnemySubsystem>();
 	const UJY_EnemyDefinition* EnemyDefinition = GameData->EnemyDefinitions[0];
-	MassEnemySubsystem->SpawnWave(*EnemyDefinition, SpawnLocations);
+	/* 시험용이라 예고 없이 바로 Chase */
+	MassEnemySubsystem->SpawnWave(*EnemyDefinition, SpawnLocations, 0.0f);
 }
 
 // [Server]

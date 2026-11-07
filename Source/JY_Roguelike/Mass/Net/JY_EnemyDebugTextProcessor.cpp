@@ -33,7 +33,9 @@ void UJY_EnemyDebugTextProcessor::Execute(FMassEntityManager& EntityManager, FMa
 {
 	const UWorld* World = EntityManager.GetWorld();
 
-	auto DrawHealthTexts = [World](FMassExecutionContext& ChunkContext)
+	const UEnum* StateEnum = StaticEnum<EJY_EnemyState>();
+
+	auto DrawStateTexts = [World, StateEnum](FMassExecutionContext& ChunkContext)
 	{
 		const TConstArrayView<FTransformFragment> Transforms = ChunkContext.GetFragmentView<FTransformFragment>();
 		const TConstArrayView<FJY_EnemyVisualFragment> Visuals = ChunkContext.GetFragmentView<FJY_EnemyVisualFragment>();
@@ -41,11 +43,13 @@ void UJY_EnemyDebugTextProcessor::Execute(FMassEntityManager& EntityManager, FMa
 		for (FMassExecutionContext::FEntityIterator EntityIt = ChunkContext.CreateEntityIterator(); EntityIt; ++EntityIt)
 		{
 			const FVector TextLocation = Transforms[EntityIt].GetTransform().GetLocation() + JY_EnemyDebugText::TextOffset;
-			const FString HealthText = FString::FromInt(Visuals[EntityIt].HealthPct);
+			const FJY_EnemyVisualFragment& Visual = Visuals[EntityIt];
+			const FString StateName = StateEnum->GetNameStringByValue(static_cast<int64>(Visual.State));
+			const FString DebugText = FString::Printf(TEXT("%s %d"), *StateName, Visual.HealthPct);
 
 			/* 시간 0 = 이번 프레임만 그린다 (HUD.cpp:764) */
-			DrawDebugString(World, TextLocation, HealthText, nullptr, FColor::Green, 0.0f);
+			DrawDebugString(World, TextLocation, DebugText, nullptr, FColor::Green, 0.0f);
 		}
 	};
-	EntityQuery.ForEachEntityChunk(Context, DrawHealthTexts);
+	EntityQuery.ForEachEntityChunk(Context, DrawStateTexts);
 }

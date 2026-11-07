@@ -5,7 +5,7 @@
 #include "MassEntityQuery.h"
 #include "JY_EnemyDebugTextProcessor.generated.h"
 
-/* 클라 적 머리 위에 복제받은 체력 값을 글자로 그린다 (체력바가 생기면 지운다) */
+/* 클라 적 머리 위에 복제받은 상태·체력 값을 글자로 그린다 (체력바·상태 모션이 생기면 지운다) */
 UCLASS()
 class UJY_EnemyDebugTextProcessor : public UMassProcessor
 {

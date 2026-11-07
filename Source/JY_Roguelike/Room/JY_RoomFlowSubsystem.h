@@ -5,11 +5,15 @@
 #include "JY_RoomFlowSubsystem.generated.h"
 
 class UJY_RegionData;
+class UJY_RoomData;
 class ULevel;
 class ACharacter;
 
 /* 방을 깼거나(true) 새 방에 들어와 잠겼다(false) (서버) */
 DECLARE_MULTICAST_DELEGATE_TwoParams(FJY_OnRoomClearChanged, const ULevel* /*RoomLevel*/, bool /*bCleared*/);
+
+/* 새 방에 들어옴 — 방 레벨과 그 방의 정보 (서버) */
+DECLARE_MULTICAST_DELEGATE_TwoParams(FJY_OnRoomEntered, const ULevel* /*RoomLevel*/, const UJY_RoomData* /*RoomData*/);
 
 /* 던전 지역 맵에서 방을 차례로 켜고 플레이어를 옮긴다 (서버) */
 UCLASS()
@@ -51,15 +55,18 @@ public:
 	/* 방을 깼거나 새 방에 들어옴 */
 	FJY_OnRoomClearChanged OnRoomClearChanged;
 
+	/* 새 방에 들어옴 — 웨이브가 듣고 적을 낸다 */
+	FJY_OnRoomEntered OnRoomEntered;
+
 private:
-	/* 이 칸의 방을 골라 켜기 시작 — 다 켜지면 TryEnterNextRoom */
+	/* 정해 둔 이 칸의 방을 켜기 시작 — 다 켜지면 TryEnterNextRoom */
 	void LoadRoom(int32 SlotIndex);
 
-	/* 방에 들어옴 — 적 스폰 지점이 없는 방(상점)은 바로 깬 것으로 친다 */
-	void EnterRoom(const ULevel* RoomLevel);
+	/* 이번 런의 방 순서를 정한다 — 칸 종류마다 그 종류의 안 나온 방 하나 */
+	void PlanRooms();
 
-	/* 다음 칸 후보 중 하나 — 이번 런에 이미 나온 방은 뺌 */
-	TSoftObjectPtr<UWorld> PickNextRoom(int32 SlotIndex) const;
+	/* 방에 들어옴 — 전투 방이 아니면(상점) 바로 깬 것으로 친다 */
+	void EnterRoom(const ULevel* RoomLevel, const UJY_RoomData& RoomData);
 
 	/* 다음 방 레벨이 서버에 다 올라옴 (LoadStreamLevel 완료 콜백) */
 	UFUNCTION()
@@ -83,6 +90,7 @@ private:
 	void ReturnToHub() const;
 
 private:
+	UPROPERTY()
 	TObjectPtr<const UJY_RegionData> RegionData;
 
 	/* 지금 방이 몇 번째 칸인지 */
@@ -92,8 +100,9 @@ private:
 
 	bool bCurrentRoomCleared = false;
 
-	/* 이번 런에 들어간 방 */
-	TArray<TSoftObjectPtr<UWorld>> VisitedRooms;
+	/* 이번 런의 방 순서 — 칸 번호마다 하나 (PlanRooms) */
+	UPROPERTY()
+	TArray<TObjectPtr<const UJY_RoomData>> PlannedRooms;
 
 	/* 켜는 중인 다음 방 */
 	TSoftObjectPtr<UWorld> PendingRoom;

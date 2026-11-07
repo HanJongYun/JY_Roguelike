@@ -37,7 +37,7 @@ AJY_RoomEnemyNetActor::AJY_RoomEnemyNetActor()
 {
 	bReplicates = true;
 
-	/* 방 하나를 모든 플레이어가 같이 본다 — 거리와 상관없이 모두에게 보내고, 서버는 플레이어 수와 무관하게 한 번만 기록 */
+	/* 방 하나가 플레이어 화면에 통째로 보인다 — 적이 멀어도 끊기지 않게 거리와 상관없이 보낸다 */
 	bAlwaysRelevant = true;
 }
 

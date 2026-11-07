@@ -65,7 +65,7 @@ struct TStructOpsTypeTraits<FJY_FastArrayEnemyContainer> : public TStructOpsType
 	enum { WithNetDeltaSerializer = true };
 };
 
-/* 지금 방의 Mass 적 목록을 모든 클라에 보내는 복제 Actor — 런 동안 1개 */
+/* 지금 방의 Mass 적 목록을 플레이어 클라에 보내는 복제 Actor — 런 동안 1개 */
 UCLASS()
 class AJY_RoomEnemyNetActor : public AInfo
 {

@@ -50,7 +50,7 @@ void AJY_GameMode::HandleStartingNewPlayer_Implementation(APlayerController* New
 	}
 }
 
-/* 던전은 첫 방이 모든 클라에 뜬 뒤에 캐릭터를 만든다 — 그 전엔 설 바닥이 없다. 모아서 만드는 쪽은 UJY_RoomFlowSubsystem */
+/* 던전은 첫 방이 플레이어 클라에 뜬 뒤에 캐릭터를 만든다 — 그 전엔 설 바닥이 없다. 기다렸다 만드는 쪽은 UJY_RoomFlowSubsystem */
 // [Server]
 bool AJY_GameMode::PlayerCanRestart_Implementation(APlayerController* Player) //override
 {
@@ -58,7 +58,7 @@ bool AJY_GameMode::PlayerCanRestart_Implementation(APlayerController* Player) //
 		return false;
 
 	const UJY_RoomFlowSubsystem* RoomFlow = GetWorld()->GetSubsystem<UJY_RoomFlowSubsystem>();
-	return RoomFlow->CanStartPlayers();
+	return RoomFlow->CanStartPlayer();
 }
 
 /* 엔진 기본은 월드 전체를 돌아 꺼지는 중인 이전 방 PlayerStart도 고른다 — 지금 방 것만 본다 (GameModeBase.cpp:1093) */
@@ -66,28 +66,10 @@ bool AJY_GameMode::PlayerCanRestart_Implementation(APlayerController* Player) //
 AActor* AJY_GameMode::ChoosePlayerStart_Implementation(AController* Player) //override
 {
 	const UJY_RoomFlowSubsystem* RoomFlow = GetWorld()->GetSubsystem<UJY_RoomFlowSubsystem>();
-	const ULevel* RoomLevel = RoomFlow->GetCurrentRoomLevel();
-	if (RoomLevel == nullptr)
+	if (RoomFlow->GetCurrentRoomLevel() == nullptr)
 		return Super::ChoosePlayerStart_Implementation(Player);
 
-	const UClass* PawnClass = GetDefaultPawnClassForController(Player);
-	const APawn* PawnToFit = PawnClass != nullptr ? PawnClass->GetDefaultObject<APawn>() : nullptr;
-
-	APlayerStart* OccupiedStart = nullptr;
-	for (AActor* Actor : RoomLevel->Actors)
-	{
-		APlayerStart* PlayerStart = Cast<APlayerStart>(Actor);
-		if (PlayerStart == nullptr)
-			continue;
-
-		if (GetWorld()->EncroachingBlockingGeometry(PawnToFit, PlayerStart->GetActorLocation(), PlayerStart->GetActorRotation()) == false)
-			return PlayerStart;
-
-		OccupiedStart = PlayerStart;
-	}
-
-	ensureMsgf(OccupiedStart != nullptr, TEXT("%s에 PlayerStart가 없음"), *RoomLevel->GetOuter()->GetName());
-	return OccupiedStart;
+	return RoomFlow->GetCurrentRoomPlayerStart();
 }
 
 /* 시작 지점이 바닥보다 조금 떠 있으면 생기자마자 떨어지는 모션이 나온다 — 바닥에 붙여 만든다 */

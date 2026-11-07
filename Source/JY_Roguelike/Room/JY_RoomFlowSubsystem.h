@@ -8,6 +8,8 @@ class UJY_RegionData;
 class UJY_RoomData;
 class ULevel;
 class ACharacter;
+class APlayerController;
+class APlayerStart;
 
 /* 방을 깼거나(true) 새 방에 들어와 잠겼다(false) (서버) */
 DECLARE_MULTICAST_DELEGATE_TwoParams(FJY_OnRoomClearChanged, const ULevel* /*RoomLevel*/, bool /*bCleared*/);
@@ -32,10 +34,13 @@ public:
 	bool IsRegionMap() const;
 
 	/* 플레이어 캐릭터를 만들어도 되나 — 지역 맵이면 첫 방에 들어간 뒤부터, 아니면 항상 */
-	bool CanStartPlayers() const;
+	bool CanStartPlayer() const;
 
 	/* 지금 방 레벨 (지역 맵이 아니거나 첫 방 전이면 nullptr) */
 	const ULevel* GetCurrentRoomLevel() const;
+
+	/* 지금 방의 PlayerStart (첫 방 전이면 nullptr) */
+	APlayerStart* GetCurrentRoomPlayerStart() const;
 
 	/* 지금 방의 PlayerStart 위치 */
 	FVector GetCurrentRoomStartLocation() const;
@@ -72,19 +77,22 @@ private:
 	UFUNCTION()
 	void HandleNextRoomLoaded();
 
-	/* 모든 클라가 새 방을 띄웠고 화면이 다 어두워졌으면 옮기고, 아니면 잠시 뒤 다시 확인 */
+	/* 플레이어 클라가 새 방을 띄웠고 화면이 다 어두워졌으면 옮기고, 아니면 잠시 뒤 다시 확인 */
 	void TryEnterNextRoom();
 
-	bool HaveAllClientsInitializedLevel(const ULevel* Level) const;
+	/* 플레이어는 항상 한 명 — 아직 접속 전이면 nullptr */
+	APlayerController* GetPlayerController() const;
 
-	/* 모든 플레이어의 캐릭터를 방 PlayerStart로 */
-	void MovePlayersToStart(const ULevel* Level) const;
+	bool HasPlayerInitializedLevel(const ULevel* Level) const;
 
-	/* 첫 방에 들어오기를 기다리던 플레이어의 캐릭터를 만든다 */
-	void StartWaitingPlayers() const;
+	/* 플레이어 캐릭터를 방 PlayerStart로 */
+	void MovePlayerToStart(const ULevel* Level) const;
 
-	/* 모든 플레이어 화면을 검게 덮거나(true) 걷음(false) */
-	void FadePlayerScreens(bool bFadeOut) const;
+	/* 첫 방에 들어오기를 기다리던 플레이어 캐릭터를 만든다 */
+	void StartWaitingPlayer() const;
+
+	/* 플레이어 화면을 검게 덮거나(true) 걷음(false) */
+	void FadePlayerScreen(bool bFadeOut) const;
 
 	/* 마지막 칸을 지나면 로비로 */
 	void ReturnToHub() const;

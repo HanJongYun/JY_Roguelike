@@ -8,7 +8,6 @@
 #include "Engine/Level.h"
 #include "Engine/LevelStreaming.h"
 #include "Engine/NetConnection.h"
-#include "Engine/NetDriver.h"
 #include "Engine/World.h"
 #include "Components/CapsuleComponent.h"
 #include "GameFramework/Character.h"
@@ -41,6 +40,21 @@ namespace JY_RoomFlow
 			return nullptr;
 
 		return WorldSettings->GetRegionData();
+	}
+
+	/* 방마다 PlayerStart 하나 — 플레이어가 한 명이라 하나면 된다 */
+	APlayerStart* FindPlayerStart(const ULevel* Level)
+	{
+		for (AActor* Actor : Level->Actors)
+		{
+			APlayerStart* PlayerStart = Cast<APlayerStart>(Actor);
+			if (PlayerStart != nullptr)
+				return PlayerStart;
+		}
+
+		const UObject* LevelOuter = Level->GetOuter();
+		ensureMsgf(false, TEXT("%s에 PlayerStart가 없음"), *LevelOuter->GetName());
+		return nullptr;
 	}
 }
 
@@ -121,9 +135,9 @@ bool UJY_RoomFlowSubsystem::IsRegionMap() const
 	return JY_RoomFlow::FindRegionData(GetWorld()) != nullptr;
 }
 
-/* 첫 방이 모든 클라에 뜨기 전엔 설 바닥이 없다 */
+/* 첫 방이 플레이어 클라에 뜨기 전엔 설 바닥이 없다 */
 // [Server]
-bool UJY_RoomFlowSubsystem::CanStartPlayers() const
+bool UJY_RoomFlowSubsystem::CanStartPlayer() const
 {
 	if (IsRegionMap() == false)
 		return true;
@@ -142,21 +156,25 @@ const ULevel* UJY_RoomFlowSubsystem::GetCurrentRoomLevel() const
 }
 
 // [Server]
-FVector UJY_RoomFlowSubsystem::GetCurrentRoomStartLocation() const
+APlayerStart* UJY_RoomFlowSubsystem::GetCurrentRoomPlayerStart() const
 {
 	const ULevel* RoomLevel = GetCurrentRoomLevel();
-	check(RoomLevel != nullptr);
+	if (RoomLevel == nullptr)
+		return nullptr;
 
-	for (const AActor* Actor : RoomLevel->Actors)
-	{
-		const APlayerStart* PlayerStart = Cast<APlayerStart>(Actor);
-		if (PlayerStart != nullptr)
-			return PlayerStart->GetActorLocation();
-	}
+	return JY_RoomFlow::FindPlayerStart(RoomLevel);
+}
 
-	const UObject* LevelOuter = RoomLevel->GetOuter();
-	ensureMsgf(false, TEXT("%s에 PlayerStart가 없음"), *LevelOuter->GetName());
-	return FVector::ZeroVector;
+// [Server]
+FVector UJY_RoomFlowSubsystem::GetCurrentRoomStartLocation() const
+{
+	check(GetCurrentRoomLevel() != nullptr);
+
+	const APlayerStart* PlayerStart = GetCurrentRoomPlayerStart();
+	if (PlayerStart == nullptr)
+		return FVector::ZeroVector;
+
+	return PlayerStart->GetActorLocation();
 }
 
 // [Server]
@@ -196,7 +214,7 @@ void UJY_RoomFlowSubsystem::RequestNextRoom()
 	if (bCurrentRoomCleared == false)
 		return;
 
-	/* 다음 방을 켜는 중 — 문 판정에 몇 프레임 계속 겹쳐 있거나 여러 명이 동시에 지나감 */
+	/* 다음 방을 켜는 중 — 문 판정에 몇 프레임 계속 겹쳐 있음 */
 	if (PendingRoom.IsNull() == false)
 		return;
 
@@ -222,7 +240,7 @@ void UJY_RoomFlowSubsystem::LoadRoom(int32 SlotIndex)
 	const float FadeSeconds = bHasCurrentRoom == true ? RegionData->GetTransitionFadeSeconds() : 0.0f;
 	if (bHasCurrentRoom == true)
 	{
-		FadePlayerScreens(true);
+		FadePlayerScreen(true);
 	}
 	FadeOutEndSeconds = GetWorld()->GetTimeSeconds() + FadeSeconds;
 
@@ -242,7 +260,7 @@ void UJY_RoomFlowSubsystem::HandleNextRoomLoaded()
 }
 
 /*
- * 클라가 방을 못 띄웠는데 옮기면 바닥이 없어 떨어진다 — 모두 띄우고 화면도 어두워질 때까지 0.1초마다 확인.
+ * 클라가 방을 못 띄웠는데 옮기면 바닥이 없어 떨어진다 — 띄우고 화면도 어두워질 때까지 0.1초마다 확인.
  * 클라 알림(ServerUpdateLevelVisibility)은 SealedEvent라 받을 수 없다 (PlayerController.h:1532)
  */
 // [Server]
@@ -252,13 +270,13 @@ void UJY_RoomFlowSubsystem::TryEnterNextRoom()
 	const ULevel* NextLevel = NextStreamingLevel->GetLoadedLevel();
 
 	const bool bFadeOutFinished = GetWorld()->GetTimeSeconds() >= FadeOutEndSeconds;
-	if (bFadeOutFinished == false || HaveAllClientsInitializedLevel(NextLevel) == false)
+	if (bFadeOutFinished == false || HasPlayerInitializedLevel(NextLevel) == false)
 	{
 		GetWorld()->GetTimerManager().SetTimer(EnterRetryTimerHandle, this, &ThisClass::TryEnterNextRoom, 0.1f, false);
 		return;
 	}
 
-	MovePlayersToStart(NextLevel);
+	MovePlayerToStart(NextLevel);
 
 	const bool bFirstRoom = CurrentRoom.IsNull() == true;
 	if (bFirstRoom == false)
@@ -279,63 +297,56 @@ void UJY_RoomFlowSubsystem::TryEnterNextRoom()
 
 	if (bFirstRoom == true)
 	{
-		StartWaitingPlayers();
+		StartWaitingPlayer();
 		return;
 	}
 
-	FadePlayerScreens(false);
+	FadePlayerScreen(false);
+}
+
+/* 데디 서버의 PlayerController는 접속한 플레이어 것뿐이라 첫 번째가 그 플레이어다 */
+// [Server]
+APlayerController* UJY_RoomFlowSubsystem::GetPlayerController() const
+{
+	return GetWorld()->GetFirstPlayerController();
 }
 
 /* 클라가 레벨을 보이게 만들면 서버에 알리고(ServerUpdateLevelVisibility) 연결에 기록된다 */
 // [Server]
-bool UJY_RoomFlowSubsystem::HaveAllClientsInitializedLevel(const ULevel* Level) const
+bool UJY_RoomFlowSubsystem::HasPlayerInitializedLevel(const ULevel* Level) const
 {
-	/* 스탠드얼론 실행은 넷 드라이버가 없다 — 기다릴 클라도 없음 */
-	const UNetDriver* NetDriver = GetWorld()->GetNetDriver();
-	if (NetDriver == nullptr)
+	/* 아직 접속 전이면 기다릴 클라가 없다 — 접속하면 PlayerCanRestart가 첫 방을 기다린다 */
+	const APlayerController* PlayerController = GetPlayerController();
+	if (PlayerController == nullptr)
 		return true;
 
-	for (const UNetConnection* Connection : NetDriver->ClientConnections)
-	{
-		if (Connection->ClientHasInitializedLevel(Level) == false)
-			return false;
-	}
+	/* 스탠드얼론 실행은 연결이 없다 */
+	const UNetConnection* Connection = PlayerController->GetNetConnection();
+	if (Connection == nullptr)
+		return true;
 
-	return true;
+	return Connection->ClientHasInitializedLevel(Level);
 }
 
-/* PlayerStart 위치는 캡슐 가운데 높이라 그대로 세운다. 여러 명이면 돌아가며 쓴다 */
+/* PlayerStart 위치는 캡슐 가운데 높이라 그대로 세운다 */
 // [Server]
-void UJY_RoomFlowSubsystem::MovePlayersToStart(const ULevel* Level) const
+void UJY_RoomFlowSubsystem::MovePlayerToStart(const ULevel* Level) const
 {
-	TArray<const APlayerStart*> PlayerStarts;
-	for (const AActor* Actor : Level->Actors)
-	{
-		const APlayerStart* PlayerStart = Cast<APlayerStart>(Actor);
-		if (PlayerStart != nullptr)
-		{
-			PlayerStarts.Add(PlayerStart);
-		}
-	}
-
-	const UObject* LevelOuter = Level->GetOuter();
-	if (ensureMsgf(PlayerStarts.Num() > 0, TEXT("%s에 PlayerStart가 없음"), *LevelOuter->GetName()) == false)
+	const APlayerController* PlayerController = GetPlayerController();
+	if (PlayerController == nullptr)
 		return;
 
-	int32 StartIndex = 0;
-	for (FConstPlayerControllerIterator Iterator = GetWorld()->GetPlayerControllerIterator(); Iterator; ++Iterator)
-	{
-		const APlayerController* PlayerController = Iterator->Get();
-		APawn* Pawn = PlayerController->GetPawn();
-		if (Pawn == nullptr)
-			continue;
+	APawn* Pawn = PlayerController->GetPawn();
+	if (Pawn == nullptr)
+		return;
 
-		const APlayerStart* PlayerStart = PlayerStarts[StartIndex % PlayerStarts.Num()];
-		const ACharacter* Character = Cast<ACharacter>(Pawn);
-		const FVector StandLocation = Character != nullptr ? FindStandLocation(Character, PlayerStart->GetActorLocation()) : PlayerStart->GetActorLocation();
-		Pawn->TeleportTo(StandLocation, PlayerStart->GetActorRotation());
-		++StartIndex;
-	}
+	const APlayerStart* PlayerStart = JY_RoomFlow::FindPlayerStart(Level);
+	if (PlayerStart == nullptr)
+		return;
+
+	const ACharacter* Character = Cast<ACharacter>(Pawn);
+	const FVector StandLocation = Character != nullptr ? FindStandLocation(Character, PlayerStart->GetActorLocation()) : PlayerStart->GetActorLocation();
+	Pawn->TeleportTo(StandLocation, PlayerStart->GetActorRotation());
 }
 
 /* 순간이동한 뒤 바닥이 2.4cm(MAX_FLOOR_DIST)보다 멀면 이동 컴포넌트가 떨어지는 중으로 바꾼다 (CharacterMovementComponent.cpp:6552) */
@@ -359,34 +370,30 @@ FVector UJY_RoomFlowSubsystem::FindStandLocation(const ACharacter* Character, co
 
 /* 첫 방 전까지 막아 두었던 캐릭터 만들기를 이제 한다 (서는 곳은 AJY_GameMode::ChoosePlayerStart) */
 // [Server]
-void UJY_RoomFlowSubsystem::StartWaitingPlayers() const
+void UJY_RoomFlowSubsystem::StartWaitingPlayer() const
 {
+	APlayerController* PlayerController = GetPlayerController();
+	if (PlayerController == nullptr || PlayerController->GetPawn() != nullptr)
+		return;
+
 	AGameModeBase* GameMode = GetWorld()->GetAuthGameMode();
-	for (FConstPlayerControllerIterator Iterator = GetWorld()->GetPlayerControllerIterator(); Iterator; ++Iterator)
-	{
-		APlayerController* PlayerController = Iterator->Get();
-		if (PlayerController->GetPawn() != nullptr)
-			continue;
+	if (GameMode->PlayerCanRestart(PlayerController) == false)
+		return;
 
-		if (GameMode->PlayerCanRestart(PlayerController) == false)
-			continue;
-
-		GameMode->RestartPlayer(PlayerController);
-	}
+	GameMode->RestartPlayer(PlayerController);
 }
 
 /* 어두워진 채 유지했다가 옮긴 뒤 걷는다 */
 // [Server]
-void UJY_RoomFlowSubsystem::FadePlayerScreens(bool bFadeOut) const
+void UJY_RoomFlowSubsystem::FadePlayerScreen(bool bFadeOut) const
 {
+	APlayerController* PlayerController = GetPlayerController();
+	if (PlayerController == nullptr)
+		return;
+
 	const FVector2D FadeAlpha = bFadeOut == true ? FVector2D(0.0f, 1.0f) : FVector2D(1.0f, 0.0f);
 	const float FadeSeconds = RegionData->GetTransitionFadeSeconds();
-
-	for (FConstPlayerControllerIterator Iterator = GetWorld()->GetPlayerControllerIterator(); Iterator; ++Iterator)
-	{
-		APlayerController* PlayerController = Iterator->Get();
-		PlayerController->ClientSetCameraFade(true, FColor::Black, FadeAlpha, FadeSeconds, false, bFadeOut);
-	}
+	PlayerController->ClientSetCameraFade(true, FColor::Black, FadeAlpha, FadeSeconds, false, bFadeOut);
 }
 
 /* 이동 중에 또 불려도 엔진이 두 번째 ServerTravel을 무시한다(World.cpp:9540) */

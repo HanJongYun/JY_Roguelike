@@ -167,7 +167,7 @@ void UJY_GameplayAbility_MeleeCombo::OnHitEvent(FGameplayEventData Payload)
 	const UAnimInstance* AnimInstance = CurrentActorInfo->GetAnimInstance();
 	const USkeletalMeshComponent* MeshComponent = CurrentActorInfo->SkeletalMeshComponent.Get();
 	const FVector ObjectPushDirection = JY_MontageBoneMotion::GetMontageBoneMoveDirection(AnimInstance, MeshComponent, SwingBoneName, SwingSampleSeconds);
-	ApplyHitInShape(Step.HitShape, HitOrigin, Step.Damage, Step.KnockbackSpeed, ActiveCombo->HitCueTag, Step.HitCameraShake, ObjectPushDirection);
+	ApplyHitInShape(Step.HitShape, HitOrigin, Step.ActionMultiplier, ActiveCombo->ActionTag, Step.KnockbackSpeed, ActiveCombo->HitCueTag, Step.HitCameraShake, ObjectPushDirection);
 }
 
 // [OwnClient]

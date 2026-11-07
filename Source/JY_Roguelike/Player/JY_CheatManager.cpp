@@ -164,7 +164,7 @@ void UJY_CheatManager::JYHitReact(const FString& Direction, const FString& CueNa
 		return;
 
 	FJY_HitPayload HitPayload;
-	HitPayload.Damage = 1.0f;
+	HitPayload.BaseDamage = 1.0f;
 	HitPayload.HitCueTag = CueTag;
 
 	const FVector Origin = Pawn->GetActorLocation() + AttackerOffset * 100.0f;

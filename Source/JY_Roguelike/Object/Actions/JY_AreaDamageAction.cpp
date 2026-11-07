@@ -113,7 +113,7 @@ void UJY_AreaDamageAction::ApplyDamage()
 	const double Now = World->GetTimeSeconds();
 
 	FJY_HitPayload HitPayload;
-	HitPayload.Damage = Damage;
+	HitPayload.BaseDamage = Damage;
 	HitPayload.HitCueTag = HitCueTag;
 	HitPayload.Instigator = InstigatorActor;
 	HitPayload.StatusEffect = StatusEffect;

@@ -35,7 +35,10 @@ namespace JYGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Start_Air,       "Ability.Start.Air",       "공중에서 시작 표시 (첫 방향 TargetData의 ApplicationTag) — 공중 콤보·공중 내려찍기.");
 
 	/* Skill */
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Skill,                   "Skill",                   "스킬 식별 루트 (Skill.Plunge 등) — 지급 때 스펙에 붙여 스킬 GA가 DA_JY_SkillData 칸을 찾는다.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Skill,                   "Skill",                   "스킬 식별 루트 (Skill.Plunge 등) — 지급 때 스펙에 붙여 스킬 GA가 DA_JY_SkillData 칸을 찾는다. 피해 행동 태그로도 쓴다.");
+
+	/* Element */
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Element_Physical,        "Element.Physical",        "속성: 물리 (칼 피해 기본).");
 
 	/* Event — 새 시점은 태그 1줄 + 몽타주 노티파이 */
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Melee_Hit,         "Event.Melee.Hit",         "기본 공격 타격 시점.");

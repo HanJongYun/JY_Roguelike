@@ -40,6 +40,9 @@ namespace JYGameplayTags
 	/* Skill — 스킬 종류 식별 (스펙에 붙여 DA_JY_SkillData 칸을 찾음) */
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Skill);
 
+	/* Element — 피해 속성 (적 저항·축복 증가분 조건). 불·서리·번개는 ini */
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Element_Physical);
+
 	/* Event — 몽타주 노티파이·상호작용이 어빌리티로 보내는 이벤트 */
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Melee_Hit);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Melee_StepStart);

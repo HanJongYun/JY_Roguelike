@@ -19,6 +19,18 @@ enum class EJY_HitShapeType : uint8
 	Box
 };
 
+/* 피해 종류 — 계산이 첫 숫자와 붙는 항목(축복 증가분·치명)을 이걸로 가른다 */
+UENUM()
+enum class EJY_DamageType : uint8
+{
+	/* 플레이어 타격 — 공격력 × 행동 배율, 증가분·치명 적용 */
+	Strike,
+	/* 상태이상 틱·축복 특수 효과 — 에셋 수치, 속성 증가분만, 치명 없음 */
+	Effect,
+	/* 함정·폭발·적 공격 — 고정 피해, 증가분·치명 없음 */
+	Fixed
+};
+
 /* 팀 번호 — FGenericTeamId 값. 다르면 적대 */
 UENUM()
 enum class EJY_Team : uint8
@@ -67,7 +79,19 @@ struct FJY_HitPayload
 {
 	GENERATED_BODY()
 
-	float Damage = 0.0f;
+	EJY_DamageType DamageType = EJY_DamageType::Fixed;
+
+	/* 타격 행동 배율 (만분율, 10000 = 공격력 그대로) — Strike만 */
+	int32 ActionMultiplier = 10000;
+
+	/* 첫 피해 숫자 — Effect·Fixed만 */
+	float BaseDamage = 0.0f;
+
+	/* 어느 행동의 피해인지 (Skill.Plunge·Skill.BasicAttack 등) — 축복 증가분 조건 */
+	FGameplayTag ActionTag;
+
+	/* 피해 속성 (Element.*) — 대상 저항·속성 증가분 조건 */
+	FGameplayTag ElementTag;
 
 	/* 밀어내는 속도 (cm/s, 수평) */
 	FVector2f KnockbackImpulse = FVector2f::ZeroVector;
@@ -89,6 +113,36 @@ struct FJY_HitPayload
 
 	/* 때린 쪽 (플레이어 캐릭터) — 피해 GE 출처 ASC를 여기서 찾는다 */
 	TWeakObjectPtr<AActor> Instigator;
+};
+
+/* 피해 계산 입력 — 비율은 만분율 (10000 = 100%) */
+struct FJY_DamageInput
+{
+	EJY_DamageType DamageType = EJY_DamageType::Fixed;
+
+	/* 공격자 (Strike만) */
+	float BaseAttack = 0.0f;
+	int32 AttackBonus = 0;
+	int32 CritChance = 0;
+	int32 CritMultiplier = 10000;
+
+	/* 공격 */
+	int32 ActionMultiplier = 10000;
+	float BaseDamage = 0.0f;
+
+	/* 맞는 축복 증가분 합 (Strike·Effect만) */
+	int32 IncreaseRate = 0;
+
+	/* 대상 */
+	int32 DefenseRate = 0;
+	int32 ElementResistance = 0;
+};
+
+/* 피해 계산 결과 */
+struct FJY_DamageResult
+{
+	float Damage = 0.0f;
+	bool bCritical = false;
 };
 
 /* 판정에 걸린 대상 하나 */

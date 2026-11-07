@@ -5,6 +5,7 @@
 #include "AbilitySystem/JY_AbilitySystemComponent.h"
 #include "Combat/JY_CombatTypes.h"
 #include "Combat/JY_HitReactionComponent.h"
+#include "Skill/JY_SkillLoadoutComponent.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -65,6 +66,7 @@ AJY_Character::AJY_Character()
 	HealthComponent = CreateDefaultSubobject<UJY_HealthComponent>(TEXT("HealthComponent"));
 	InteractionComponent = CreateDefaultSubobject<UJY_InteractionComponent>(TEXT("InteractionComponent"));
 	HitReactionComponent = CreateDefaultSubobject<UJY_HitReactionComponent>(TEXT("HitReactionComponent"));
+	SkillLoadoutComponent = CreateDefaultSubobject<UJY_SkillLoadoutComponent>(TEXT("SkillLoadoutComponent"));
 	HealthComponent->OnDeathStarted.AddDynamic(this, &ThisClass::OnDeathStarted);
 
 	/* 외형 전용 — 판정은 따로 한다 */
@@ -113,6 +115,7 @@ void AJY_Character::PossessedBy(AController* NewController) //override
 		return;
 
 	AbilitySet->GiveToAbilitySystem(JYASC, OUT GrantedAbilityHandles, this);
+	SkillLoadoutComponent->GiveStartSkills(JYASC);
 }
 
 // [Server]
@@ -123,6 +126,7 @@ void AJY_Character::UnPossessed() //override
 	if (JYASC != nullptr)
 	{
 		GrantedAbilityHandles.TakeFromAbilitySystem(JYASC);
+		SkillLoadoutComponent->RemoveAllSkills(JYASC);
 	}
 
 	Super::UnPossessed();

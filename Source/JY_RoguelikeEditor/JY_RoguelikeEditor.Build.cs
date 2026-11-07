@@ -27,7 +27,8 @@ public class JY_RoguelikeEditor : ModuleRules
 			"GeometryCollectionEngine",
 			"DataflowCore",
 			"PlanarCut",
-			"FractureEngine"
+			"FractureEngine",
+			"PropertyPath"
 		});
 
 		PublicIncludePaths.AddRange(new string[] {

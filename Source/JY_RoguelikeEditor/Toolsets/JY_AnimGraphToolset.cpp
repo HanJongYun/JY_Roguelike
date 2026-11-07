@@ -27,6 +27,7 @@
 #include "Animation/AnimBlueprint.h"
 #include "Animation/AnimInstance.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "PropertyPathHelpers.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(JY_AnimGraphToolset)
@@ -344,7 +345,44 @@ void UJY_AnimGraphToolset::SetPropertyAsText(UObject* Object, FName PropertyName
 	}
 }
 
-UObject* UJY_AnimGraphToolset::CreateAssetWithFactory(UClass* AssetClass, UClass* FactoryClass, const FString& FolderPath, const FString& AssetName)
+/* 최상위 속성으로 편집 이벤트를 보내야 에셋 후처리가 돈다 (예: 스켈레탈 메시 재빌드 SkeletalMesh.cpp:1521~1525) */
+void UJY_AnimGraphToolset::SetPropertyPathAsText(UObject* Object, const FString& PropertyPath, const FString& ValueText)
+{
+	if (Object == nullptr)
+	{
+		UKismetSystemLibrary::RaiseScriptError(TEXT("Object is null."));
+		return;
+	}
+
+	FString TopPropertyText;
+	PropertyPath.Split(TEXT("."), &TopPropertyText, nullptr);
+	if (TopPropertyText.IsEmpty() == true)
+	{
+		TopPropertyText = PropertyPath;
+	}
+	TopPropertyText.Split(TEXT("["), &TopPropertyText, nullptr);
+
+	UClass* ObjectClass = Object->GetClass();
+	FProperty* TopProperty = FindFProperty<FProperty>(ObjectClass, *TopPropertyText);
+	if (TopProperty == nullptr)
+	{
+		UKismetSystemLibrary::RaiseScriptError(FString::Printf(TEXT("Property '%s' not found on %s."), *TopPropertyText, *ObjectClass->GetName()));
+		return;
+	}
+
+	Object->Modify();
+	Object->PreEditChange(TopProperty);
+	const bool bSet = PropertyPathHelpers::SetPropertyValueFromString(Object, PropertyPath, ValueText);
+	FPropertyChangedEvent ChangedEvent(TopProperty, EPropertyChangeType::ValueSet);
+	Object->PostEditChangeProperty(ChangedEvent);
+
+	if (bSet == false)
+	{
+		UKismetSystemLibrary::RaiseScriptError(FString::Printf(TEXT("Could not set '%s' at path '%s'."), *ValueText, *PropertyPath));
+	}
+}
+
+UObject* UJY_AnimGraphToolset::CreateAssetWithFactory(UClass* AssetClass, UClass* FactoryClass, const FString& FolderPath, const FString& AssetName, const TMap<FName, FString>& FactoryPropertyValues)
 {
 	if (AssetClass == nullptr || FactoryClass == nullptr || FactoryClass->IsChildOf(UFactory::StaticClass()) == false)
 	{
@@ -353,6 +391,25 @@ UObject* UJY_AnimGraphToolset::CreateAssetWithFactory(UClass* AssetClass, UClass
 	}
 
 	UFactory* Factory = NewObject<UFactory>(GetTransientPackage(), FactoryClass);
+
+	/* IAssetTools::CreateAsset은 ConfigureProperties(선택 창)를 부르지 않는다 — 창에서 고를 값을 여기서 넣는다 */
+	for (const TPair<FName, FString>& PropertyValue : FactoryPropertyValues)
+	{
+		FProperty* Property = FindFProperty<FProperty>(FactoryClass, PropertyValue.Key);
+		if (Property == nullptr)
+		{
+			UKismetSystemLibrary::RaiseScriptError(FString::Printf(TEXT("Factory property '%s' not found."), *PropertyValue.Key.ToString()));
+			return nullptr;
+		}
+
+		void* ValuePtr = Property->ContainerPtrToValuePtr<void>(Factory);
+		if (Property->ImportText_Direct(*PropertyValue.Value, ValuePtr, Factory, PPF_None) == nullptr)
+		{
+			UKismetSystemLibrary::RaiseScriptError(FString::Printf(TEXT("Could not parse '%s' for factory property '%s'."), *PropertyValue.Value, *PropertyValue.Key.ToString()));
+			return nullptr;
+		}
+	}
+
 	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
 	IAssetTools& AssetTools = AssetToolsModule.Get();
 	UObject* NewAsset = AssetTools.CreateAsset(AssetName, FolderPath, AssetClass, Factory);

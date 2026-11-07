@@ -65,7 +65,7 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "JY|Skill")
 	FName LandSectionName = TEXT("End");
 
-	/* 충격 판정 (범위 배율 전) */
+	/* 충격 판정 (낙하 높이 배율 전) */
 	UPROPERTY(EditDefaultsOnly, Category = "JY|Skill")
 	FJY_HitShape HitShape;
 

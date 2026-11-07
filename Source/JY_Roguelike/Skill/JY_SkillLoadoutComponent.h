@@ -2,16 +2,28 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "Skill/JY_SkillTypes.h"
+#include "GameplayAbilitySpecHandle.h"
+#include "GameplayTagContainer.h"
 #include "JY_SkillLoadoutComponent.generated.h"
 
 class UJY_AbilitySystemComponent;
-class UJY_SkillDefinition;
-class UJY_SkillUpgradeCard;
+class UJY_SkillData;
 
-DECLARE_MULTICAST_DELEGATE(FJY_SkillLoadoutChanged);
+/* 슬롯 한 칸 (서버만) */
+USTRUCT()
+struct FJY_SkillSlotEntry
+{
+	GENERATED_BODY()
 
-/* 이번 런의 스킬 슬롯 — 획득·레벨·카드·어빌리티 지급(서버), 목록은 소유 클라에 복제 */
+	/* 비면 빈 슬롯 */
+	UPROPERTY()
+	FGameplayTag SkillTag;
+
+	/* 지급한 어빌리티 */
+	FGameplayAbilitySpecHandle GrantedHandle;
+};
+
+/* 캐릭터의 스킬 슬롯 — 빙의 때 스킬 데이터대로 배치·지급, 해제 때 회수, 슬롯 교체 (서버) */
 UCLASS(ClassGroup = (JY))
 class UJY_SkillLoadoutComponent : public UActorComponent
 {
@@ -20,65 +32,26 @@ class UJY_SkillLoadoutComponent : public UActorComponent
 public:
 	UJY_SkillLoadoutComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
-protected:
-	virtual void BeginPlay() override;
-	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
-
 public:
-	/* [Server] 스킬 획득 — 이미 있으면 레벨 +1·카드 뽑기, 없으면 SlotIndex 칸에 장착(차 있으면 교체) */
-	void AcquireSkill(UJY_SkillDefinition* Skill, int32 SlotIndex);
+	/* [Server] 시작 배치대로 슬롯 스킬과 고정 스킬 지급 */
+	void GiveStartSkills(UJY_AbilitySystemComponent* AbilitySystemComponent);
 
-	/* [Server] 뽑아 둔 카드 중 하나 고르기 */
-	void ChooseUpgradeCard(int32 ChoiceIndex);
+	/* [Server] 지급한 스킬 전부 회수 */
+	void RemoveAllSkills(UJY_AbilitySystemComponent* AbilitySystemComponent);
 
-	/* [Server] 슬롯 1칸 늘리기 (최대 = 슬롯 입력 태그 수) */
-	void UnlockSlot();
-
-	/* [Server] [OwnClient] 레벨·카드 반영 최종 수치 */
-	FJY_SkillStats GetSkillStats(const UJY_SkillDefinition* Skill) const;
-
-	const TArray<FJY_SkillSlotEntry>& GetSlots() const { return Slots; }
+	/* [Server] SlotIndex 칸에 스킬 넣기 (차 있으면 교체) */
+	void SetSlotSkill(UJY_AbilitySystemComponent* AbilitySystemComponent, int32 SlotIndex, const FGameplayTag& SkillTag);
 
 private:
-	/* [Server] 이 슬롯 스킬의 카드 후보를 섞어 선택지 만들기 */
-	void DrawUpgradeCards(int32 SlotIndex);
+	/* [Server] 스킬 GA 지급 (스펙에 스킬 태그·입력 태그를 심음). 실패하면 빈 핸들 */
+	FGameplayAbilitySpecHandle GiveSkillAbility(UJY_AbilitySystemComponent* AbilitySystemComponent, const FGameplayTag& SkillTag, const FGameplayTag& InputTag) const;
 
-	/* [Server] 슬롯 GA 지급 (입력 태그 = 슬롯 태그) */
-	void GrantSlotAbility(int32 SlotIndex);
-
-	/* [Server] 스킬 GA 지급 (입력 태그 심기, SourceObject = 스킬 정의). 실패하면 빈 핸들 */
-	FGameplayAbilitySpecHandle GrantSkillAbility(UJY_SkillDefinition* Skill, FGameplayTag InputTag);
-
-	/* [Server] 슬롯 GA 회수 (실행 중이면 엔진이 끝냄) */
-	void RemoveSlotAbility(int32 SlotIndex);
-
-	UJY_AbilitySystemComponent* GetAbilitySystemComponent() const;
-
-	UFUNCTION()
-	void OnRep_Slots();
-
-	UFUNCTION()
-	void OnRep_PendingCardChoices();
-
-public:
-	/* 델리게이트 — 서버: 바꾼 직후 / 소유 클라: 복제 도착 */
-
-	FJY_SkillLoadoutChanged OnSlotsChanged;
-
-	FJY_SkillLoadoutChanged OnCardChoicesChanged;
+	const UJY_SkillData* GetSkillData() const;
 
 private:
-	/* 복제 값 — 소유자만 (COND_OwnerOnly) */
-
-	/* 열린 슬롯 (개수 = 해금된 칸 수). ReplicatedUsing = OnRep_Slots */
-	UPROPERTY(ReplicatedUsing = OnRep_Slots)
+	/* 슬롯 (개수 = 슬롯 입력 태그 수) */
 	TArray<FJY_SkillSlotEntry> Slots;
 
-	/* 고를 강화 카드 (비면 고를 것 없음). ReplicatedUsing = OnRep_PendingCardChoices */
-	UPROPERTY(ReplicatedUsing = OnRep_PendingCardChoices)
-	TArray<TObjectPtr<const UJY_SkillUpgradeCard>> PendingCardChoices;
-
-private:
-	/* 카드를 고를 슬롯 (서버만) */
-	int32 PendingCardSlotIndex = INDEX_NONE;
+	/* 고정 스킬 지급 핸들 */
+	TArray<FGameplayAbilitySpecHandle> FixedSkillHandles;
 };

@@ -12,7 +12,6 @@ class UJY_AbilitySystemComponent;
 class UJY_HealthSet;
 class UJY_DashSet;
 class UJY_MetaUpgradeData;
-class UJY_SkillLoadoutComponent;
 
 /* 플레이어의 ASC와 체력 속성을 가진 PlayerState */
 UCLASS()
@@ -34,8 +33,6 @@ public:
 public:
 	UFUNCTION(BlueprintCallable, Category = "JY|PlayerState")
 	UJY_AbilitySystemComponent* GetJYAbilitySystemComponent() const { return AbilitySystemComponent; }
-
-	UJY_SkillLoadoutComponent* GetSkillLoadoutComponent() const { return SkillLoadoutComponent; }
 
 	const FJY_PlayerProgress& GetProgress() const { return Progress; }
 
@@ -74,10 +71,6 @@ private:
 	/* 대시 횟수 속성 세트 */
 	UPROPERTY()
 	TObjectPtr<const UJY_DashSet> DashSet;
-
-	/* 이번 런 스킬 슬롯 */
-	UPROPERTY(VisibleAnywhere, Category = "JY|PlayerState")
-	TObjectPtr<UJY_SkillLoadoutComponent> SkillLoadoutComponent;
 
 	/* 강화 종류별로 걸려 있는 메타 효과 (서버만) */
 	TMap<FGameplayTag, FActiveGameplayEffectHandle> MetaEffectHandles;

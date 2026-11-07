@@ -2,9 +2,7 @@
 #include "AbilitySystem/JY_AbilitySystemComponent.h"
 #include "AbilitySystem/Tasks/JY_AbilityTask_WaitMoveInput.h"
 #include "Animation/JY_AnimNotifyState_CancelWindow.h"
-#include "Player/JY_PlayerState.h"
-#include "Skill/JY_SkillDefinition.h"
-#include "Skill/JY_SkillLoadoutComponent.h"
+#include "Skill/JY_SkillData.h"
 #include "System/JY_AssetManager.h"
 #include "System/JY_GameData.h"
 #include "System/JY_GameplayTags.h"
@@ -41,28 +39,39 @@ bool UJY_GameplayAbility_Skill::IsBlockingOtherAttacks() const //override
 	return IsInCancelWindow() == false;
 }
 
-/* 엔진 CheckCooldown이 이 태그로 막는다(GameplayAbility.cpp:1071) — 쿨타임 GE에 붙는 태그와 같은 컨테이너 */
+// [Server] [OwnClient]
+/*
+ * 엔진 CheckCooldown이 이 태그로 막는다(GameplayAbility.cpp:1071) — 쿨타임 GE에 붙는 태그와 같은 컨테이너.
+ * 인자 없이 불리므로 인스턴스의 현재 스펙으로 찾는다 — 지급 때 스펙 핸들이 들어감(GameplayAbility.cpp:2011)
+ */
 const FGameplayTagContainer* UJY_GameplayAbility_Skill::GetCooldownTags() const //override
 {
-	return &CooldownTags;
+	const FJY_SkillEntry* SkillEntry = FindSkillEntry(CurrentSpecHandle, CurrentActorInfo);
+	if (SkillEntry == nullptr)
+		return nullptr;
+
+	return &SkillEntry->CooldownTags;
 }
 
 // [Server] [OwnClient] CommitAbility가 예측 창 안에서 부름 → 조종 클라도 즉시 막힘
 /* 스킬마다 GE 에셋을 만들지 않고 쿨타임 GE 1개에 길이(SetByCaller)·태그(DynamicGrantedTags)를 넣는다 */
 void UJY_GameplayAbility_Skill::ApplyCooldown(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo) const //override
 {
-	const UJY_GameData* GameData = UJY_AssetManager::Get().GetGameData();
-	const TSubclassOf<UGameplayEffect> CooldownEffectClass = GameData->SkillCooldownGameplayEffect;
-	if (ensureMsgf(CooldownEffectClass != nullptr, TEXT("DA_JY_GameData에 SkillCooldownGameplayEffect가 없음")) == false)
+	const FJY_SkillEntry* SkillEntry = FindSkillEntry(Handle, ActorInfo);
+	if (SkillEntry == nullptr)
 		return;
 
-	const FJY_SkillStats Stats = GetSkillStats();
+	const UJY_GameData* GameData = UJY_AssetManager::Get().GetGameData();
+	const TSubclassOf<UGameplayEffect> CooldownEffectClass = GameData->SkillData->CooldownGameplayEffect;
+	if (ensureMsgf(CooldownEffectClass != nullptr, TEXT("DA_JY_SkillData에 CooldownGameplayEffect가 없음")) == false)
+		return;
+
 	const int32 AbilityLevel = GetAbilityLevel(Handle, ActorInfo);
 	const FGameplayEffectSpecHandle CooldownSpecHandle = MakeOutgoingGameplayEffectSpec(Handle, ActorInfo, ActivationInfo, CooldownEffectClass, AbilityLevel);
 
 	FGameplayEffectSpec* CooldownSpec = CooldownSpecHandle.Data.Get();
-	CooldownSpec->DynamicGrantedTags.AppendTags(CooldownTags);
-	CooldownSpec->SetSetByCallerMagnitude(JYGameplayTags::SetByCaller_Cooldown, Stats.Cooldown);
+	CooldownSpec->DynamicGrantedTags.AppendTags(SkillEntry->CooldownTags);
+	CooldownSpec->SetSetByCallerMagnitude(JYGameplayTags::SetByCaller_Cooldown, SkillEntry->Cooldown);
 
 	ApplyGameplayEffectSpecToOwner(Handle, ActorInfo, ActivationInfo, CooldownSpecHandle);
 }
@@ -80,20 +89,35 @@ void UJY_GameplayAbility_Skill::InputPressed(const FGameplayAbilitySpecHandle Ha
 	JYASC->TryActivateAbility(Handle);
 }
 
-UJY_SkillDefinition* UJY_GameplayAbility_Skill::GetSkillDefinition() const
+// [Server] [OwnClient] 스펙(동적 태그 포함)은 소유 클라에 복제 → 양쪽이 같은 칸을 찾는다
+const FJY_SkillEntry* UJY_GameplayAbility_Skill::FindSkillEntry(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo) const
 {
-	UObject* SourceObject = GetCurrentSourceObject();
-	return CastChecked<UJY_SkillDefinition>(SourceObject);
+	if (ActorInfo == nullptr)
+		return nullptr;
+
+	const UAbilitySystemComponent* AbilitySystemComponent = ActorInfo->AbilitySystemComponent.Get();
+	if (AbilitySystemComponent == nullptr)
+		return nullptr;
+
+	const FGameplayAbilitySpec* AbilitySpec = AbilitySystemComponent->FindAbilitySpecFromHandle(Handle);
+	if (AbilitySpec == nullptr)
+		return nullptr;
+
+	const FGameplayTagContainer SkillRootTags(JYGameplayTags::Skill);
+	const FGameplayTagContainer SkillTags = AbilitySpec->GetDynamicSpecSourceTags().Filter(SkillRootTags);
+	const FGameplayTag SkillTag = SkillTags.First();
+
+	const UJY_GameData* GameData = UJY_AssetManager::Get().GetGameData();
+	const FJY_SkillEntry* SkillEntry = GameData->SkillData->FindSkill(SkillTag);
+	ensureMsgf(SkillEntry != nullptr, TEXT("%s: 스펙의 스킬 태그(%s) 칸이 DA_JY_SkillData에 없음"), *GetNameSafe(this), *SkillTag.ToString());
+	return SkillEntry;
 }
 
-// [Server] [OwnClient] 로드아웃은 소유 클라에 복제 → 양쪽이 같은 수치
-FJY_SkillStats UJY_GameplayAbility_Skill::GetSkillStats() const
+const FJY_SkillEntry& UJY_GameplayAbility_Skill::GetCurrentSkillEntry() const
 {
-	const AActor* OwnerActor = GetOwningActorFromActorInfo();
-	const AJY_PlayerState* JYPlayerState = CastChecked<AJY_PlayerState>(OwnerActor);
-	const UJY_SkillLoadoutComponent* SkillLoadout = JYPlayerState->GetSkillLoadoutComponent();
-	const UJY_SkillDefinition* SkillDefinition = GetSkillDefinition();
-	return SkillLoadout->GetSkillStats(SkillDefinition);
+	const FJY_SkillEntry* SkillEntry = FindSkillEntry(CurrentSpecHandle, CurrentActorInfo);
+	check(SkillEntry != nullptr);
+	return *SkillEntry;
 }
 
 FJY_HitShape UJY_GameplayAbility_Skill::ScaleHitShape(const FJY_HitShape& Shape, float RadiusScale)

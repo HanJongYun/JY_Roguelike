@@ -25,14 +25,6 @@ public:
 	UFUNCTION(Exec, BlueprintAuthorityOnly)
 	void JYAddSoul(int32 Amount);
 
-	/* 스킬 얻기 (예: JYGiveSkill Plunge 1) — 이름 = Skill 태그 끝 이름, 숫자 = 슬롯 키 번호(1부터) */
-	UFUNCTION(Exec, BlueprintAuthorityOnly)
-	void JYGiveSkill(const FString& SkillName, int32 SlotNumber);
-
-	/* 스킬 슬롯 1칸 늘리기 */
-	UFUNCTION(Exec, BlueprintAuthorityOnly)
-	void JYUnlockSkillSlot();
-
 	/* 쿨타임 무시 켜기·끄기 (예: JYNoCooldown 1) — 내 쪽과 서버 양쪽에 켠다 */
 	UFUNCTION(Exec)
 	void JYNoCooldown(bool bEnable);
@@ -56,6 +48,18 @@ public:
 	/* 안 죽기 켜기·끄기 (예: JYUnlimitedHealth 0) — 기본 켜짐 */
 	UFUNCTION(Exec, BlueprintAuthorityOnly)
 	void JYUnlimitedHealth(bool bEnable);
+
+	/* 지금 방의 적 스폰 지점마다 Mass 적을 둘레에 만들기 (예: JYMassSpawn 3) */
+	UFUNCTION(Exec, BlueprintAuthorityOnly)
+	void JYMassSpawn(int32 CountPerPoint);
+
+	/* Mass 적 전부를 X로 옮기기 — 클라에 따라오는지 보기 (예: JYMassMove 300) */
+	UFUNCTION(Exec, BlueprintAuthorityOnly)
+	void JYMassMove(float Distance);
+
+	/* Mass 적 전부의 체력 깎기 — 클라 머리 위 숫자가 바뀌는지 보기 (예: JYMassDamageAll 10) */
+	UFUNCTION(Exec, BlueprintAuthorityOnly)
+	void JYMassDamageAll(float Damage);
 
 private:
 	/* 음수=데미지, 양수=회복 */

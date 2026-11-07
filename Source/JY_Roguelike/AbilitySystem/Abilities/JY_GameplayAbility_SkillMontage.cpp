@@ -1,4 +1,5 @@
 #include "AbilitySystem/Abilities/JY_GameplayAbility_SkillMontage.h"
+#include "Skill/JY_SkillData.h"
 #include "AbilitySystem/JY_AbilitySystemComponent.h"
 #include "AbilitySystem/Tasks/JY_AbilityTask_WaitDirection.h"
 #include "System/JY_GameplayTags.h"
@@ -80,8 +81,6 @@ void UJY_GameplayAbility_SkillMontage::OnHitEvent(FGameplayEventData Payload)
 	const FJY_HitShape EventShape = MakeHitShapeForEvent(HitEventIndex, OUT HitOrigin);
 	++HitEventIndex;
 
-	const FJY_SkillStats Stats = GetSkillStats();
-	const FJY_HitShape ScaledShape = ScaleHitShape(EventShape, Stats.RadiusScale);
-	const float ScaledDamage = Damage * Stats.DamageScale;
-	ApplyHitInShape(ScaledShape, HitOrigin, ScaledDamage, KnockbackSpeed, HitCueTag, HitCameraShake);
+	const FJY_SkillEntry& SkillEntry = GetCurrentSkillEntry();
+	ApplyHitInShape(EventShape, HitOrigin, SkillEntry.Damage, KnockbackSpeed, HitCueTag, HitCameraShake);
 }

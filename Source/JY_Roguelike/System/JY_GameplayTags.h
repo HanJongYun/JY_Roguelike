@@ -34,6 +34,7 @@ namespace JYGameplayTags
 	/* Ability — 어빌리티 종류 (다른 어빌리티가 취소·차단 대상으로 씀) */
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Type_Attack);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Type_Skill);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Skill);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Type_Jump);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Start_Air);
 
@@ -50,6 +51,12 @@ namespace JYGameplayTags
 
 	/* Gameplay — 데미지 규칙 */
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Gameplay_DamageImmunity);
+
+	/* Room.Type — 방의 성격 (DA_Room_*에서 지정) */
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Room_Type_Combat);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Room_Type_Combat_Start);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Room_Type_Combat_Boss);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Room_Type_Shop);
 
 	/* Cheat — 개발용 (출시 빌드에선 무시) */
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cheat_UnlimitedHealth);

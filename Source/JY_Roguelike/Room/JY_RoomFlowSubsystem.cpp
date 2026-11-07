@@ -1,6 +1,6 @@
 #include "Room/JY_RoomFlowSubsystem.h"
 #include "Room/JY_RegionData.h"
-#include "Room/JY_RoomMarker.h"
+#include "Room/JY_RoomData.h"
 #include "System/JY_AssetManager.h"
 #include "System/JY_GameData.h"
 #include "System/JY_WorldSettings.h"
@@ -65,10 +65,53 @@ void UJY_RoomFlowSubsystem::OnWorldBeginPlay(UWorld& InWorld) //override
 	if (RegionData == nullptr)
 		return;
 
-	if (ensureMsgf(RegionData->GetRoomSlots().Num() > 0, TEXT("%s의 RoomSlots가 비어 있음"), *RegionData->GetName()) == false)
-		return;
-
+	PlanRooms();
 	LoadRoom(0);
+}
+
+/*
+ * 순서를 처음에 다 정해 두면 다음 방을 불러오기 전에도 그 방 정보(종류)를 알 수 있다.
+ * 종류는 정확히 같아야 뽑는다 — 1번 방·보스도 Combat의 자식이라 MatchesTag면 일반 전투 칸에 섞인다
+ */
+// [Server]
+void UJY_RoomFlowSubsystem::PlanRooms()
+{
+	const TArray<FGameplayTag>& SlotTypes = RegionData->GetSlotTypes();
+	checkf(SlotTypes.Num() > 0, TEXT("%s의 SlotTypes가 비어 있음"), *RegionData->GetName());
+
+	/* 빈 칸은 종류를 못 읽고, 같은 맵이 두 번 있으면 한 런에 같은 방이 두 번 나온다 — 둘 다 배치 실수 */
+	TSet<TSoftObjectPtr<UWorld>> RoomMaps;
+	for (const UJY_RoomData* Room : RegionData->GetRooms())
+	{
+		checkf(Room != nullptr, TEXT("%s의 Rooms에 빈 칸이 있음"), *RegionData->GetName());
+
+		const TSoftObjectPtr<UWorld>& RoomMap = Room->GetMap();
+		bool bAlreadyInRooms = false;
+		RoomMaps.Add(RoomMap, &bAlreadyInRooms);
+		ensureMsgf(bAlreadyInRooms == false, TEXT("%s의 Rooms에 같은 맵이 두 번 있음 (%s)"), *RegionData->GetName(), *Room->GetName());
+	}
+
+	/* 한 런에 같은 방은 한 번만 — 뽑은 방은 여기서 뺀다 */
+	TArray<const UJY_RoomData*> UnusedRooms(RegionData->GetRooms());
+
+	PlannedRooms.Reset();
+	for (const FGameplayTag& SlotType : SlotTypes)
+	{
+		TArray<const UJY_RoomData*> Candidates;
+		for (const UJY_RoomData* Room : UnusedRooms)
+		{
+			if (Room->GetRoomType().MatchesTagExact(SlotType) == true)
+			{
+				Candidates.Add(Room);
+			}
+		}
+		checkf(Candidates.Num() > 0, TEXT("%s: %s 칸에 넣을 안 나온 방이 없음"), *RegionData->GetName(), *SlotType.ToString());
+
+		const int32 PickIndex = FMath::RandRange(0, Candidates.Num() - 1);
+		const UJY_RoomData* PickedRoom = Candidates[PickIndex];
+		PlannedRooms.Add(PickedRoom);
+		UnusedRooms.RemoveSingleSwap(PickedRoom);
+	}
 }
 
 /* 심리스 이동은 BeginPlay 전에 플레이어를 받아(World.cpp:9094) RegionData가 아직 없을 수 있다 — 맵 설정을 직접 본다 */
@@ -99,19 +142,30 @@ const ULevel* UJY_RoomFlowSubsystem::GetCurrentRoomLevel() const
 }
 
 // [Server]
-void UJY_RoomFlowSubsystem::EnterRoom(const ULevel* RoomLevel)
+FVector UJY_RoomFlowSubsystem::GetCurrentRoomStartLocation() const
 {
-	bCurrentRoomCleared = true;
+	const ULevel* RoomLevel = GetCurrentRoomLevel();
+	check(RoomLevel != nullptr);
+
 	for (const AActor* Actor : RoomLevel->Actors)
 	{
-		if (Cast<AJY_RoomEnemySpawnPoint>(Actor) != nullptr)
-		{
-			bCurrentRoomCleared = false;
-			break;
-		}
+		const APlayerStart* PlayerStart = Cast<APlayerStart>(Actor);
+		if (PlayerStart != nullptr)
+			return PlayerStart->GetActorLocation();
 	}
 
+	const UObject* LevelOuter = RoomLevel->GetOuter();
+	ensureMsgf(false, TEXT("%s에 PlayerStart가 없음"), *LevelOuter->GetName());
+	return FVector::ZeroVector;
+}
+
+// [Server]
+void UJY_RoomFlowSubsystem::EnterRoom(const ULevel* RoomLevel, const UJY_RoomData& RoomData)
+{
+	bCurrentRoomCleared = RoomData.IsCombatRoom() == false;
+
 	OnRoomClearChanged.Broadcast(RoomLevel, bCurrentRoomCleared);
+	OnRoomEntered.Broadcast(RoomLevel, &RoomData);
 }
 
 // [Server]
@@ -147,7 +201,7 @@ void UJY_RoomFlowSubsystem::RequestNextRoom()
 		return;
 
 	const int32 NextSlotIndex = CurrentSlotIndex + 1;
-	if (NextSlotIndex >= RegionData->GetRoomSlots().Num())
+	if (NextSlotIndex >= PlannedRooms.Num())
 	{
 		ReturnToHub();
 		return;
@@ -159,7 +213,8 @@ void UJY_RoomFlowSubsystem::RequestNextRoom()
 // [Server]
 void UJY_RoomFlowSubsystem::LoadRoom(int32 SlotIndex)
 {
-	PendingRoom = PickNextRoom(SlotIndex);
+	const UJY_RoomData* RoomData = PlannedRooms[SlotIndex];
+	PendingRoom = RoomData->GetMap();
 	PendingSlotIndex = SlotIndex;
 
 	/* 로딩과 화면 어두워짐을 동시에 — 둘 다 끝나야 옮긴다. 첫 방은 로딩 화면이 덮고 있어 생략 */
@@ -177,19 +232,6 @@ void UJY_RoomFlowSubsystem::LoadRoom(int32 SlotIndex)
 	LatentInfo.UUID = ++NextLatentUUID;
 	LatentInfo.Linkage = 0;
 	UGameplayStatics::LoadStreamLevelBySoftObjectPtr(this, PendingRoom, true, false, LatentInfo);
-}
-
-TSoftObjectPtr<UWorld> UJY_RoomFlowSubsystem::PickNextRoom(int32 SlotIndex) const
-{
-	const FJY_RoomSlot& RoomSlot = RegionData->GetRoomSlots()[SlotIndex];
-
-	TArray<TSoftObjectPtr<UWorld>> Candidates = RoomSlot.CandidateRooms;
-	auto IsVisitedRoom = [this](const TSoftObjectPtr<UWorld>& Room) { return VisitedRooms.Contains(Room); };
-	Candidates.RemoveAll(IsVisitedRoom);
-	ensureMsgf(Candidates.Num() > 0, TEXT("%s의 %d번 칸에 이번 런에 안 나온 방이 없음"), *RegionData->GetName(), SlotIndex);
-
-	const int32 PickIndex = FMath::RandRange(0, Candidates.Num() - 1);
-	return Candidates[PickIndex];
 }
 
 /* LoadStreamLevel의 bMakeVisibleAfterLoad=true라 서버에 보이기까지 끝난 뒤 불린다 */
@@ -232,9 +274,8 @@ void UJY_RoomFlowSubsystem::TryEnterNextRoom()
 	CurrentSlotIndex = PendingSlotIndex;
 	PendingRoom.Reset();
 	PendingSlotIndex = INDEX_NONE;
-	VisitedRooms.Add(CurrentRoom);
 
-	EnterRoom(NextLevel);
+	EnterRoom(NextLevel, *PlannedRooms[CurrentSlotIndex]);
 
 	if (bFirstRoom == true)
 	{
@@ -277,7 +318,8 @@ void UJY_RoomFlowSubsystem::MovePlayersToStart(const ULevel* Level) const
 		}
 	}
 
-	if (ensureMsgf(PlayerStarts.Num() > 0, TEXT("%s에 PlayerStart가 없음"), *Level->GetOuter()->GetName()) == false)
+	const UObject* LevelOuter = Level->GetOuter();
+	if (ensureMsgf(PlayerStarts.Num() > 0, TEXT("%s에 PlayerStart가 없음"), *LevelOuter->GetName()) == false)
 		return;
 
 	int32 StartIndex = 0;

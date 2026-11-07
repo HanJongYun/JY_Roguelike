@@ -41,7 +41,7 @@ void UJY_MassEnemySubsystem::OnWorldBeginPlay(UWorld& InWorld) //override
 
 /* Processor 실행 중에는 부르면 안 된다 — 타이머·치트처럼 Mass 처리 바깥에서만 (MassEntityManager.cpp:846) */
 // [Server]
-TArray<FMassEntityHandle> UJY_MassEnemySubsystem::SpawnWave(const UJY_EnemyDefinition& EnemyDefinition, TConstArrayView<FVector> Locations)
+TArray<FMassEntityHandle> UJY_MassEnemySubsystem::SpawnWave(const UJY_EnemyDefinition& EnemyDefinition, TConstArrayView<FVector> Locations, float SpawnWarningSeconds)
 {
 	TArray<FMassEntityHandle> SpawnedEntities;
 	UWorld* World = GetWorld();
@@ -61,14 +61,19 @@ TArray<FMassEntityHandle> UJY_MassEnemySubsystem::SpawnWave(const UJY_EnemyDefin
 
 	SpawnedEntities = SpawnEntitiesAt(*EnemyDefinition.EntityConfig, Locations);
 
+	const double SpawningEndSeconds = World->GetTimeSeconds() + SpawnWarningSeconds;
 	FMassEntityManager& EntityManager = GetEntityManager();
 	for (const FMassEntityHandle& Entity : SpawnedEntities)
 	{
+		FJY_EnemyBehaviorFragment& Behavior = EntityManager.GetFragmentDataChecked<FJY_EnemyBehaviorFragment>(Entity);
+		Behavior.State = EJY_EnemyState::Spawning;
+		Behavior.SpawningEndSeconds = SpawningEndSeconds;
+
 		/* 엔티티가 실제로 선 위치로 복제 데이터를 만든다 — 위치 배열 순서와 엔티티 순서가 같다고 가정하지 않음 */
 		const FTransformFragment& TransformFragment = EntityManager.GetFragmentDataChecked<FTransformFragment>(Entity);
 		const FTransform& Transform = TransformFragment.GetTransform();
 		const FJY_EnemyHealthFragment& Health = EntityManager.GetFragmentDataChecked<FJY_EnemyHealthFragment>(Entity);
-		const FJY_EnemyState EnemyState = UJY_EnemyNetWriteProcessor::MakeEnemyState(Transform, Health, RoomOrigin);
+		const FJY_EnemyState EnemyState = UJY_EnemyNetWriteProcessor::MakeEnemyState(Transform, Health, Behavior, RoomOrigin);
 		const int32 ReplicationID = RoomEnemyNetActor->AddEnemy(static_cast<uint8>(DefinitionIndex), EnemyState);
 
 		/* 서버 엔티티 → 복제 데이터 연결. 클라는 반대 방향(EntityByReplicationID)으로 찾는다 */
@@ -80,6 +85,22 @@ TArray<FMassEntityHandle> UJY_MassEnemySubsystem::SpawnWave(const UJY_EnemyDefin
 	}
 
 	return SpawnedEntities;
+}
+
+/* 타이머·방 입장 알림처럼 Mass 처리 바깥에서만 부른다 (MassEntityManager.cpp:846) */
+// [Server]
+void UJY_MassEnemySubsystem::DestroyAllEnemies()
+{
+	if (EntityByReplicationID.Num() == 0)
+		return;
+
+	TArray<FMassEntityHandle> Entities;
+	EntityByReplicationID.GenerateValueArray(OUT Entities);
+	FMassEntityManager& EntityManager = GetEntityManager();
+	EntityManager.BatchDestroyEntities(Entities);
+
+	EntityByReplicationID.Reset();
+	RoomEnemyNetActor->RemoveAllEnemies();
 }
 
 /* 치트 시험용 — 실제 이동은 2장 이동 Processor가 한다 */
@@ -155,6 +176,22 @@ void UJY_MassEnemySubsystem::UpdateReplicatedEnemies(const FJY_FastArrayEnemyCon
 	}
 }
 
+/* 배열 수신 단계(엔진 네트 수신)는 Mass 처리 바깥이라 바로 지워도 된다 */
+// [OwnClient]
+void UJY_MassEnemySubsystem::DestroyReplicatedEnemies(const FJY_FastArrayEnemyContainer& EnemyContainer, TConstArrayView<int32> RemovedIndices)
+{
+	TArray<FMassEntityHandle> Entities;
+	Entities.Reserve(RemovedIndices.Num());
+	for (const int32 EnemyIndex : RemovedIndices)
+	{
+		const int32 ReplicationID = EnemyContainer.Items[EnemyIndex].ReplicationID;
+		Entities.Add(EntityByReplicationID.FindAndRemoveChecked(ReplicationID));
+	}
+
+	FMassEntityManager& EntityManager = GetEntityManager();
+	EntityManager.BatchDestroyEntities(Entities);
+}
+
 // [OwnClient]
 void UJY_MassEnemySubsystem::ApplyEnemyState(FMassEntityHandle Entity, const FJY_EnemyState& EnemyState, const FVector& RoomOrigin)
 {
@@ -168,6 +205,7 @@ void UJY_MassEnemySubsystem::ApplyEnemyState(FMassEntityHandle Entity, const FJY
 	Transform.SetRotation(Rotation.Quaternion());
 
 	FJY_EnemyVisualFragment& Visual = EntityManager.GetFragmentDataChecked<FJY_EnemyVisualFragment>(Entity);
+	Visual.State = EnemyState.State;
 	Visual.HealthPct = EnemyState.HealthPct;
 	Visual.ShieldPct = EnemyState.ShieldPct;
 	Visual.StatusFlags = EnemyState.StatusFlags;

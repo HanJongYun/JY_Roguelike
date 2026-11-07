@@ -47,5 +47,11 @@ namespace JYGameplayTags
 
 	/* Gameplay */
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Gameplay_DamageImmunity, "Gameplay.DamageImmunity", "데미지 무시 (UJY_HealthSet::PreGameplayEffectExecute).");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cheat_UnlimitedHealth,   "Cheat.UnlimitedHealth",   "체력이 1 밑으로 안 내려감 — 안 죽음 (UJY_HealthSet::PostGameplayEffectExecute, 출시 빌드 제외).");
+	/* Room.Type */
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Room_Type_Combat,        "Room.Type.Combat",        "전투 방 — 웨이브를 다 깨야 문이 열린다.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Room_Type_Combat_Start,  "Room.Type.Combat.Start",  "지역 첫 방 — 전투 방의 하나라 웨이브 규칙을 그대로 따른다.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Room_Type_Combat_Boss,   "Room.Type.Combat.Boss",   "보스 방 — 지역 마지막 칸. 전투 방의 하나라 웨이브 규칙을 그대로 따른다.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Room_Type_Shop,          "Room.Type.Shop",          "상점 방 — 들어가자마자 문이 열린다.");
+
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cheat_UnlimitedHealth,  "Cheat.UnlimitedHealth",   "체력이 1 밑으로 안 내려감 — 안 죽음 (UJY_HealthSet::PostGameplayEffectExecute, 출시 빌드 제외).");
 }

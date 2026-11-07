@@ -51,6 +51,12 @@ namespace JYGameplayTags
 	/* Gameplay — 데미지 규칙 */
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Gameplay_DamageImmunity);
 
+	/* Room.Type — 방의 성격 (DA_Room_*에서 지정) */
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Room_Type_Combat);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Room_Type_Combat_Start);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Room_Type_Combat_Boss);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Room_Type_Shop);
+
 	/* Cheat — 개발용 (출시 빌드에선 무시) */
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cheat_UnlimitedHealth);
 }

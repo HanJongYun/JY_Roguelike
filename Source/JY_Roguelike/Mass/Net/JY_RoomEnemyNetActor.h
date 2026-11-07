@@ -39,6 +39,9 @@ struct FJY_FastArrayEnemyContainer : public FFastArraySerializer
 	/* 이번 수신에서 값이 바뀐 적 데이터를 한꺼번에 받는다 */
 	void PostReplicatedChange(const TArrayView<int32>& ChangedIndices, int32 FinalSize);
 
+	/* 이번 수신에서 지워질 적 데이터를 한꺼번에 받는다 — 원소가 아직 배열에 있을 때 불린다 */
+	void PreReplicatedRemove(const TArrayView<int32>& RemovedIndices, int32 FinalSize);
+
 	bool NetDeltaSerialize(FNetDeltaSerializeInfo& DeltaParams)
 	{
 		return FFastArraySerializer::FastArrayDeltaSerialize<FJY_FastArrayEnemyItem, FJY_FastArrayEnemyContainer>(Items, DeltaParams, *this);
@@ -54,6 +57,7 @@ struct FJY_FastArrayEnemyContainer : public FFastArraySerializer
 /* 엔진은 이 콜백을 가상 함수가 아니라 이름으로 부른다 — 이름·인자가 틀리면 부모의 빈 함수가 조용히 불리므로 컴파일 때 확인 (FastArraySerializer.h:1165) */
 static_assert(std::is_same_v<decltype(&FJY_FastArrayEnemyContainer::PostReplicatedAdd), void (FJY_FastArrayEnemyContainer::*)(const TArrayView<int32>&, int32)>);
 static_assert(std::is_same_v<decltype(&FJY_FastArrayEnemyContainer::PostReplicatedChange), void (FJY_FastArrayEnemyContainer::*)(const TArrayView<int32>&, int32)>);
+static_assert(std::is_same_v<decltype(&FJY_FastArrayEnemyContainer::PreReplicatedRemove), void (FJY_FastArrayEnemyContainer::*)(const TArrayView<int32>&, int32)>);
 
 template<>
 struct TStructOpsTypeTraits<FJY_FastArrayEnemyContainer> : public TStructOpsTypeTraitsBase2<FJY_FastArrayEnemyContainer>
@@ -79,6 +83,9 @@ public:
 
 	/* 적 1마리 복제 데이터를 고쳐 클라로 보낸다 */
 	void UpdateEnemy(int32 ReplicationID, const FJY_EnemyState& EnemyState);
+
+	/* 적 데이터를 전부 지워 클라도 지우게 한다 */
+	void RemoveAllEnemies();
 
 	void SetRoomOrigin(const FVector& InRoomOrigin);
 

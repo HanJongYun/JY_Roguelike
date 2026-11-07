@@ -38,6 +38,7 @@ void UJY_EnemyNetWriteProcessor::ConfigureQueries(const TSharedRef<FMassEntityMa
 {
 	EntityQuery.AddRequirement<FTransformFragment>(EMassFragmentAccess::ReadOnly);
 	EntityQuery.AddRequirement<FJY_EnemyHealthFragment>(EMassFragmentAccess::ReadOnly);
+	EntityQuery.AddRequirement<FJY_EnemyBehaviorFragment>(EMassFragmentAccess::ReadOnly);
 	EntityQuery.AddRequirement<FJY_EnemyLastSentToClientFragment>(EMassFragmentAccess::ReadWrite);
 }
 
@@ -54,13 +55,14 @@ void UJY_EnemyNetWriteProcessor::Execute(FMassEntityManager& EntityManager, FMas
 	{
 		const TConstArrayView<FTransformFragment> Transforms = ChunkContext.GetFragmentView<FTransformFragment>();
 		const TConstArrayView<FJY_EnemyHealthFragment> Healths = ChunkContext.GetFragmentView<FJY_EnemyHealthFragment>();
+		const TConstArrayView<FJY_EnemyBehaviorFragment> Behaviors = ChunkContext.GetFragmentView<FJY_EnemyBehaviorFragment>();
 		const TArrayView<FJY_EnemyLastSentToClientFragment> LastSentToClients = ChunkContext.GetMutableFragmentView<FJY_EnemyLastSentToClientFragment>();
 
 		for (FMassExecutionContext::FEntityIterator EntityIt = ChunkContext.CreateEntityIterator(); EntityIt; ++EntityIt)
 		{
 			FJY_EnemyLastSentToClientFragment& LastSentToClient = LastSentToClients[EntityIt];
 			const FTransform& Transform = Transforms[EntityIt].GetTransform();
-			const FJY_EnemyState EnemyState = MakeEnemyState(Transform, Healths[EntityIt], RoomOrigin);
+			const FJY_EnemyState EnemyState = MakeEnemyState(Transform, Healths[EntityIt], Behaviors[EntityIt], RoomOrigin);
 			if (EnemyState == LastSentToClient.LastSentState)
 				continue;
 
@@ -72,7 +74,7 @@ void UJY_EnemyNetWriteProcessor::Execute(FMassEntityManager& EntityManager, FMas
 }
 
 /* FVector_NetQuantize는 받는 쪽에서 1cm로 반올림된다 (NetSerialization.h:430) — 서버도 미리 반올림해야 소수점만 바뀐 값을 안 보낸다 */
-FJY_EnemyState UJY_EnemyNetWriteProcessor::MakeEnemyState(const FTransform& Transform, const FJY_EnemyHealthFragment& Health, const FVector& RoomOrigin)
+FJY_EnemyState UJY_EnemyNetWriteProcessor::MakeEnemyState(const FTransform& Transform, const FJY_EnemyHealthFragment& Health, const FJY_EnemyBehaviorFragment& Behavior, const FVector& RoomOrigin)
 {
 	const FVector RelativeLocation = Transform.GetLocation() - RoomOrigin;
 
@@ -84,6 +86,7 @@ FJY_EnemyState UJY_EnemyNetWriteProcessor::MakeEnemyState(const FTransform& Tran
 	FJY_EnemyState EnemyState;
 	EnemyState.RelativeLocation = FVector(RoundedX, RoundedY, RoundedZ);
 	EnemyState.Yaw = FRotator::CompressAxisToByte(Rotation.Yaw);
+	EnemyState.State = Behavior.State;
 
 	/* 최대 체력 0은 에셋(DA_MassEnemy_*) 값 실수 — 0으로 나누지 않고 드러낸다 */
 	if (ensureMsgf(Health.Max > 0.0f, TEXT("FJY_EnemyHealthFragment::Max가 0 이하 — DA_MassEnemy_* 서버 Trait 값 확인")))

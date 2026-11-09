@@ -6,7 +6,6 @@
 #include "Combat/JY_CombatTypes.h"
 #include "JY_AreaDamageAction.generated.h"
 
-class UGameplayEffect;
 
 /* 범위 안 모두(플레이어·적, 팀 무관)에게 피해 — 한 번(폭발) 또는 상태에 있는 동안 반복(가시·화염·독구름·도끼) */
 UCLASS(meta = (DisplayName = "Area Damage"))
@@ -64,13 +63,9 @@ private:
 	UPROPERTY(EditAnywhere, Category = "JY|AreaDamage", Meta = (Categories = "GameplayCue"))
 	FGameplayTag HitCueTag;
 
-	/* 범위 안 대상에 거는 상태이상 (GE_JY_Burn·GE_JY_Poison 등 기간형 GE) — 비우면 없음. 다시 걸면 기간만 갱신 */
-	UPROPERTY(EditAnywhere, Category = "JY|AreaDamage|Status")
-	TSubclassOf<UGameplayEffect> StatusEffect;
-
-	/* 상태이상 한 틱 피해 */
-	UPROPERTY(EditAnywhere, Category = "JY|AreaDamage|Status", Meta = (ClampMin = "0.0", EditCondition = "StatusEffect != nullptr"))
-	float StatusTickDamage = 5.0f;
+	/* 범위 안 대상에 거는 상태이상 (Status.Burning·Status.Poisoned) — 비우면 없음. 수치는 DA_JY_StatusEffectData */
+	UPROPERTY(EditAnywhere, Category = "JY|AreaDamage|Status", Meta = (Categories = "Status"))
+	FGameplayTag StatusTag;
 
 	/* 중심 바깥으로 밀어내는 속도 (cm/s) — 0이면 안 밂 */
 	UPROPERTY(EditAnywhere, Category = "JY|AreaDamage|Knockback", Meta = (ClampMin = "0.0"))

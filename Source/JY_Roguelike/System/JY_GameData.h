@@ -13,6 +13,7 @@ class UJY_MetaUpgradeData;
 class UJY_ScreenWidget;
 class UUserWidget;
 class UJY_SkillData;
+class UJY_StatusEffectData;
 class UGameplayEffect;
 class UJY_EnemyDefinition;
 
@@ -60,6 +61,10 @@ public:
 	/* 모든 스킬 정보·시작 배치·쿨타임 GE (DA_JY_SkillData) */
 	UPROPERTY(EditDefaultsOnly, Category = "Skill")
 	TObjectPtr<UJY_SkillData> SkillData;
+
+	/* 모든 상태이상 수치 (DA_JY_StatusEffectData) — 맞힐 때 Payload의 상태 태그로 찾는다 */
+	UPROPERTY(EditDefaultsOnly, Category = "Combat")
+	TObjectPtr<UJY_StatusEffectData> StatusEffectData;
 
 	/* 피해 GE (GE_JY_Damage) — 크기는 SetByCaller.Damage */
 	UPROPERTY(EditDefaultsOnly, Category = "GameplayEffect")

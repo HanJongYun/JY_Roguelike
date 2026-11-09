@@ -4,6 +4,7 @@
 #include "System/JY_AssetManager.h"
 #include "System/JY_GameData.h"
 #include "Combat/JY_HitReactionComponent.h"
+#include "Combat/JY_StatusEffectData.h"
 #include "Interfaces/JY_HitReactable.h"
 #include "Interfaces/JY_InterfaceUtils.h"
 #include "System/JY_GameplayTags.h"
@@ -327,13 +328,18 @@ bool UJY_CombatQuerySubsystem::ApplyHitToCharacter(AActor* TargetActor, UJY_Abil
 		SourceASC->ApplyGameplayEffectSpecToTarget(*DamageSpec, TargetASC);
 	}
 
-	/* 상태이상 GE가 기간·틱 간격·몸에 붙는 큐를 정한다 — 피해 방식이 늘면 GE 에셋만 추가 */
-	if (Payload.StatusEffect != nullptr)
+	/* 거는 쪽은 태그만 보내고 수치는 데이터 에셋 한 곳 — 상태이상 GE가 기간·틱 간격·몸에 붙는 큐를 정한다 */
+	if (Payload.StatusTag.IsValid() == true)
 	{
-		const FGameplayEffectSpecHandle StatusSpecHandle = SourceASC->MakeOutgoingSpec(Payload.StatusEffect, 1.0f, EffectContext);
-		FGameplayEffectSpec* StatusSpec = StatusSpecHandle.Data.Get();
-		StatusSpec->SetSetByCallerMagnitude(JYGameplayTags::SetByCaller_Damage, Payload.StatusTickDamage);
-		SourceASC->ApplyGameplayEffectSpecToTarget(*StatusSpec, TargetASC);
+		const UJY_StatusEffectData* StatusEffectData = UJY_AssetManager::Get().GetStatusEffectData();
+		const FJY_StatusEffectEntry* StatusEffectEntry = StatusEffectData->FindStatusEffect(Payload.StatusTag);
+		if (ensureMsgf(StatusEffectEntry != nullptr && StatusEffectEntry->EffectClass != nullptr, TEXT("DA_JY_StatusEffectData에 %s 칸이 없음"), *Payload.StatusTag.ToString()) == true)
+		{
+			const FGameplayEffectSpecHandle StatusSpecHandle = SourceASC->MakeOutgoingSpec(StatusEffectEntry->EffectClass, 1.0f, EffectContext);
+			FGameplayEffectSpec* StatusSpec = StatusSpecHandle.Data.Get();
+			StatusSpec->SetSetByCallerMagnitude(JYGameplayTags::SetByCaller_Damage, StatusEffectEntry->TickDamage);
+			SourceASC->ApplyGameplayEffectSpecToTarget(*StatusSpec, TargetASC);
+		}
 	}
 
 	UJY_HitReactionComponent* HitReaction = TargetActor->FindComponentByClass<UJY_HitReactionComponent>();

@@ -2,10 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
-#include "Templates/SubclassOf.h"
 #include "JY_CombatTypes.generated.h"
-
-class UGameplayEffect;
 
 /* 판정 모양 종류 */
 UENUM(BlueprintType)
@@ -102,11 +99,8 @@ struct FJY_HitPayload
 	/* 부서지는 물체를 날리는 방향 (월드, 수평) — 0이면 공격자 → 물체 */
 	FVector ObjectPushDirection = FVector::ZeroVector;
 
-	/* 맞은 대상에 거는 상태이상 (화상·중독 등 기간형 GE, 비우면 없음) */
-	TSubclassOf<UGameplayEffect> StatusEffect;
-
-	/* 상태이상 한 틱 피해 — StatusEffect의 SetByCaller.Damage */
-	float StatusTickDamage = 0.0f;
+	/* 맞은 대상에 거는 상태이상 (Status.Burning 등, 비우면 없음) — 수치는 DA_JY_StatusEffectData */
+	FGameplayTag StatusTag;
 
 	/* 피격 연출 큐 (비우면 연출 없음) */
 	FGameplayTag HitCueTag;

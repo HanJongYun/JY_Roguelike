@@ -6,6 +6,7 @@
 
 class UJY_GameData;
 class UJY_SkillData;
+class UJY_StatusEffectData;
 
 /* 프로젝트 에셋 관리자 — 공용 데이터(GameData)를 한 곳에서 꺼내 준다 */
 UCLASS(Config = Game)
@@ -22,6 +23,9 @@ public:
 
 	/* 스킬 데이터 (DA_JY_SkillData). 없으면 멈춤 */
 	const UJY_SkillData* GetSkillData();
+
+	/* 상태이상 데이터 (DA_JY_StatusEffectData). 없으면 멈춤 */
+	const UJY_StatusEffectData* GetStatusEffectData();
 
 protected:
 	/* 설정값 — Config/DefaultGame.ini [/Script/JY_Roguelike.JY_AssetManager]에서 지정 */

@@ -116,8 +116,7 @@ void UJY_AreaDamageAction::ApplyDamage()
 	HitPayload.BaseDamage = Damage;
 	HitPayload.HitCueTag = HitCueTag;
 	HitPayload.Instigator = InstigatorActor;
-	HitPayload.StatusEffect = StatusEffect;
-	HitPayload.StatusTickDamage = StatusTickDamage;
+	HitPayload.StatusTag = StatusTag;
 	HitPayload.KnockbackHeight = KnockbackHeight;
 
 	for (AActor* Actor : ActorsInShape)

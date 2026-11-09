@@ -1,6 +1,7 @@
 #include "System/JY_AssetManager.h"
 #include "System/JY_GameData.h"
 #include "Skill/JY_SkillData.h"
+#include "Combat/JY_StatusEffectData.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(JY_AssetManager)
 
@@ -37,4 +38,12 @@ const UJY_SkillData* UJY_AssetManager::GetSkillData()
 	const UJY_GameData* LoadedGameData = GetGameData();
 	check(LoadedGameData != nullptr && LoadedGameData->SkillData != nullptr);
 	return LoadedGameData->SkillData;
+}
+
+/* 상태이상을 거는 공격·함정이 쓰는 필수 데이터 — 빠지면 상태 태그를 실을 곳이 없다 */
+const UJY_StatusEffectData* UJY_AssetManager::GetStatusEffectData()
+{
+	const UJY_GameData* LoadedGameData = GetGameData();
+	check(LoadedGameData != nullptr && LoadedGameData->StatusEffectData != nullptr);
+	return LoadedGameData->StatusEffectData;
 }

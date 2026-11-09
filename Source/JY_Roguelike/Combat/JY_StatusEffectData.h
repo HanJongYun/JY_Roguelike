@@ -14,11 +14,11 @@ struct FJY_StatusEffectEntry
 {
 	GENERATED_BODY()
 
-	/* 상태이상 식별 (Status.Burning 등) — 거는 GE가 붙이는 태그와 같다 */
-	UPROPERTY(EditDefaultsOnly, Meta = (Categories = "Status"))
+	/* 상태이상 식별 (Status.Effect.Burning 등) — 거는 GE가 붙이는 태그와 같다 */
+	UPROPERTY(EditDefaultsOnly, Meta = (Categories = "Status.Effect"))
 	FGameplayTag StatusTag;
 
-	/* ASC 대상에 거는 기간형 GE (GE_JY_Burn 등) — 기간·틱 간격·몸에 붙는 큐를 정한다 */
+	/* ASC 대상에 거는 기간형 GE (GE_JY_Burn 등) */
 	UPROPERTY(EditDefaultsOnly)
 	TSubclassOf<UGameplayEffect> EffectClass;
 

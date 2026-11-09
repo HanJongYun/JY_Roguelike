@@ -40,7 +40,7 @@ const UJY_SkillData* UJY_AssetManager::GetSkillData()
 	return LoadedGameData->SkillData;
 }
 
-/* 상태이상을 거는 공격·함정이 쓰는 필수 데이터 — 빠지면 상태 태그를 실을 곳이 없다 */
+/* 상태이상을 거는 공격·함정이 쓰는 필수 데이터 — 빠지면 상태 태그로 수치를 찾을 곳이 없다 */
 const UJY_StatusEffectData* UJY_AssetManager::GetStatusEffectData()
 {
 	const UJY_GameData* LoadedGameData = GetGameData();

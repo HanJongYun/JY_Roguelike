@@ -63,8 +63,8 @@ private:
 	UPROPERTY(EditAnywhere, Category = "JY|AreaDamage", Meta = (Categories = "GameplayCue"))
 	FGameplayTag HitCueTag;
 
-	/* 범위 안 대상에 거는 상태이상 (Status.Burning·Status.Poisoned) — 비우면 없음. 수치는 DA_JY_StatusEffectData */
-	UPROPERTY(EditAnywhere, Category = "JY|AreaDamage|Status", Meta = (Categories = "Status"))
+	/* 범위 안 대상에 거는 상태이상 (Status.Effect.*) — 비우면 없음. 수치는 DA_JY_StatusEffectData */
+	UPROPERTY(EditAnywhere, Category = "JY|AreaDamage|Status", Meta = (Categories = "Status.Effect"))
 	FGameplayTag StatusTag;
 
 	/* 중심 바깥으로 밀어내는 속도 (cm/s) — 0이면 안 밂 */

@@ -99,7 +99,7 @@ struct FJY_HitPayload
 	/* 부서지는 물체를 날리는 방향 (월드, 수평) — 0이면 공격자 → 물체 */
 	FVector ObjectPushDirection = FVector::ZeroVector;
 
-	/* 맞은 대상에 거는 상태이상 (Status.Burning 등, 비우면 없음) — 수치는 DA_JY_StatusEffectData */
+	/* 맞은 대상에 거는 상태이상 (Status.Effect.Burning 등, 비우면 없음) — 수치는 DA_JY_StatusEffectData */
 	FGameplayTag StatusTag;
 
 	/* 피격 연출 큐 (비우면 연출 없음) */

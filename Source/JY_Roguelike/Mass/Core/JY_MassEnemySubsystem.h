@@ -3,8 +3,11 @@
 #include "CoreMinimal.h"
 #include "Subsystems/WorldSubsystem.h"
 #include "Mass/EntityHandle.h"
+#include "Mass/ExternalSubsystemTraits.h"
+#include "Mass/Navigation/JY_NavFlowField.h"
 #include "JY_MassEnemySubsystem.generated.h"
 
+class ARecastNavMesh;
 class UMassEntityConfigAsset;
 class UJY_EnemyDefinition;
 class AJY_RoomEnemyNetActor;
@@ -45,6 +48,22 @@ public:
 
 	AJY_RoomEnemyNetActor* GetRoomEnemyNetActor() const { return RoomEnemyNetActor; }
 
+	/* 플레이어 쪽으로 가는 다각형별 다음 걸음 (서버) */
+	const FJY_NavFlowField& GetFlowField() const { return FlowField; }
+
+	/* 이번 프레임 시작 때 복사한 플레이어 위치 (서버) */
+	const FVector& GetPlayerLocation() const { return PlayerLocation; }
+
+	/* 이 월드의 NavMesh (없으면 nullptr) */
+	const ARecastNavMesh* GetNavMesh() const;
+
+private:
+	/* Mass PrePhysics 처리 직전 — 플레이어 위치를 복사하고, 다른 다각형으로 넘어갔으면 플로우 필드를 다시 만든다 */
+	void HandlePrePhysicsStarted(float DeltaSeconds);
+
+	/* 새로 만든 적마다 선 자리의 다각형을 넣는다 */
+	void InitializeNavPolys(TConstArrayView<FMassEntityHandle> Entities);
+
 private:
 	/* 이 월드의 엔티티와 Fragment를 가진 엔진 저장소 */
 	FMassEntityManager& GetEntityManager() const;
@@ -60,7 +79,22 @@ private:
 	UPROPERTY()
 	TObjectPtr<AJY_RoomEnemyNetActor> RoomEnemyNetActor;
 
+	FVector PlayerLocation = FVector::ZeroVector;
+
+	FJY_NavFlowField FlowField;
+
 	/* 서버·클라 — ReplicationID로 내 엔티티 찾기 */
 
 	TMap<int32, FMassEntityHandle> EntityByReplicationID;
+};
+
+/* Processor는 플로우 필드·플레이어 위치를 읽기만 한다 — 바꾸는 건 PrePhysics 시작 알림(게임 스레드)뿐이라 작업 스레드에서 읽어도 된다 */
+template<>
+struct TMassExternalSubsystemTraits<UJY_MassEnemySubsystem> final
+{
+	enum
+	{
+		GameThreadOnly = false,
+		ThreadSafeWrite = false,
+	};
 };

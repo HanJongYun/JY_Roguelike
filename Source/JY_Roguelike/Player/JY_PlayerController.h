@@ -46,6 +46,10 @@ public:
 	UFUNCTION(Client, Reliable)
 	void Client_ShowNotification(EJY_NotificationType Type, const FText& Message);
 
+	/* 임시: 서버 플로우 필드를 내 화면에 선으로 그림 (JYShowFlowField) — 2장 B 끝나면 삭제 */
+	UFUNCTION(Client, Reliable)
+	void Client_DrawFlowFieldDebug(const TArray<FVector_NetQuantize>& ArrowStarts, const TArray<FVector_NetQuantize>& ArrowEnds, const TArray<FColor>& ArrowColors, const TArray<FVector_NetQuantize>& OutlineStarts, const TArray<FVector_NetQuantize>& OutlineEnds, float Duration);
+
 private:
 	/* 복제 상태(체력·영혼석) 원본을 화면용 ViewModel에 연결 (로컬 PC만) */
 	void InitializeLocalUI();

@@ -6,6 +6,14 @@
 #include "Interfaces/JY_InterfaceUtils.h"
 #include "Mass/Core/JY_EnemyDefinition.h"
 #include "Mass/Core/JY_MassEnemySubsystem.h"
+#include "Mass/Navigation/JY_NavigationFragments.h"
+#include "Player/JY_PlayerController.h"
+#include "MassCommonFragments.h"
+#include "MassEntitySubsystem.h"
+#include "MassExecutionContext.h"
+#include "MassNavigationFragments.h"
+#include "NavMesh/RecastNavMesh.h"
+#include "TimerManager.h"
 #include "Room/JY_RoomFlowSubsystem.h"
 #include "Room/JY_RoomMarker.h"
 #include "System/JY_AssetManager.h"
@@ -245,6 +253,94 @@ void UJY_CheatManager::JYMassDamageAll(float Damage)
 {
 	UJY_MassEnemySubsystem* MassEnemySubsystem = GetWorld()->GetSubsystem<UJY_MassEnemySubsystem>();
 	MassEnemySubsystem->DamageAllEnemies(Damage);
+}
+
+namespace JY_FlowFieldDebug
+{
+	/* 보내는 간격 = 선이 남는 시간 — 다음 묶음이 올 때 앞 묶음이 사라져 옛 화살표가 겹치지 않는다 */
+	constexpr float SendIntervalSeconds = 0.5f;
+}
+
+/* 임시(2장 B 끝나면 삭제): 플로우 필드는 서버에만 있어 선 목록을 클라로 보내 그린다 */
+// [Server]
+void UJY_CheatManager::JYShowFlowField(bool bEnable)
+{
+	FTimerManager& TimerManager = GetWorld()->GetTimerManager();
+	TimerManager.ClearTimer(FlowFieldDebugTimerHandle);
+	if (bEnable == false)
+		return;
+
+	TimerManager.SetTimer(FlowFieldDebugTimerHandle, this, &ThisClass::SendFlowFieldDebugLines, JY_FlowFieldDebug::SendIntervalSeconds, true, 0.0f);
+}
+
+/* 임시(2장 B 끝나면 삭제) */
+// [Server]
+void UJY_CheatManager::SendFlowFieldDebugLines()
+{
+	UWorld* World = GetWorld();
+	const UJY_MassEnemySubsystem* MassEnemySubsystem = World->GetSubsystem<UJY_MassEnemySubsystem>();
+	const ARecastNavMesh* NavMesh = MassEnemySubsystem->GetNavMesh();
+	if (NavMesh == nullptr)
+		return;
+
+	TArray<FVector_NetQuantize> LineStarts;
+	TArray<FVector_NetQuantize> LineEnds;
+	TArray<FColor> LineColors;
+	TArray<FVector_NetQuantize> OutlineStarts;
+	TArray<FVector_NetQuantize> OutlineEnds;
+
+	/* 다각형마다: 테두리 (초록) + 중심 → 목표 쪽 문 가운데 (노랑) — 플레이어와 이어진 다각형만 */
+	const FVector LineLift(0.0f, 0.0f, 30.0f);
+	const FJY_NavFlowField& FlowField = MassEnemySubsystem->GetFlowField();
+	TArray<FVector> PolyVerts;
+	for (const TPair<NavNodeRef, FJY_NavFlowStep>& Pair : FlowField.GetSteps())
+	{
+		PolyVerts.Reset();
+		NavMesh->GetPolyVerts(Pair.Key, OUT PolyVerts);
+		for (int32 VertIndex = 0; VertIndex < PolyVerts.Num(); ++VertIndex)
+		{
+			const int32 NextVertIndex = (VertIndex + 1) % PolyVerts.Num();
+			OutlineStarts.Add(PolyVerts[VertIndex] + LineLift);
+			OutlineEnds.Add(PolyVerts[NextVertIndex] + LineLift);
+		}
+
+		if (Pair.Key == FlowField.GetGoalPoly())
+			continue;
+
+		FVector PolyCenter;
+		NavMesh->GetPolyCenter(Pair.Key, OUT PolyCenter);
+		LineStarts.Add(PolyCenter + LineLift);
+		LineEnds.Add(Pair.Value.GetPortalCenter() + LineLift);
+		LineColors.Add(FColor::Yellow);
+	}
+
+	/* 적마다: 위치 → 갈 곳 (빨강) */
+	UMassEntitySubsystem* MassEntitySubsystem = World->GetSubsystem<UMassEntitySubsystem>();
+	FMassEntityManager& EntityManager = MassEntitySubsystem->GetMutableEntityManager();
+	FMassExecutionContext ExecutionContext(EntityManager);
+	FMassEntityQuery EnemyQuery(EntityManager.AsShared());
+	EnemyQuery.AddRequirement<FTransformFragment>(EMassFragmentAccess::ReadOnly);
+	EnemyQuery.AddRequirement<FMassMoveTargetFragment>(EMassFragmentAccess::ReadOnly);
+	EnemyQuery.AddRequirement<FJY_NavPolyFragment>(EMassFragmentAccess::ReadOnly);
+
+	auto CollectMoveTargets = [&LineStarts, &LineEnds, &LineColors, &LineLift](FMassExecutionContext& ChunkContext)
+	{
+		const TConstArrayView<FTransformFragment> Transforms = ChunkContext.GetFragmentView<FTransformFragment>();
+		const TConstArrayView<FMassMoveTargetFragment> MoveTargets = ChunkContext.GetFragmentView<FMassMoveTargetFragment>();
+		for (FMassExecutionContext::FEntityIterator EntityIt = ChunkContext.CreateEntityIterator(); EntityIt; ++EntityIt)
+		{
+			if (MoveTargets[EntityIt].GetCurrentAction() != EMassMovementAction::Move)
+				continue;
+
+			LineStarts.Add(Transforms[EntityIt].GetTransform().GetLocation() + LineLift);
+			LineEnds.Add(MoveTargets[EntityIt].Center + LineLift);
+			LineColors.Add(FColor::Red);
+		}
+	};
+	EnemyQuery.ForEachEntityChunk(ExecutionContext, CollectMoveTargets);
+
+	AJY_PlayerController* PlayerController = CastChecked<AJY_PlayerController>(GetOuterAPlayerController());
+	PlayerController->Client_DrawFlowFieldDebug(LineStarts, LineEnds, LineColors, OutlineStarts, OutlineEnds, JY_FlowFieldDebug::SendIntervalSeconds);
 }
 
 /* 접속 직후엔 PlayerState가 아직 없을 수 있다 */

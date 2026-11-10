@@ -6,6 +6,7 @@
 #include "System/JY_GameMode.h"
 #include "EnhancedInputSubsystems.h"
 #include "Engine/LocalPlayer.h"
+#include "DrawDebugHelpers.h"
 #include "InputMappingContext.h"
 #include "UI/JY_UIManagerSubsystem.h"
 #include "UI/ViewModels/JY_StatsViewModel.h"
@@ -160,4 +161,20 @@ void AJY_PlayerController::Server_SetUIPaused_Implementation(bool bPaused)
 void AJY_PlayerController::Client_ShowNotification_Implementation(EJY_NotificationType Type, const FText& Message)
 {
 	ULocalPlayer::GetSubsystem<UJY_UIManagerSubsystem>(GetLocalPlayer())->ShowNotification(Type, Message);
+}
+
+/* 임시(2장 B 끝나면 삭제): 데디 서버 월드에 그린 선은 클라 화면에 안 보여서 선 목록을 받아 내 월드에 그린다 */
+// [OwnClient]
+void AJY_PlayerController::Client_DrawFlowFieldDebug_Implementation(const TArray<FVector_NetQuantize>& ArrowStarts, const TArray<FVector_NetQuantize>& ArrowEnds, const TArray<FColor>& ArrowColors, const TArray<FVector_NetQuantize>& OutlineStarts, const TArray<FVector_NetQuantize>& OutlineEnds, float Duration)
+{
+	UWorld* World = GetWorld();
+	for (int32 ArrowIndex = 0; ArrowIndex < ArrowStarts.Num(); ++ArrowIndex)
+	{
+		DrawDebugDirectionalArrow(World, ArrowStarts[ArrowIndex], ArrowEnds[ArrowIndex], 40.0f, ArrowColors[ArrowIndex], false, Duration, 0, 3.0f);
+	}
+
+	for (int32 OutlineIndex = 0; OutlineIndex < OutlineStarts.Num(); ++OutlineIndex)
+	{
+		DrawDebugLine(World, OutlineStarts[OutlineIndex], OutlineEnds[OutlineIndex], FColor::Green, false, Duration, 0, 2.0f);
+	}
 }

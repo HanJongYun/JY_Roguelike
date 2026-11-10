@@ -2,6 +2,7 @@
 
 #include "Mass/Core/JY_EnemyDefinition.h"
 #include "Mass/JY_MassFragments.h"
+#include "Mass/Navigation/JY_NavigationFragments.h"
 #include "Mass/Net/JY_EnemyNetWriteProcessor.h"
 #include "Mass/Net/JY_RoomEnemyNetActor.h"
 #include "Mass/EntityFragments.h"
@@ -12,6 +13,11 @@
 #include "MassSpawnerSubsystem.h"
 #include "MassSpawnerTypes.h"
 #include "MassSpawnLocationProcessor.h"
+#include "MassSimulationSubsystem.h"
+#include "NavigationSystem.h"
+#include "NavMesh/RecastNavMesh.h"
+#include "GameFramework/Pawn.h"
+#include "GameFramework/PlayerController.h"
 #include "Room/JY_RoomFlowSubsystem.h"
 #include "StructUtils/InstancedStruct.h"
 
@@ -37,6 +43,63 @@ void UJY_MassEnemySubsystem::OnWorldBeginPlay(UWorld& InWorld) //override
 		return;
 
 	RoomEnemyNetActor = InWorld.SpawnActor<AJY_RoomEnemyNetActor>();
+
+	/* 엔진 LOD 서브시스템이 뷰어 위치를 맞추는 것과 같은 자리 (MassLODSubsystem.cpp:130) */
+	UMassSimulationSubsystem* MassSimulationSubsystem = InWorld.GetSubsystem<UMassSimulationSubsystem>();
+	MassSimulationSubsystem->GetOnProcessingPhaseStarted(EMassProcessingPhase::PrePhysics).AddUObject(this, &ThisClass::HandlePrePhysicsStarted);
+}
+
+/* Processor는 작업 스레드에서 돌 수 있어 Pawn(UObject)을 직접 읽지 않고 여기서 복사한 값만 읽는다 (MassProcessingTypes.h:13) */
+// [Server]
+void UJY_MassEnemySubsystem::HandlePrePhysicsStarted(float DeltaSeconds)
+{
+	/* 데디 서버의 PC는 접속한 플레이어 것뿐 — 플레이어는 항상 한 명 */
+	const APlayerController* PlayerController = GetWorld()->GetFirstPlayerController();
+	if (PlayerController == nullptr)
+		return;
+
+	const APawn* PlayerPawn = PlayerController->GetPawn();
+	if (PlayerPawn == nullptr)
+		return;
+
+	PlayerLocation = PlayerPawn->GetActorLocation();
+
+	const ARecastNavMesh* NavMesh = GetNavMesh();
+	if (NavMesh == nullptr)
+		return;
+
+	/* 같은 다각형 안에서 움직이는 동안은 표가 그대로 맞다 — 다각형을 옮겼을 때만 다시 만든다 */
+	const NavNodeRef PlayerPoly = NavMesh->FindNearestPoly(PlayerLocation, NavMesh->GetDefaultQueryExtent());
+	if (PlayerPoly == INVALID_NAVNODEREF || PlayerPoly == FlowField.GetGoalPoly())
+		return;
+
+	FlowField.Rebuild(*NavMesh, PlayerPoly, PlayerLocation);
+}
+
+// [Server]
+void UJY_MassEnemySubsystem::InitializeNavPolys(TConstArrayView<FMassEntityHandle> Entities)
+{
+	const ARecastNavMesh* NavMesh = GetNavMesh();
+	if (NavMesh == nullptr)
+		return;
+
+	FMassEntityManager& EntityManager = GetEntityManager();
+	for (const FMassEntityHandle& Entity : Entities)
+	{
+		const FTransformFragment& TransformFragment = EntityManager.GetFragmentDataChecked<FTransformFragment>(Entity);
+		const FVector EnemyLocation = TransformFragment.GetTransform().GetLocation();
+		FJY_NavPolyFragment& NavPoly = EntityManager.GetFragmentDataChecked<FJY_NavPolyFragment>(Entity);
+		NavPoly.PolyRef = NavMesh->FindNearestPoly(EnemyLocation, NavMesh->GetDefaultQueryExtent());
+	}
+}
+
+const ARecastNavMesh* UJY_MassEnemySubsystem::GetNavMesh() const
+{
+	const UNavigationSystemV1* NavigationSystem = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
+	if (NavigationSystem == nullptr)
+		return nullptr;
+
+	return Cast<ARecastNavMesh>(NavigationSystem->GetDefaultNavDataInstance());
 }
 
 /* Processor 실행 중에는 부르면 안 된다 — 타이머·치트처럼 Mass 처리 바깥에서만 (MassEntityManager.cpp:846) */
@@ -60,6 +123,7 @@ TArray<FMassEntityHandle> UJY_MassEnemySubsystem::SpawnWave(const UJY_EnemyDefin
 	RoomEnemyNetActor->SetRoomOrigin(RoomOrigin);
 
 	SpawnedEntities = SpawnEntitiesAt(*EnemyDefinition.EntityConfig, Locations);
+	InitializeNavPolys(SpawnedEntities);
 
 	const double SpawningEndSeconds = World->GetTimeSeconds() + SpawnWarningSeconds;
 	FMassEntityManager& EntityManager = GetEntityManager();

@@ -71,6 +71,22 @@ void AJY_RoomEnemyNetActor::UpdateEnemy(int32 ReplicationID, const FJY_EnemyStat
 	EnemyContainer.MarkItemDirty(EnemyItem);
 }
 
+/* 클라는 원소를 ReplicationID로 구분하므로 자리를 바꿔 빼도 지워진 1마리만 PreReplicatedRemove를 받는다 */
+// [Server]
+void AJY_RoomEnemyNetActor::RemoveEnemy(int32 ReplicationID)
+{
+	const int32 ItemIndex = ItemIndexByReplicationID.FindAndRemoveChecked(ReplicationID);
+	EnemyContainer.Items.RemoveAtSwap(ItemIndex);
+
+	/* 맨 끝 원소가 빈자리로 옮겨왔으면 그 원소의 위치 번호를 고친다 — 지운 게 맨 끝이었으면 옮겨온 원소가 없다 */
+	if (ItemIndex < EnemyContainer.Items.Num())
+	{
+		const int32 MovedReplicationID = EnemyContainer.Items[ItemIndex].ReplicationID;
+		ItemIndexByReplicationID[MovedReplicationID] = ItemIndex;
+	}
+	EnemyContainer.MarkArrayDirty();
+}
+
 /* 원소를 빼고 배열 전체를 바뀐 것으로 표시하면 클라는 없어진 원소마다 PreReplicatedRemove를 받는다 */
 // [Server]
 void AJY_RoomEnemyNetActor::RemoveAllEnemies()

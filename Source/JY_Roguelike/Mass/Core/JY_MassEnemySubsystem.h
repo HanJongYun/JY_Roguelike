@@ -14,6 +14,9 @@ class AJY_RoomEnemyNetActor;
 struct FJY_EnemyState;
 struct FMassEntityManager;
 struct FJY_FastArrayEnemyContainer;
+struct FJY_HitShape;
+struct FJY_CombatTarget;
+struct FMassExecutionContext;
 
 /* Mass 적을 만들고 지우는 곳 — 서버는 웨이브·치트로, 클라는 복제 데이터를 받아 자기 엔티티를 만든다 */
 UCLASS()
@@ -57,6 +60,18 @@ public:
 	/* 이 월드의 NavMesh (없으면 nullptr) */
 	const ARecastNavMesh* GetNavMesh() const;
 
+	/* 모양 안의 맞을 수 있는 적(예고 중 제외)을 대상 목록에 더한다. Center = 모양 중심, Forward = 수평 앞 방향 */
+	void FindEnemiesInShape(const FJY_HitShape& Shape, const FVector& Center, const FVector& Forward, TArray<FJY_CombatTarget>& OutTargets) const;
+
+	/* 적 1마리가 받을 최종 피해를 쌓는다 — 다음 Mass 처리 때 피해 Processor가 체력에 반영 */
+	void AddPendingHit(FMassEntityHandle Entity, float Damage);
+
+	/* 쌓인 피해를 통째로 넘기고 비운다 */
+	TMap<FMassEntityHandle, float> ConsumePendingHits();
+
+	/* 죽은 적 1마리를 지운다 — 엔티티는 이번 Mass 단계 끝에, 복제 데이터는 바로 */
+	void DestroyEnemy(FMassExecutionContext& Context, FMassEntityHandle Entity, int32 ReplicationID);
+
 private:
 	/* Mass PrePhysics 처리 직전 — 플레이어 위치를 복사하고, 다른 다각형으로 넘어갔으면 플로우 필드를 다시 만든다 */
 	void HandlePrePhysicsStarted(float DeltaSeconds);
@@ -82,6 +97,9 @@ private:
 	FVector PlayerLocation = FVector::ZeroVector;
 
 	FJY_NavFlowField FlowField;
+
+	/* 적별로 이번 프레임에 받은 최종 피해 합 — 공격(CombatQuery::ApplyHit)이 쌓고 UJY_EnemyDamageProcessor가 비운다 */
+	TMap<FMassEntityHandle, float> PendingHitsBuffer;
 
 	/* 서버·클라 — ReplicationID로 내 엔티티 찾기 */
 

@@ -108,8 +108,8 @@ void UJY_AreaDamageAction::ApplyDamage()
 	AActor* InstigatorActor = Object->GetActivationInstigator();
 
 	const UJY_CombatQuerySubsystem* CombatQuery = World->GetSubsystem<UJY_CombatQuerySubsystem>();
-	TArray<AActor*> ActorsInShape;
-	CombatQuery->FindActorsInShape(ScaledShape, HitOrigin, Object, FCollisionObjectQueryParams(ECC_Pawn), OUT ActorsInShape);
+	TArray<FJY_CombatTarget> Targets;
+	CombatQuery->FindEnvironmentTargets(ScaledShape, HitOrigin, Object, OUT Targets);
 	const double Now = World->GetTimeSeconds();
 
 	FJY_HitPayload HitPayload;
@@ -119,23 +119,23 @@ void UJY_AreaDamageAction::ApplyDamage()
 	HitPayload.StatusTag = StatusTag;
 	HitPayload.KnockbackHeight = KnockbackHeight;
 
-	for (AActor* Actor : ActorsInShape)
+	for (const FJY_CombatTarget& Target : Targets)
 	{
-		const double* LastHitTime = LastHitTimes.Find(Actor);
+		const double* LastHitTime = LastHitTimes.Find(Target);
 		if (bHitEachTargetOnce == true && LastHitTime != nullptr)
 			continue;
 
 		if (RehitSeconds > 0.0f && LastHitTime != nullptr && Now - *LastHitTime < RehitSeconds)
 			continue;
 
-		const FVector AwayFromCenter = (Actor->GetActorLocation() - Center).GetSafeNormal2D() * KnockbackSpeed;
+		const FVector AwayFromCenter = (Target.Location - Center).GetSafeNormal2D() * KnockbackSpeed;
 		HitPayload.KnockbackImpulse = FVector2f(AwayFromCenter.X, AwayFromCenter.Y);
 
 		/* 무적(대시)으로 못 맞았으면 기록하지 않는다 — 무적이 끝난 뒤 간격에 맞는다 */
-		const bool bDamaged = CombatQuery->ApplyEnvironmentDamage(Actor, HitPayload, Center);
+		const bool bDamaged = CombatQuery->ApplyEnvironmentDamage(Target, HitPayload, Center);
 		if (bDamaged == true && (bHitEachTargetOnce == true || RehitSeconds > 0.0f))
 		{
-			LastHitTimes.Add(Actor, Now);
+			LastHitTimes.Add(Target, Now);
 		}
 	}
 

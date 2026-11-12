@@ -177,7 +177,10 @@ void UJY_CheatManager::JYHitReact(const FString& Direction, const FString& CueNa
 
 	const FVector Origin = Pawn->GetActorLocation() + AttackerOffset * 100.0f;
 	const UJY_CombatQuerySubsystem* CombatQuery = GetWorld()->GetSubsystem<UJY_CombatQuerySubsystem>();
-	CombatQuery->ApplyEnvironmentDamage(Pawn, HitPayload, Origin);
+	FJY_CombatTarget Target;
+	Target.Actor = Pawn;
+	Target.Location = Pawn->GetActorLocation();
+	CombatQuery->ApplyEnvironmentDamage(Target, HitPayload, Origin);
 }
 
 /* 그림은 각 기기 화면에만 보여 내 쪽(클라)에서 켠다 */

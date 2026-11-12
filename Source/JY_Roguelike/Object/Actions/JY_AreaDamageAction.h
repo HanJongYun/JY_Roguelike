@@ -95,7 +95,7 @@ private:
 	TWeakObjectPtr<AJY_Object> OwnerObject;
 
 	/* 대상별 마지막으로 맞은 시각 (bHitEachTargetOnce·RehitSeconds용, 상태에서 나가면 비움) */
-	TMap<TWeakObjectPtr<AActor>, double> LastHitTimes;
+	TMap<FJY_CombatTarget, double> LastHitTimes;
 
 	FTimerHandle DamageTimerHandle;
 

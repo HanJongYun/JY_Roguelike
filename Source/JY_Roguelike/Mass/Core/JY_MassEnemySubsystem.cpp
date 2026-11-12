@@ -1,6 +1,11 @@
 #include "Mass/Core/JY_MassEnemySubsystem.h"
 
 #include "Mass/Core/JY_EnemyDefinition.h"
+#include "Combat/JY_CombatQuerySubsystem.h"
+#include "Combat/JY_CombatTypes.h"
+#include "MassCommonFragments.h"
+#include "MassNavigationSubsystem.h"
+#include "MassExecutionContext.h"
 #include "Mass/JY_MassTypes.h"
 #include "Mass/Net/JY_EnemyNetWriteProcessor.h"
 #include "Mass/Net/JY_RoomEnemyNetActor.h"
@@ -110,6 +115,75 @@ const ARecastNavMesh* UJY_MassEnemySubsystem::GetNavMesh() const
 	return Cast<ARecastNavMesh>(NavigationSystem->GetDefaultNavDataInstance());
 }
 
+/*
+ * 엔진 회피 그리드에서 모양 근처 칸의 적만 후보로 받고, 몸 원기둥(반경·키)으로 Actor 캡슐 판정과 같은 식으로 거른다.
+ * Mass 처리 중에 불려도 안전한 건 mass.FullyParallel=0(DefaultEngine.ini)으로 Mass가 게임 스레드에서만 돌기 때문
+ */
+// [Server] [OwnClient]
+void UJY_MassEnemySubsystem::FindEnemiesInShape(const FJY_HitShape& Shape, const FVector& Center, const FVector& Forward, TArray<FJY_CombatTarget>& OutTargets) const
+{
+	const UWorld* World = GetWorld();
+	const UMassNavigationSubsystem* NavigationSubsystem = World->GetSubsystem<UMassNavigationSubsystem>();
+	if (NavigationSubsystem == nullptr)
+		return;
+
+	/* 그리드는 수평 칸이라 높이는 보지 않는다 — 몸 반경은 그리드가 넣을 때 이미 더해 둠 (MassNavigationProcessors.cpp:212) */
+	const float ReachRadius = UJY_CombatQuerySubsystem::GetShapeReachRadius(Shape);
+	const FVector ReachExtent(ReachRadius, ReachRadius, 0.0f);
+	const FBox QueryBox(Center - ReachExtent, Center + ReachExtent);
+	TArray<FMassNavigationObstacleItem> Candidates;
+	const FNavigationObstacleHashGrid2D& ObstacleGrid = NavigationSubsystem->GetObstacleGrid();
+	ObstacleGrid.Query(QueryBox, OUT Candidates);
+
+	const FMassEntityManager& EntityManager = GetEntityManager();
+	for (const FMassNavigationObstacleItem& Candidate : Candidates)
+	{
+		const FMassEntityHandle Entity = Candidate.Entity;
+		if (EntityManager.IsEntityValid(Entity) == false)
+			continue;
+
+		/* 상태는 서버가 Behavior, 클라가 복제받은 Visual에 들고 있다 — 둘 다 없으면 적이 아니다 */
+		const FJY_EnemyBehaviorFragment* Behavior = EntityManager.GetFragmentDataPtr<FJY_EnemyBehaviorFragment>(Entity);
+		const FJY_EnemyVisualFragment* Visual = EntityManager.GetFragmentDataPtr<FJY_EnemyVisualFragment>(Entity);
+		EJY_EnemyState EnemyState = EJY_EnemyState::Spawning;
+		if (Behavior != nullptr)
+		{
+			EnemyState = Behavior->State;
+		}
+		else if (Visual != nullptr)
+		{
+			EnemyState = Visual->State;
+		}
+		else
+		{
+			continue;
+		}
+
+		/* 예고 중인 적은 아직 싸움에 끼지 않는다 */
+		if (EnemyState == EJY_EnemyState::Spawning)
+			continue;
+
+		const FTransformFragment& TransformFragment = EntityManager.GetFragmentDataChecked<FTransformFragment>(Entity);
+		const FAgentRadiusFragment& RadiusFragment = EntityManager.GetFragmentDataChecked<FAgentRadiusFragment>(Entity);
+		const FAgentHeightFragment& HeightFragment = EntityManager.GetFragmentDataChecked<FAgentHeightFragment>(Entity);
+
+		/* Transform은 발 위치 — Actor 캡슐처럼 몸 중심과 반높이로 비교한다 */
+		const float BodyHalfHeight = HeightFragment.Height * 0.5f;
+		const FTransform& Transform = TransformFragment.GetTransform();
+		const FVector BodyCenter = Transform.GetLocation() + FVector(0.0f, 0.0f, BodyHalfHeight);
+		const float HeightDifference = FMath::Abs(BodyCenter.Z - Center.Z);
+		if (HeightDifference > Shape.HalfHeight + BodyHalfHeight)
+			continue;
+
+		if (UJY_CombatQuerySubsystem::IsInsideShape2D(Shape, Center, Forward, BodyCenter, RadiusFragment.Radius) == false)
+			continue;
+
+		FJY_CombatTarget& Target = OutTargets.AddDefaulted_GetRef();
+		Target.Entity = Entity;
+		Target.Location = BodyCenter;
+	}
+}
+
 /* Processor 실행 중에는 부르면 안 된다 — 타이머·치트처럼 Mass 처리 바깥에서만 (MassEntityManager.cpp:846) */
 // [Server]
 TArray<FMassEntityHandle> UJY_MassEnemySubsystem::SpawnWave(const UJY_EnemyDefinition& EnemyDefinition, TConstArrayView<FVector> Locations, float SpawnWarningSeconds)
@@ -173,6 +247,31 @@ void UJY_MassEnemySubsystem::DestroyAllEnemies()
 
 	EntityByReplicationID.Reset();
 	RoomEnemyNetActor->RemoveAllEnemies();
+
+	/* 적이 0마리면 피해 Processor가 아예 돌지 않아(MassProcessor.h:122) 지운 적의 피해가 남는다 */
+	PendingHitsBuffer.Reset();
+}
+
+// [Server]
+void UJY_MassEnemySubsystem::AddPendingHit(FMassEntityHandle Entity, float Damage)
+{
+	float& PendingDamage = PendingHitsBuffer.FindOrAdd(Entity, 0.0f);
+	PendingDamage += Damage;
+}
+
+// [Server]
+TMap<FMassEntityHandle, float> UJY_MassEnemySubsystem::ConsumePendingHits()
+{
+	return MoveTemp(PendingHitsBuffer);
+}
+
+/* 피해 Processor 안에서 불린다 — 처리 중엔 엔티티를 바로 못 지워 Defer로 단계 끝에 지운다(MassProcessingPhaseManager.cpp:663) */
+// [Server]
+void UJY_MassEnemySubsystem::DestroyEnemy(FMassExecutionContext& Context, FMassEntityHandle Entity, int32 ReplicationID)
+{
+	EntityByReplicationID.Remove(ReplicationID);
+	RoomEnemyNetActor->RemoveEnemy(ReplicationID);
+	Context.Defer().DestroyEntity(Entity);
 }
 
 /* 치트 시험용 — 실제 이동은 2장 이동 Processor가 한다 */

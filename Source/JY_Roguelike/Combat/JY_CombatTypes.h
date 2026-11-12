@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
+#include "Mass/EntityHandle.h"
 #include "JY_CombatTypes.generated.h"
 
 /* 판정 모양 종류 */
@@ -139,14 +140,26 @@ struct FJY_DamageResult
 	bool bCritical = false;
 };
 
-/* 판정에 걸린 대상 하나 */
+/* 판정에 걸린 대상 하나 — Actor 또는 Mass 적(Entity) 중 하나 */
 USTRUCT()
 struct FJY_CombatTarget
 {
 	GENERATED_BODY()
 
+	bool IsMassEnemy() const { return Entity.IsSet(); }
+
+	/* 같은 대상인지 — 재타격 간격 기록(TMap 키)용이라 위치는 보지 않는다 */
+	bool operator==(const FJY_CombatTarget& Other) const { return Actor == Other.Actor && Entity == Other.Entity; }
+
 	TWeakObjectPtr<AActor> Actor;
 
-	/* 판정에 쓴 위치 — 이펙트 위치로도 씀 */
+	/* 판정에 쓴 위치 — 이펙트 위치로도 씀. Mass 적은 몸 중심 */
 	FVector Location = FVector::ZeroVector;
+
+	FMassEntityHandle Entity;
 };
+
+FORCEINLINE uint32 GetTypeHash(const FJY_CombatTarget& Target)
+{
+	return HashCombine(GetTypeHash(Target.Actor), GetTypeHash(Target.Entity));
+}

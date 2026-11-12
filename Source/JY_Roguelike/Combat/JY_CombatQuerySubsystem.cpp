@@ -7,6 +7,7 @@
 #include "Combat/JY_StatusEffectData.h"
 #include "Interfaces/JY_HitReactable.h"
 #include "Interfaces/JY_InterfaceUtils.h"
+#include "Mass/Core/JY_MassEnemySubsystem.h"
 #include "System/JY_GameplayTags.h"
 #include "AbilitySystemGlobals.h"
 #include "DrawDebugHelpers.h"
@@ -21,48 +22,6 @@ namespace JY_CombatQuery
 {
 	static TAutoConsoleVariable<int32> CVarDrawHitShapes(TEXT("jy.Combat.DrawHitShapes"), 0, TEXT("1이면 타격 판정 모양을 그린다 (서버·조종 클라 각자)"));
 
-	/* 대상 캡슐이 2D 모양에 걸치는지 — 캡슐 반지름만큼 너그럽게 본다 */
-	bool IsInsideShape2D(const FJY_HitShape& Shape, const FVector& Center, const FVector& Forward, const FVector& TargetLocation, float TargetRadius)
-	{
-		const FVector ToTarget3D = TargetLocation - Center;
-		const FVector2D ToTarget(ToTarget3D);
-		const float Distance = ToTarget.Size();
-		const FVector2D Forward2D(Forward);
-
-		switch (Shape.Type)
-		{
-		case EJY_HitShapeType::Sphere:
-			return Distance <= Shape.Radius + TargetRadius;
-
-		case EJY_HitShapeType::Arc:
-		{
-			if (Distance > Shape.Radius + TargetRadius)
-				return false;
-
-			/* 몸이 공격자에 겹쳐 있으면 각도 무시 */
-			if (Distance <= TargetRadius)
-				return true;
-
-			const FVector2D TargetDirection = ToTarget / Distance;
-			const float CosAngle = FVector2D::DotProduct(Forward2D, TargetDirection);
-			const float HalfAngleRadians = FMath::DegreesToRadians(Shape.AngleDegrees * 0.5f);
-			return CosAngle >= FMath::Cos(HalfAngleRadians);
-		}
-
-		case EJY_HitShapeType::Box:
-		{
-			/* 언리얼 좌표(Z 위)에서 앞(1,0)의 오른쪽은 (0,1) */
-			const FVector2D Right2D(-Forward2D.Y, Forward2D.X);
-			const float LocalX = FVector2D::DotProduct(ToTarget, Forward2D);
-			const float LocalY = FVector2D::DotProduct(ToTarget, Right2D);
-			const bool bInsideLength = LocalX >= 0.0f && LocalX <= Shape.Length + TargetRadius;
-			const bool bInsideWidth = FMath::Abs(LocalY) <= Shape.Width * 0.5f + TargetRadius;
-			return bInsideLength == true && bInsideWidth == true;
-		}
-		}
-		return false;
-	}
-
 	/* 높이 허용치 안이고 2D 모양에 걸치는지 — 대상 크기는 단순 충돌 원기둥 */
 	bool IsActorInsideShape(const FJY_HitShape& Shape, const FVector& Center, const FVector& Forward, const AActor* Actor)
 	{
@@ -75,8 +34,61 @@ namespace JY_CombatQuery
 		if (HeightDifference > Shape.HalfHeight + TargetHalfHeight)
 			return false;
 
-		return IsInsideShape2D(Shape, Center, Forward, TargetLocation, TargetRadius);
+		return UJY_CombatQuerySubsystem::IsInsideShape2D(Shape, Center, Forward, TargetLocation, TargetRadius);
 	}
+}
+
+/* 대상 캡슐이 2D 모양에 걸치는지 — 캡슐 반지름만큼 너그럽게 본다 */
+bool UJY_CombatQuerySubsystem::IsInsideShape2D(const FJY_HitShape& Shape, const FVector& Center, const FVector& Forward, const FVector& TargetLocation, float TargetRadius)
+{
+	const FVector ToTarget3D = TargetLocation - Center;
+	const FVector2D ToTarget(ToTarget3D);
+	const float Distance = ToTarget.Size();
+	const FVector2D Forward2D(Forward);
+
+	switch (Shape.Type)
+	{
+	case EJY_HitShapeType::Sphere:
+		return Distance <= Shape.Radius + TargetRadius;
+
+	case EJY_HitShapeType::Arc:
+	{
+		if (Distance > Shape.Radius + TargetRadius)
+			return false;
+
+		/* 몸이 공격자에 겹쳐 있으면 각도 무시 */
+		if (Distance <= TargetRadius)
+			return true;
+
+		const FVector2D TargetDirection = ToTarget / Distance;
+		const float CosAngle = FVector2D::DotProduct(Forward2D, TargetDirection);
+		const float HalfAngleRadians = FMath::DegreesToRadians(Shape.AngleDegrees * 0.5f);
+		return CosAngle >= FMath::Cos(HalfAngleRadians);
+	}
+
+	case EJY_HitShapeType::Box:
+	{
+		/* 언리얼 좌표(Z 위)에서 앞(1,0)의 오른쪽은 (0,1) */
+		const FVector2D Right2D(-Forward2D.Y, Forward2D.X);
+		const float LocalX = FVector2D::DotProduct(ToTarget, Forward2D);
+		const float LocalY = FVector2D::DotProduct(ToTarget, Right2D);
+		const bool bInsideLength = LocalX >= 0.0f && LocalX <= Shape.Length + TargetRadius;
+		const bool bInsideWidth = FMath::Abs(LocalY) <= Shape.Width * 0.5f + TargetRadius;
+		return bInsideLength == true && bInsideWidth == true;
+	}
+	}
+	return false;
+}
+
+/* 상자는 중심에서 앞으로 뻗으므로 중심에서 가장 먼 모서리까지 */
+float UJY_CombatQuerySubsystem::GetShapeReachRadius(const FJY_HitShape& Shape)
+{
+	if (Shape.Type == EJY_HitShapeType::Box)
+	{
+		const FVector2D FarCorner(Shape.Length, Shape.Width * 0.5f);
+		return FarCorner.Size();
+	}
+	return Shape.Radius;
 }
 
 bool UJY_CombatQuerySubsystem::DoesSupportWorldType(const EWorldType::Type WorldType) const //override
@@ -96,14 +108,7 @@ void UJY_CombatQuerySubsystem::FindActorsInShape(const FJY_HitShape& Shape, cons
 	const FVector Center = Origin.TransformPosition(LocalOffset);
 	const FVector Forward = Origin.GetUnitAxis(EAxis::X);
 
-	/* 상자는 중심에서 앞으로 뻗으므로 중심에서 가장 먼 모서리까지 */
-	float QueryRadius = Shape.Radius;
-	if (Shape.Type == EJY_HitShapeType::Box)
-	{
-		const FVector2D FarCorner(Shape.Length, Shape.Width * 0.5f);
-		QueryRadius = FarCorner.Size();
-	}
-
+	const float QueryRadius = GetShapeReachRadius(Shape);
 	const FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(JY_FindActorsInShape), false, IgnoreActor);
 	const FCollisionShape QuerySphere = FCollisionShape::MakeSphere(QueryRadius);
 	TArray<FOverlapResult> Overlaps;
@@ -167,6 +172,13 @@ void UJY_CombatQuerySubsystem::FindTargets(const FJY_HitShape& Shape, const FTra
 		Target.Location = Actor->GetActorLocation();
 	}
 
+	/* Mass 적은 모두 적 팀이다 — 적(Actor 적)의 공격은 같은 편이라 넣지 않는다 */
+	const FGenericTeamId AttackerTeamId = FGenericTeamId::GetTeamIdentifier(Attacker);
+	if (AttackerTeamId != FGenericTeamId(static_cast<uint8>(EJY_Team::Enemy)))
+	{
+		AppendMassTargetsInShape(Shape, Origin, OUT OutTargets);
+	}
+
 	if (JY_CombatQuery::CVarDrawHitShapes.GetValueOnGameThread() != 0)
 	{
 		const bool bHitAny = OutTargets.Num() > 0;
@@ -175,8 +187,57 @@ void UJY_CombatQuerySubsystem::FindTargets(const FJY_HitShape& Shape, const FTra
 }
 
 // [Server]
+void UJY_CombatQuerySubsystem::FindEnvironmentTargets(const FJY_HitShape& Shape, const FTransform& Origin, const AActor* IgnoreActor, TArray<FJY_CombatTarget>& OutTargets) const
+{
+	TArray<AActor*> ActorsInShape;
+	FindActorsInShape(Shape, Origin, IgnoreActor, FCollisionObjectQueryParams(ECC_Pawn), OUT ActorsInShape);
+	for (AActor* Actor : ActorsInShape)
+	{
+		FJY_CombatTarget& Target = OutTargets.AddDefaulted_GetRef();
+		Target.Actor = Actor;
+		Target.Location = Actor->GetActorLocation();
+	}
+
+	AppendMassTargetsInShape(Shape, Origin, OUT OutTargets);
+}
+
+// [Server] [OwnClient]
+void UJY_CombatQuerySubsystem::AppendMassTargetsInShape(const FJY_HitShape& Shape, const FTransform& Origin, TArray<FJY_CombatTarget>& OutTargets) const
+{
+	const UWorld* World = GetWorld();
+	const UJY_MassEnemySubsystem* MassEnemySubsystem = World->GetSubsystem<UJY_MassEnemySubsystem>();
+	if (MassEnemySubsystem == nullptr)
+		return;
+
+	const FVector LocalOffset(Shape.Offset.X, Shape.Offset.Y, 0.0f);
+	const FVector Center = Origin.TransformPosition(LocalOffset);
+	const FVector Forward = Origin.GetUnitAxis(EAxis::X);
+	MassEnemySubsystem->FindEnemiesInShape(Shape, Center, Forward, OUT OutTargets);
+}
+
+/* 조종 클라의 연출용 판정이 실수로 불러도 서버에만 쌓인다. 피격 큐·밀어내기·상태이상은 Mass 적에 아직 없다 */
+// [Server]
+void UJY_CombatQuerySubsystem::AddMassEnemyHit(const FJY_CombatTarget& Target, const FJY_HitPayload& Payload) const
+{
+	UWorld* World = GetWorld();
+	if (World->GetNetMode() == NM_Client)
+		return;
+
+	const FJY_DamageResult DamageResult = ComputeDamage(Payload);
+	UJY_MassEnemySubsystem* MassEnemySubsystem = World->GetSubsystem<UJY_MassEnemySubsystem>();
+	MassEnemySubsystem->AddPendingHit(Target.Entity, DamageResult.Damage);
+}
+
+// [Server]
 void UJY_CombatQuerySubsystem::ApplyHit(const FJY_CombatTarget& Target, const FJY_HitPayload& Payload) const
 {
+	/* Mass 적은 체력을 여기서 바꾸지 않고 쌓아 둔다 — 다음 Mass 처리 때 UJY_EnemyDamageProcessor가 반영 */
+	if (Target.IsMassEnemy() == true)
+	{
+		AddMassEnemyHit(Target, Payload);
+		return;
+	}
+
 	AActor* TargetActor = Target.Actor.Get();
 	/* 조종 클라의 연출용 판정이 실수로 부르는 것 차단 */
 	if (TargetActor->HasAuthority() == false)
@@ -214,8 +275,16 @@ void UJY_CombatQuerySubsystem::ApplyHit(const FJY_CombatTarget& Target, const FJ
  * 원인 ASC = 부순 쪽 — 폭발 통 처치 기록이 부순 플레이어에게 남는다
  * 부순 쪽 ASC가 없으면(함정) 맞는 쪽 ASC로 만든다
  */
-bool UJY_CombatQuerySubsystem::ApplyEnvironmentDamage(AActor* TargetActor, const FJY_HitPayload& Payload, const FVector& Origin) const
+bool UJY_CombatQuerySubsystem::ApplyEnvironmentDamage(const FJY_CombatTarget& Target, const FJY_HitPayload& Payload, const FVector& Origin) const
 {
+	/* Mass 적은 무적이 없어 쌓으면 항상 맞은 것 */
+	if (Target.IsMassEnemy() == true)
+	{
+		AddMassEnemyHit(Target, Payload);
+		return true;
+	}
+
+	AActor* TargetActor = Target.Actor.Get();
 	UAbilitySystemComponent* TargetASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(TargetActor);
 	if (TargetASC == nullptr)
 		return false;

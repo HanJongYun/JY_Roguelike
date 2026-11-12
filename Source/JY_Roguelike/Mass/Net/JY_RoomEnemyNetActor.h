@@ -84,6 +84,9 @@ public:
 	/* 적 1마리 복제 데이터를 고쳐 클라로 보낸다 */
 	void UpdateEnemy(int32 ReplicationID, const FJY_EnemyState& EnemyState);
 
+	/* 적 1마리 데이터를 지워 클라도 그 적을 지우게 한다 */
+	void RemoveEnemy(int32 ReplicationID);
+
 	/* 적 데이터를 전부 지워 클라도 지우게 한다 */
 	void RemoveAllEnemies();
 

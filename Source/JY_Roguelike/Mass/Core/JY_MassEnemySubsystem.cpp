@@ -19,6 +19,7 @@
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "Room/JY_RoomFlowSubsystem.h"
+#include "System/JY_LogChannels.h"
 #include "StructUtils/InstancedStruct.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(JY_MassEnemySubsystem)
@@ -92,7 +93,11 @@ void UJY_MassEnemySubsystem::InitializeNavPolys(TConstArrayView<FMassEntityHandl
 		/* 모든 스폰을 NavMesh 위에서 시작시킨다 — NavMesh 붙이기가 이 위치·다각형에서 출발한다 */
 		FNavLocation NavLocation;
 		if (NavMesh->ProjectPoint(Transform.GetLocation(), OUT NavLocation, NavMesh->GetDefaultQueryExtent()) == false)
+		{
+			/* 실패한 적은 PolyRef가 비어 길·NavMesh 붙이기가 건너뛰어 그 자리에 선다 — 스폰 포인트 배치 실수를 찾으려고 남긴다 */
+			UE_LOG(LogJY, Warning, TEXT("[Server] JYMassSpawn NavMesh 투영 실패 — 스폰 위치 %s 가 NavMesh 밖, 적이 움직이지 않음"), *Transform.GetLocation().ToString());
 			continue;
+		}
 
 		Transform.SetLocation(NavLocation.Location);
 		FJY_NavPolyFragment& NavPoly = EntityManager.GetFragmentDataChecked<FJY_NavPolyFragment>(Entity);

@@ -1,5 +1,6 @@
 #include "Mass/Behavior/JY_EnemySpawningProcessor.h"
 
+#include "Mass/JY_MassProcessorOrder.h"
 #include "Mass/JY_MassTypes.h"
 #include "MassExecutionContext.h"
 
@@ -13,6 +14,7 @@ UJY_EnemySpawningProcessor::UJY_EnemySpawningProcessor()
 
 	/* 이동보다 먼저 상태를 정해야 같은 프레임에 움직이기 시작한다 */
 	ProcessingPhase = EMassProcessingPhase::PrePhysics;
+	JY_MassProcessorOrder::PlaceInBehavior(ExecutionOrder);
 }
 
 void UJY_EnemySpawningProcessor::ConfigureQueries(const TSharedRef<FMassEntityManager>& EntityManager) //override

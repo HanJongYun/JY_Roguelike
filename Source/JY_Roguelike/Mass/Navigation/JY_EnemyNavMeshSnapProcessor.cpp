@@ -1,9 +1,9 @@
 #include "Mass/Navigation/JY_EnemyNavMeshSnapProcessor.h"
 
 #include "Mass/Core/JY_MassEnemySubsystem.h"
+#include "Mass/JY_MassProcessorOrder.h"
 #include "Mass/JY_MassTypes.h"
 #include "MassCommonFragments.h"
-#include "MassCommonTypes.h"
 #include "MassExecutionContext.h"
 #include "MassMovementFragments.h"
 #include "NavMesh/RecastNavMesh.h"
@@ -16,9 +16,7 @@ UJY_EnemyNavMeshSnapProcessor::UJY_EnemyNavMeshSnapProcessor()
 	ExecutionFlags = static_cast<int32>(EProcessorExecutionFlags::Server);
 	ProcessingPhase = EMassProcessingPhase::PrePhysics;
 
-	/* 엔진이 위치를 옮긴 뒤, 그리드가 위치를 읽기 전 — 그리드 프로세서는 "Movement 뒤"만 걸려 있다 (MassNavigationProcessors.cpp:164) */
-	ExecutionOrder.ExecuteAfter.Add(UE::Mass::ProcessorGroupNames::Movement);
-	ExecutionOrder.ExecuteBefore.Add(TEXT("MassNavigationObstacleGridProcessor"));
+	JY_MassProcessorOrder::PlaceInPositionCorrection(ExecutionOrder);
 }
 
 void UJY_EnemyNavMeshSnapProcessor::ConfigureQueries(const TSharedRef<FMassEntityManager>& EntityManager) //override

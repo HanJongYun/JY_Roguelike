@@ -1,7 +1,7 @@
 #include "Mass/Navigation/JY_EnemyFlowFieldProcessor.h"
 
-#include "Mass/Behavior/JY_EnemySpawningProcessor.h"
 #include "Mass/Core/JY_MassEnemySubsystem.h"
+#include "Mass/JY_MassProcessorOrder.h"
 #include "Mass/JY_MassTypes.h"
 #include "MassCommonFragments.h"
 #include "MassCommonTypes.h"
@@ -27,9 +27,7 @@ UJY_EnemyFlowFieldProcessor::UJY_EnemyFlowFieldProcessor()
 	ExecutionFlags = static_cast<int32>(EProcessorExecutionFlags::Server);
 	ProcessingPhase = EMassProcessingPhase::PrePhysics;
 
-	/* Spawning → Chase로 바뀐 프레임에 바로 갈 곳을 정하고, 엔진 Steering이 갈 곳을 힘으로 바꾸기 전에 — Steering은 Tasks 뒤·Avoidance 앞만 걸려 있다 (MassSteeringProcessors.cpp:62-63) */
-	ExecutionOrder.ExecuteAfter.Add(UJY_EnemySpawningProcessor::StaticClass()->GetFName());
-	ExecutionOrder.ExecuteBefore.Add(TEXT("MassSteerToMoveTargetProcessor"));
+	JY_MassProcessorOrder::PlaceInTasks(ExecutionOrder);
 }
 
 void UJY_EnemyFlowFieldProcessor::ConfigureQueries(const TSharedRef<FMassEntityManager>& EntityManager) //override

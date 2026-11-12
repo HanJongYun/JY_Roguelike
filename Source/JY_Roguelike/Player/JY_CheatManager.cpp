@@ -6,7 +6,7 @@
 #include "Interfaces/JY_InterfaceUtils.h"
 #include "Mass/Core/JY_EnemyDefinition.h"
 #include "Mass/Core/JY_MassEnemySubsystem.h"
-#include "Mass/Navigation/JY_NavigationFragments.h"
+#include "Mass/JY_MassTypes.h"
 #include "Player/JY_PlayerController.h"
 #include "MassCommonFragments.h"
 #include "MassEntitySubsystem.h"
@@ -241,6 +241,38 @@ void UJY_CheatManager::JYMassSpawn(int32 CountPerPoint)
 	MassEnemySubsystem->SpawnWave(*EnemyDefinition, SpawnLocations, 0.0f);
 }
 
+/* [임시코드] 한 마리만 보려는 시험용 — 2.5에서 삭제 */
+// [Server]
+void UJY_CheatManager::JYMassSpawnFront(int32 Count)
+{
+	const APawn* Pawn = GetOuterAPlayerController()->GetPawn();
+	if (Pawn == nullptr || Count <= 0)
+		return;
+
+	const UJY_GameData* GameData = UJY_AssetManager::Get().GetGameData();
+	if (ensureMsgf(GameData->EnemyDefinitions.Num() > 0, TEXT("DA_JY_GameData에 EnemyDefinitions가 없음")) == false)
+		return;
+
+	/* SpawnWave는 지금 방의 기준점이 필요하다 — 첫 방이 붙기 전이면 안 만든다 (JY_RoomFlowSubsystem.cpp:171) */
+	const UJY_RoomFlowSubsystem* RoomFlow = GetWorld()->GetSubsystem<UJY_RoomFlowSubsystem>();
+	if (RoomFlow->GetCurrentRoomLevel() == nullptr)
+		return;
+
+	/* 메시 기준점이 발이라 캡슐 가운데에서 반 높이만큼 내린다 */
+	const FVector FrontCenter = Pawn->GetActorLocation() + Pawn->GetActorForwardVector() * 700.0f - FVector(0.0f, 0.0f, Pawn->GetSimpleCollisionHalfHeight());
+	const float RingRadius = Count == 1 ? 0.0f : 150.0f;
+	TArray<FVector> SpawnLocations;
+	for (int32 Index = 0; Index < Count; ++Index)
+	{
+		const float AngleRadians = UE_TWO_PI * Index / Count;
+		SpawnLocations.Add(FrontCenter + FVector(FMath::Cos(AngleRadians) * RingRadius, FMath::Sin(AngleRadians) * RingRadius, 0.0f));
+	}
+
+	UJY_MassEnemySubsystem* MassEnemySubsystem = GetWorld()->GetSubsystem<UJY_MassEnemySubsystem>();
+	MassEnemySubsystem->DestroyAllEnemies();
+	MassEnemySubsystem->SpawnWave(*GameData->EnemyDefinitions[0], SpawnLocations, 0.0f);
+}
+
 // [Server]
 void UJY_CheatManager::JYMassMove(float Distance)
 {
@@ -261,7 +293,7 @@ namespace JY_FlowFieldDebug
 	constexpr float SendIntervalSeconds = 0.5f;
 }
 
-/* 임시(2장 B 끝나면 삭제): 플로우 필드는 서버에만 있어 선 목록을 클라로 보내 그린다 */
+/* [임시코드] (2장 B 끝나면 삭제) 플로우 필드는 서버에만 있어 선 목록을 클라로 보내 그린다 */
 // [Server]
 void UJY_CheatManager::JYShowFlowField(bool bEnable)
 {
@@ -273,7 +305,7 @@ void UJY_CheatManager::JYShowFlowField(bool bEnable)
 	TimerManager.SetTimer(FlowFieldDebugTimerHandle, this, &ThisClass::SendFlowFieldDebugLines, JY_FlowFieldDebug::SendIntervalSeconds, true, 0.0f);
 }
 
-/* 임시(2장 B 끝나면 삭제) */
+/* [임시코드] (2장 B 끝나면 삭제) */
 // [Server]
 void UJY_CheatManager::SendFlowFieldDebugLines()
 {

@@ -3,7 +3,8 @@
 #include "CoreMinimal.h"
 #include "Engine/NetSerialization.h"
 #include "Mass/EntityElementTypes.h"
-#include "JY_MassFragments.generated.h"
+#include "AI/Navigation/NavigationTypes.h"
+#include "JY_MassTypes.generated.h"
 
 /* 적이 지금 무엇을 하나 — 서버가 정하고 클라는 표현(모션 고르기)에 쓴다 */
 UENUM()
@@ -124,4 +125,16 @@ struct FJY_EnemyVisualFragment : public FMassFragment
 
 	UPROPERTY()
 	uint8 StatusFlags = 0;
+};
+
+/* 적이 밟고 있는 NavMesh 다각형 (서버) — 스폰 때 채우고, 이동하면 갱신 */
+USTRUCT()
+struct FJY_NavPolyFragment : public FMassFragment
+{
+	GENERATED_BODY()
+
+	NavNodeRef PolyRef = INVALID_NAVNODEREF;
+
+	/* NavMesh 위 마지막 위치 — 다음 프레임 NavMesh 붙이기의 출발점 */
+	FVector Location = FVector::ZeroVector;
 };

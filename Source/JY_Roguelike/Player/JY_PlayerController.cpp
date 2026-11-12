@@ -163,7 +163,7 @@ void AJY_PlayerController::Client_ShowNotification_Implementation(EJY_Notificati
 	ULocalPlayer::GetSubsystem<UJY_UIManagerSubsystem>(GetLocalPlayer())->ShowNotification(Type, Message);
 }
 
-/* 임시(2장 B 끝나면 삭제): 데디 서버 월드에 그린 선은 클라 화면에 안 보여서 선 목록을 받아 내 월드에 그린다 */
+/* [임시코드] (2장 B 끝나면 삭제) 데디 서버 월드에 그린 선은 클라 화면에 안 보여서 선 목록을 받아 내 월드에 그린다 */
 // [OwnClient]
 void AJY_PlayerController::Client_DrawFlowFieldDebug_Implementation(const TArray<FVector_NetQuantize>& ArrowStarts, const TArray<FVector_NetQuantize>& ArrowEnds, const TArray<FColor>& ArrowColors, const TArray<FVector_NetQuantize>& OutlineStarts, const TArray<FVector_NetQuantize>& OutlineEnds, float Duration)
 {

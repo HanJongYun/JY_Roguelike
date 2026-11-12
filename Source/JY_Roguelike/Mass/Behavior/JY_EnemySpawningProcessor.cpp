@@ -1,6 +1,6 @@
 #include "Mass/Behavior/JY_EnemySpawningProcessor.h"
 
-#include "Mass/JY_MassFragments.h"
+#include "Mass/JY_MassTypes.h"
 #include "MassExecutionContext.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(JY_EnemySpawningProcessor)
@@ -20,7 +20,7 @@ void UJY_EnemySpawningProcessor::ConfigureQueries(const TSharedRef<FMassEntityMa
 	EntityQuery.AddRequirement<FJY_EnemyBehaviorFragment>(EMassFragmentAccess::ReadWrite);
 }
 
-/* 150마리 비교 한 번씩이라 태그로 거르지 않는다 — Spawning을 이 Processor로 둘지 StateTree 상태로 옮길지는 3-5에서 정한다 */
+/* [임시코드] (2.5 StateTree에서 등장 대기 상태로 옮기면 삭제 — 옮길지는 2.5에서 결정) 150마리 비교 한 번씩이라 태그로 거르지 않는다 */
 // [Server]
 void UJY_EnemySpawningProcessor::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context) //override
 {

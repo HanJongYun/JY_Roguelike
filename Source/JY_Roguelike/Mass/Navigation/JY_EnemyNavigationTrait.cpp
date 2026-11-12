@@ -1,6 +1,6 @@
 #include "Mass/Navigation/JY_EnemyNavigationTrait.h"
 
-#include "Mass/Navigation/JY_NavigationFragments.h"
+#include "Mass/JY_MassTypes.h"
 #include "MassCommonFragments.h"
 #include "MassEntityTemplateRegistry.h"
 #include "MassNavigationFragments.h"

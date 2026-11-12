@@ -2,11 +2,11 @@
 
 #include "Mass/Behavior/JY_EnemySpawningProcessor.h"
 #include "Mass/Core/JY_MassEnemySubsystem.h"
-#include "Mass/JY_MassFragments.h"
-#include "Mass/Navigation/JY_NavigationFragments.h"
+#include "Mass/JY_MassTypes.h"
 #include "MassCommonFragments.h"
 #include "MassCommonTypes.h"
 #include "MassExecutionContext.h"
+#include "MassMovementFragments.h"
 #include "MassNavigationFragments.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(JY_EnemyFlowFieldProcessor)
@@ -27,9 +27,9 @@ UJY_EnemyFlowFieldProcessor::UJY_EnemyFlowFieldProcessor()
 	ExecutionFlags = static_cast<int32>(EProcessorExecutionFlags::Server);
 	ProcessingPhase = EMassProcessingPhase::PrePhysics;
 
-	/* Spawning → Chase로 바뀐 프레임에 바로 갈 곳을 정하고, 엔진 이동(Movement 그룹)보다 먼저 */
+	/* Spawning → Chase로 바뀐 프레임에 바로 갈 곳을 정하고, 엔진 Steering이 갈 곳을 힘으로 바꾸기 전에 — Steering은 Tasks 뒤·Avoidance 앞만 걸려 있다 (MassSteeringProcessors.cpp:62-63) */
 	ExecutionOrder.ExecuteAfter.Add(UJY_EnemySpawningProcessor::StaticClass()->GetFName());
-	ExecutionOrder.ExecuteBefore.Add(UE::Mass::ProcessorGroupNames::Movement);
+	ExecutionOrder.ExecuteBefore.Add(TEXT("MassSteerToMoveTargetProcessor"));
 }
 
 void UJY_EnemyFlowFieldProcessor::ConfigureQueries(const TSharedRef<FMassEntityManager>& EntityManager) //override
@@ -38,6 +38,7 @@ void UJY_EnemyFlowFieldProcessor::ConfigureQueries(const TSharedRef<FMassEntityM
 	EntityQuery.AddRequirement<FJY_EnemyBehaviorFragment>(EMassFragmentAccess::ReadOnly);
 	EntityQuery.AddRequirement<FJY_NavPolyFragment>(EMassFragmentAccess::ReadOnly);
 	EntityQuery.AddRequirement<FMassMoveTargetFragment>(EMassFragmentAccess::ReadWrite);
+	EntityQuery.AddConstSharedRequirement<FMassMovementParameters>(EMassFragmentPresence::All);
 	EntityQuery.AddSubsystemRequirement<UJY_MassEnemySubsystem>(EMassFragmentAccess::ReadOnly);
 }
 
@@ -57,6 +58,7 @@ void UJY_EnemyFlowFieldProcessor::Execute(FMassEntityManager& EntityManager, FMa
 		const TConstArrayView<FJY_EnemyBehaviorFragment> Behaviors = ChunkContext.GetFragmentView<FJY_EnemyBehaviorFragment>();
 		const TConstArrayView<FJY_NavPolyFragment> NavPolys = ChunkContext.GetFragmentView<FJY_NavPolyFragment>();
 		const TArrayView<FMassMoveTargetFragment> MoveTargets = ChunkContext.GetMutableFragmentView<FMassMoveTargetFragment>();
+		const FMassMovementParameters& MovementParameters = ChunkContext.GetConstSharedFragment<FMassMovementParameters>();
 
 		for (FMassExecutionContext::FEntityIterator EntityIt = ChunkContext.CreateEntityIterator(); EntityIt; ++EntityIt)
 		{
@@ -99,6 +101,12 @@ void UJY_EnemyFlowFieldProcessor::Execute(FMassEntityManager& EntityManager, FMa
 			MoveTarget.Center = TargetLocation;
 			MoveTarget.Forward = (TargetLocation - EnemyLocation).GetSafeNormal2D();
 			MoveTarget.DistanceToGoal = bInGoalPoly ? DistanceToTarget : DistanceToTarget + FlowStep->DistanceToGoal;
+
+			/* [임시코드] (2.5에서 StateTree 추격 Task가 채움) 엔진 Steering은 이 속도로 가고, 0이면 안 움직인다 (MassSteeringProcessors.cpp, MassNavMeshPathFollowTask.cpp:134) */
+			MoveTarget.DesiredSpeed.Set(MovementParameters.DefaultDesiredSpeed);
+
+			/* 남은 거리가 끝까지의 경로 거리라, 플레이어에 가까워질 때만 엔진이 감속해 선다 */
+			MoveTarget.IntentAtGoal = EMassMovementAction::Stand;
 		}
 	};
 	EntityQuery.ForEachEntityChunk(Context, SetMoveTargets);

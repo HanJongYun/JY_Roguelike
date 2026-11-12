@@ -53,6 +53,10 @@ public:
 	UFUNCTION(Exec, BlueprintAuthorityOnly)
 	void JYMassSpawn(int32 CountPerPoint);
 
+	/* [임시코드] 적을 전부 지우고 내 앞 7m에 N마리만 만들기 (예: ServerExec "JYMassSpawnFront 1") — 2.5에서 삭제 */
+	UFUNCTION(Exec, BlueprintAuthorityOnly)
+	void JYMassSpawnFront(int32 Count);
+
 	/* Mass 적 전부를 X로 옮기기 — 클라에 따라오는지 보기 (예: JYMassMove 300) */
 	UFUNCTION(Exec, BlueprintAuthorityOnly)
 	void JYMassMove(float Distance);
@@ -61,12 +65,12 @@ public:
 	UFUNCTION(Exec, BlueprintAuthorityOnly)
 	void JYMassDamageAll(float Damage);
 
-	/* 임시: 플로우 필드 보이기 켜기·끄기 — 다각형 테두리(초록)·문 방향(노랑), 적마다 갈 곳(빨강) (예: ServerExec "JYShowFlowField 1") — 2장 B 끝나면 삭제 */
+	/* [임시코드] 플로우 필드 보이기 켜기·끄기 — 다각형 테두리(초록)·문 방향(노랑), 적마다 갈 곳(빨강) (예: ServerExec "JYShowFlowField 1") — 2장 B 끝나면 삭제 */
 	UFUNCTION(Exec, BlueprintAuthorityOnly)
 	void JYShowFlowField(bool bEnable);
 
 private:
-	/* 임시: 플로우 필드 선을 모아 내 클라로 보낸다 — 2장 B 끝나면 삭제 */
+	/* [임시코드] 플로우 필드 선을 모아 내 클라로 보낸다 — 2장 B 끝나면 삭제 */
 	void SendFlowFieldDebugLines();
 
 	/* 음수=데미지, 양수=회복 */
@@ -75,6 +79,6 @@ private:
 	AJY_PlayerState* GetJYPlayerState() const;
 
 private:
-	/* 임시: JYShowFlowField 반복 전송 — 2장 B 끝나면 삭제 */
+	/* [임시코드] JYShowFlowField 반복 전송 — 2장 B 끝나면 삭제 */
 	FTimerHandle FlowFieldDebugTimerHandle;
 };

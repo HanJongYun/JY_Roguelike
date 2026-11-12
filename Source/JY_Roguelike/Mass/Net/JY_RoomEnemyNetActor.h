@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Info.h"
 #include "Engine/NetSerialization.h"
-#include "Mass/JY_MassFragments.h"
+#include "Mass/JY_MassTypes.h"
 #include "Net/Serialization/FastArraySerializer.h"
 #include "JY_RoomEnemyNetActor.generated.h"
 

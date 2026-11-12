@@ -1,6 +1,6 @@
 #include "Mass/Net/JY_EnemyDebugTextProcessor.h"
 
-#include "Mass/JY_MassFragments.h"
+#include "Mass/JY_MassTypes.h"
 #include "Mass/EntityFragments.h"
 #include "DrawDebugHelpers.h"
 #include "MassExecutionContext.h"

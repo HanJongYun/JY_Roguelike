@@ -1,8 +1,7 @@
 #include "Mass/Core/JY_MassEnemySubsystem.h"
 
 #include "Mass/Core/JY_EnemyDefinition.h"
-#include "Mass/JY_MassFragments.h"
-#include "Mass/Navigation/JY_NavigationFragments.h"
+#include "Mass/JY_MassTypes.h"
 #include "Mass/Net/JY_EnemyNetWriteProcessor.h"
 #include "Mass/Net/JY_RoomEnemyNetActor.h"
 #include "Mass/EntityFragments.h"
@@ -10,6 +9,7 @@
 #include "System/JY_AssetManager.h"
 #include "System/JY_GameData.h"
 #include "MassEntityConfigAsset.h"
+#include "MassRepresentationFragments.h"
 #include "MassSpawnerSubsystem.h"
 #include "MassSpawnerTypes.h"
 #include "MassSpawnLocationProcessor.h"
@@ -86,10 +86,18 @@ void UJY_MassEnemySubsystem::InitializeNavPolys(TConstArrayView<FMassEntityHandl
 	FMassEntityManager& EntityManager = GetEntityManager();
 	for (const FMassEntityHandle& Entity : Entities)
 	{
-		const FTransformFragment& TransformFragment = EntityManager.GetFragmentDataChecked<FTransformFragment>(Entity);
-		const FVector EnemyLocation = TransformFragment.GetTransform().GetLocation();
+		FTransformFragment& TransformFragment = EntityManager.GetFragmentDataChecked<FTransformFragment>(Entity);
+		FTransform& Transform = TransformFragment.GetMutableTransform();
+
+		/* 모든 스폰을 NavMesh 위에서 시작시킨다 — NavMesh 붙이기가 이 위치·다각형에서 출발한다 */
+		FNavLocation NavLocation;
+		if (NavMesh->ProjectPoint(Transform.GetLocation(), OUT NavLocation, NavMesh->GetDefaultQueryExtent()) == false)
+			continue;
+
+		Transform.SetLocation(NavLocation.Location);
 		FJY_NavPolyFragment& NavPoly = EntityManager.GetFragmentDataChecked<FJY_NavPolyFragment>(Entity);
-		NavPoly.PolyRef = NavMesh->FindNearestPoly(EnemyLocation, NavMesh->GetDefaultQueryExtent());
+		NavPoly.PolyRef = NavLocation.NodeRef;
+		NavPoly.Location = NavLocation.Location;
 	}
 }
 
@@ -273,6 +281,14 @@ void UJY_MassEnemySubsystem::ApplyEnemyState(FMassEntityHandle Entity, const FJY
 	Visual.HealthPct = EnemyState.HealthPct;
 	Visual.ShieldPct = EnemyState.ShieldPct;
 	Visual.StatusFlags = EnemyState.StatusFlags;
+
+	/* [임시코드] (2.5에서 StateTree 상태별 모션으로 교체) 추격이면 달리기, 아니면 대기 — 번호는 TP_Wolf_ISKMTest 순서. 이 칸은 Transient라 Config에 값을 못 넣는다 (MassRepresentationFragments.h:137) */
+	FMassRepresentationAnimationFragment* Animation = EntityManager.GetFragmentDataPtr<FMassRepresentationAnimationFragment>(Entity);
+	if (Animation != nullptr)
+	{
+		Animation->AnimData.SequenceIndex = EnemyState.State == EJY_EnemyState::Chase ? 1 : 0;
+		Animation->AnimData.BlendTime = 0.2f;
+	}
 }
 
 FMassEntityManager& UJY_MassEnemySubsystem::GetEntityManager() const

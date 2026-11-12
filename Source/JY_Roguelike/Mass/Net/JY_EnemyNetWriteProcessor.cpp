@@ -1,7 +1,7 @@
 #include "Mass/Net/JY_EnemyNetWriteProcessor.h"
 
 #include "Mass/Core/JY_MassEnemySubsystem.h"
-#include "Mass/JY_MassFragments.h"
+#include "Mass/JY_MassTypes.h"
 #include "Mass/Net/JY_RoomEnemyNetActor.h"
 #include "Mass/EntityFragments.h"
 #include "MassExecutionContext.h"

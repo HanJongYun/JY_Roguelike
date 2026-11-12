@@ -2,6 +2,7 @@
 
 #include "Mass/Core/JY_MassEnemySubsystem.h"
 #include "Mass/JY_MassTypes.h"
+#include "Mass/JY_MassProcessorOrder.h"
 #include "MassExecutionContext.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(JY_EnemyDamageProcessor)
@@ -13,6 +14,9 @@ UJY_EnemyDamageProcessor::UJY_EnemyDamageProcessor()
 	ExecutionFlags = static_cast<int32>(EProcessorExecutionFlags::Server);
 
 	ProcessingPhase = EMassProcessingPhase::PrePhysics;
+
+	/* 체력·사망은 적의 상태를 정하는 일이라 Behavior 단계 */
+	JY_MassProcessorOrder::PlaceInBehavior(ExecutionOrder);
 
 	/* 서브시스템 피해 목록과 복제 Actor(UObject)를 고치므로 게임 스레드에서만 */
 	bRequiresGameThreadExecution = true;

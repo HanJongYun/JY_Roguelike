@@ -1,5 +1,9 @@
 # JY_Roguelike (현재 진행 중)
 
+## 클래스 구조도
+
+[클래스 구조도 보기](https://hanjongyun.github.io/JY_Roguelike/) (웹 페이지로 열림)
+
 ## Milestones
 
 | 단계 | 목표 | 작업일 | 세부 항목 |

@@ -15,6 +15,9 @@ enum class EJY_EnemyState : uint8
 
 	/* 플레이어를 쫓는다 */
 	Chase,
+
+	/* 플레이어 앞에 서서 공격 차례를 기다린다 */
+	Wait,
 };
 
 /* ---------- 서버 → 클라: 복제로 넘기는 데이터 ---------- */
@@ -105,6 +108,25 @@ struct FJY_EnemyBehaviorFragment : public FMassFragment
 	/* Spawning이 끝나는 월드 시각 (초) */
 	UPROPERTY()
 	double SpawningEndSeconds = 0.0;
+
+	/* 플레이어가 이 적의 거리(FJY_EnemyRangeParams) 안에 있나 — 바뀌는 순간 StateTree를 깨운다 */
+	UPROPERTY()
+	bool bInsideRange = false;
+};
+
+/* 적 종류마다 다른 거리 — 값은 Mass Config의 JY Enemy Navigation Trait에서 정한다 */
+USTRUCT()
+struct FJY_EnemyRangeParams : public FMassConstSharedFragment
+{
+	GENERATED_BODY()
+
+	/* 플레이어까지 남은 길이 이 값 이하가 되면 거리 안 (cm) */
+	UPROPERTY(EditAnywhere, meta = (ClampMin = "0.0"))
+	float StopDistance = 150.0f;
+
+	/* 거리 안이 된 뒤 StopDistance보다 이만큼 더 멀어져야 거리 밖 (cm) — 경계에서 안팎이 계속 바뀌지 않게 */
+	UPROPERTY(EditAnywhere, meta = (ClampMin = "0.0"))
+	float ResumeMargin = 50.0f;
 };
 
 /* ---------- 클라 전용 ---------- */

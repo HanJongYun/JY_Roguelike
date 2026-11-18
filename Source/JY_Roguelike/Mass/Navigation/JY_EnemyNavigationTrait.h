@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Mass/JY_MassTypes.h"
 #include "MassEntityTraitBase.h"
 #include "JY_EnemyNavigationTrait.generated.h"
 
@@ -12,4 +13,10 @@ class UJY_EnemyNavigationTrait : public UMassEntityTraitBase
 
 protected:
 	virtual void BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, const UWorld& World) const override;
+
+protected:
+	/* 설정값 — DA_MassEnemy_* 의 이 Trait에서 적 종류마다 정한다 */
+
+	UPROPERTY(EditAnywhere, Category = "JY")
+	FJY_EnemyRangeParams RangeParams;
 };

@@ -5,6 +5,7 @@
 #include "Toolsets/JY_FabToolset.h"
 #include "Toolsets/JY_FractureToolset.h"
 #include "Toolsets/JY_LevelToolset.h"
+#include "Toolsets/JY_StateTreeToolset.h"
 
 /* 에디터 전용 모듈. MCP(ToolsetRegistry)에 프로젝트 툴셋을 등록한다 */
 class FJY_RoguelikeEditorModule : public IModuleInterface
@@ -16,6 +17,7 @@ public:
 		UToolsetRegistry::RegisterToolsetClass(UJY_FabToolset::StaticClass());
 		UToolsetRegistry::RegisterToolsetClass(UJY_FractureToolset::StaticClass());
 		UToolsetRegistry::RegisterToolsetClass(UJY_LevelToolset::StaticClass());
+		UToolsetRegistry::RegisterToolsetClass(UJY_StateTreeToolset::StaticClass());
 	}
 
 	virtual void ShutdownModule() override
@@ -24,6 +26,7 @@ public:
 		UToolsetRegistry::UnregisterToolsetClass(UJY_FabToolset::StaticClass());
 		UToolsetRegistry::UnregisterToolsetClass(UJY_FractureToolset::StaticClass());
 		UToolsetRegistry::UnregisterToolsetClass(UJY_LevelToolset::StaticClass());
+		UToolsetRegistry::UnregisterToolsetClass(UJY_StateTreeToolset::StaticClass());
 	}
 };
 

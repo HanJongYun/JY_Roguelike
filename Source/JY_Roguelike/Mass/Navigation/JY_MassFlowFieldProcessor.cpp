@@ -2,12 +2,14 @@
 
 #include "Mass/Core/JY_MassEnemySubsystem.h"
 #include "Mass/JY_MassProcessorOrder.h"
+#include "Mass/JY_MassStateTreeWake.h"
 #include "Mass/JY_MassTypes.h"
 #include "MassCommonFragments.h"
 #include "MassCommonTypes.h"
 #include "MassExecutionContext.h"
 #include "MassMovementFragments.h"
 #include "MassNavigationFragments.h"
+#include "MassSignalSubsystem.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(JY_MassFlowFieldProcessor)
 
@@ -42,36 +44,35 @@ UJY_MassFlowFieldProcessor::UJY_MassFlowFieldProcessor()
 void UJY_MassFlowFieldProcessor::ConfigureQueries(const TSharedRef<FMassEntityManager>& EntityManager) //override
 {
 	EntityQuery.AddRequirement<FTransformFragment>(EMassFragmentAccess::ReadOnly);
-	EntityQuery.AddRequirement<FJY_EnemyBehaviorFragment>(EMassFragmentAccess::ReadOnly);
+	EntityQuery.AddRequirement<FJY_EnemyBehaviorFragment>(EMassFragmentAccess::ReadWrite);
 	EntityQuery.AddRequirement<FJY_NavPolyFragment>(EMassFragmentAccess::ReadOnly);
 	EntityQuery.AddRequirement<FMassMoveTargetFragment>(EMassFragmentAccess::ReadWrite);
-	EntityQuery.AddConstSharedRequirement<FMassMovementParameters>(EMassFragmentPresence::All);
+	EntityQuery.AddConstSharedRequirement<FJY_EnemyRangeParams>(EMassFragmentPresence::All);
 	EntityQuery.AddSubsystemRequirement<UJY_MassEnemySubsystem>(EMassFragmentAccess::ReadOnly);
+	EntityQuery.AddSubsystemRequirement<UMassSignalSubsystem>(EMassFragmentAccess::ReadWrite);
 }
 
 /* 플로우 필드는 PrePhysics 시작 알림에서 게임 스레드가 다시 만든 뒤라, 여기서는 읽기만 한다 */
 // [Server]
 void UJY_MassFlowFieldProcessor::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context) //override
 {
-	const UWorld* World = EntityManager.GetWorld();
-
-	auto SetMoveTargets = [World](FMassExecutionContext& ChunkContext)
+	auto SetMoveTargets = [](FMassExecutionContext& ChunkContext)
 	{
 		const UJY_MassEnemySubsystem& MassEnemySubsystem = ChunkContext.GetSubsystemChecked<UJY_MassEnemySubsystem>();
 		const FJY_NavFlowField& FlowField = MassEnemySubsystem.GetFlowField();
 		const FVector& PlayerNavLocation = MassEnemySubsystem.GetPlayerNavLocation();
 
 		const TConstArrayView<FTransformFragment> Transforms = ChunkContext.GetFragmentView<FTransformFragment>();
-		const TConstArrayView<FJY_EnemyBehaviorFragment> Behaviors = ChunkContext.GetFragmentView<FJY_EnemyBehaviorFragment>();
+		const TArrayView<FJY_EnemyBehaviorFragment> Behaviors = ChunkContext.GetMutableFragmentView<FJY_EnemyBehaviorFragment>();
 		const TConstArrayView<FJY_NavPolyFragment> NavPolys = ChunkContext.GetFragmentView<FJY_NavPolyFragment>();
 		const TArrayView<FMassMoveTargetFragment> MoveTargets = ChunkContext.GetMutableFragmentView<FMassMoveTargetFragment>();
-		const FMassMovementParameters& MovementParameters = ChunkContext.GetConstSharedFragment<FMassMovementParameters>();
+		const FJY_EnemyRangeParams& RangeParams = ChunkContext.GetConstSharedFragment<FJY_EnemyRangeParams>();
+
+		/* 거리 안팎이 바뀐 적 — 무엇을 할지는 적마다의 StateTree가 정한다 */
+		TArray<FMassEntityHandle, TInlineAllocator<16>> EntitiesToWake;
 
 		for (FMassExecutionContext::FEntityIterator EntityIt = ChunkContext.CreateEntityIterator(); EntityIt; ++EntityIt)
 		{
-			if (Behaviors[EntityIt].State != EJY_EnemyState::Chase)
-				continue;
-
 			/* 목표에 이어지지 않은 다각형(다른 방·끊긴 바닥)이면 갈 곳을 바꾸지 않는다 */
 			const NavNodeRef PolyRef = NavPolys[EntityIt].PolyRef;
 			const FJY_NavFlowStep* FlowStep = FlowField.FindStep(PolyRef);
@@ -94,22 +95,31 @@ void UJY_MassFlowFieldProcessor::Execute(FMassEntityManager& EntityManager, FMas
 			}
 			const float DistanceToTarget = FVector::Dist(EnemyLocation, TargetLocation);
 
-			FMassMoveTargetFragment& MoveTarget = MoveTargets[EntityIt];
-			if (MoveTarget.GetCurrentAction() != EMassMovementAction::Move)
+			/* 플레이어 다각형의 DistanceToGoal은 0이라 따로 가르지 않는다 (JY_NavFlowField.cpp:32) */
+			const float DistanceToPlayer = DistanceToTarget + GuideStep->DistanceToGoal;
+
+			/* 거리는 쫓지 않는 적도 잰다 — 서 있는 적이 "플레이어가 멀어졌다"를 알아야 다시 쫓는다. 나가는 선을 더 멀리 둬 경계에서 안팎이 계속 바뀌지 않게 */
+			FJY_EnemyBehaviorFragment& Behavior = Behaviors[EntityIt];
+			const float RangeDistance = Behavior.bInsideRange == true ? RangeParams.StopDistance + RangeParams.ResumeMargin : RangeParams.StopDistance;
+			const bool bInsideRange = DistanceToPlayer <= RangeDistance;
+			if (bInsideRange != Behavior.bInsideRange)
 			{
-				MoveTarget.CreateNewAction(EMassMovementAction::Move, *World);
+				Behavior.bInsideRange = bInsideRange;
+				EntitiesToWake.Add(ChunkContext.GetEntity(EntityIt));
 			}
+
+			/* 갈 곳은 쫓는 적만 바꾼다 — 이동을 켜고 끄는 것은 StateTree Task */
+			if (Behavior.State != EJY_EnemyState::Chase)
+				continue;
+
+			FMassMoveTargetFragment& MoveTarget = MoveTargets[EntityIt];
 			MoveTarget.Center = TargetLocation;
 			MoveTarget.Forward = (TargetLocation - EnemyLocation).GetSafeNormal2D();
-			/* 플레이어 다각형의 DistanceToGoal은 0이라 따로 가르지 않는다 (JY_NavFlowField.cpp:32) */
-			MoveTarget.DistanceToGoal = DistanceToTarget + GuideStep->DistanceToGoal;
-
-			/* [임시코드] (2.5에서 StateTree 추격 Task가 채움) 엔진 Steering은 이 속도로 가고, 0이면 안 움직인다 (MassSteeringProcessors.cpp, MassNavMeshPathFollowTask.cpp:134) */
-			MoveTarget.DesiredSpeed.Set(MovementParameters.DefaultDesiredSpeed);
-
-			/* 남은 거리가 끝까지의 경로 거리라, 플레이어에 가까워질 때만 엔진이 감속해 선다 */
-			MoveTarget.IntentAtGoal = EMassMovementAction::Stand;
+			MoveTarget.DistanceToGoal = DistanceToPlayer;
 		}
+
+		UMassSignalSubsystem& SignalSubsystem = ChunkContext.GetMutableSubsystemChecked<UMassSignalSubsystem>();
+		JY_MassStateTreeWake::WakeEntities(ChunkContext, SignalSubsystem, EntitiesToWake);
 	};
 	EntityQuery.ForEachEntityChunk(Context, SetMoveTargets);
 }

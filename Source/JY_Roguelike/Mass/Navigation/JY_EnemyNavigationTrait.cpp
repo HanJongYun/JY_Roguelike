@@ -3,6 +3,7 @@
 #include "Mass/JY_MassTypes.h"
 #include "MassCommonFragments.h"
 #include "MassEntityTemplateRegistry.h"
+#include "MassEntityUtils.h"
 #include "MassMovementFragments.h"
 #include "MassNavigationFragments.h"
 
@@ -17,6 +18,11 @@ void UJY_EnemyNavigationTrait::BuildTemplate(FMassEntityTemplateBuildContext& Bu
 	BuildContext.RequireFragment<FMassVelocityFragment>();
 
 	BuildContext.AddFragment<FJY_NavPolyFragment>();
+
+	/* 같은 값은 적 종류끼리 하나를 같이 쓴다 — 엔진 이동 Trait와 같은 방식 (MassMovementTrait.cpp:24) */
+	FMassEntityManager& EntityManager = UE::Mass::Utils::GetEntityManagerChecked(World);
+	const FConstSharedStruct RangeParamsFragment = EntityManager.GetOrCreateConstSharedFragment(RangeParams);
+	BuildContext.AddConstSharedFragment(RangeParamsFragment);
 
 	/* 위치는 UJY_MassApplyMovementProcessor가 NavMesh 위로만 옮긴다 — 엔진 이동이 이 적을 건너뛰게 (MassMovementProcessors.cpp:86) */
 	BuildContext.AddTag<FMassCustomMovementTag>();

@@ -40,6 +40,7 @@ public class JY_Roguelike : ModuleRules
 			"MassSignals",
 			"MassLOD",
 			"MassSimulation",
+			"MassAIBehavior",
 			"NavigationSystem",
 			"NetCore"
 		});

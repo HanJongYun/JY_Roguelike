@@ -28,7 +28,13 @@ public class JY_RoguelikeEditor : ModuleRules
 			"DataflowCore",
 			"PlanarCut",
 			"FractureEngine",
-			"PropertyPath"
+			"PropertyPath",
+			"StateTreeModule",
+			"StateTreeEditorModule",
+			"MassAIBehavior",
+			"MassEntity",
+			"PropertyBindingUtils",
+			"MassSpawner"
 		});
 
 		PublicIncludePaths.AddRange(new string[] {

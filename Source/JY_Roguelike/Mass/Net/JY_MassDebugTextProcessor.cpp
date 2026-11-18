@@ -45,7 +45,13 @@ void UJY_MassDebugTextProcessor::Execute(FMassEntityManager& EntityManager, FMas
 			const FVector TextLocation = Transforms[EntityIt].GetTransform().GetLocation() + JY_MassDebugText::TextOffset;
 			const FJY_EnemyVisualFragment& Visual = Visuals[EntityIt];
 			const FString StateName = StateEnum->GetNameStringByValue(static_cast<int64>(Visual.State));
-			const FString DebugText = FString::Printf(TEXT("%s %d"), *StateName, Visual.HealthPct);
+			FString DebugText = FString::Printf(TEXT("%s %d"), *StateName, Visual.HealthPct);
+
+			/* 걸린 상태이상이 있으면 비트 값을 붙인다 (예: Chase 255 S2) */
+			if (Visual.StatusFlags != 0)
+			{
+				DebugText += FString::Printf(TEXT(" S%d"), Visual.StatusFlags);
+			}
 
 			/* 시간 0 = 이번 프레임만 그린다 (HUD.cpp:764) */
 			DrawDebugString(World, TextLocation, DebugText, nullptr, FColor::Green, 0.0f);

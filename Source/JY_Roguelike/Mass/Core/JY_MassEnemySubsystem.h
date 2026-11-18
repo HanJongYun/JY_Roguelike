@@ -4,6 +4,7 @@
 #include "Subsystems/WorldSubsystem.h"
 #include "Mass/EntityHandle.h"
 #include "Mass/ExternalSubsystemTraits.h"
+#include "Mass/JY_MassTypes.h"
 #include "Mass/Navigation/JY_NavFlowField.h"
 #include "JY_MassEnemySubsystem.generated.h"
 
@@ -66,11 +67,11 @@ public:
 	/* 모양 안의 맞을 수 있는 적(예고 중 제외)을 대상 목록에 더한다. Center = 모양 중심, Forward = 수평 앞 방향 */
 	void FindEnemiesInShape(const FJY_HitShape& Shape, const FVector& Center, const FVector& Forward, TArray<FJY_CombatTarget>& OutTargets) const;
 
-	/* 적 1마리가 받을 최종 피해를 쌓는다 — 다음 Mass 처리 때 피해 Processor가 체력에 반영 */
-	void AddPendingHit(FMassEntityHandle Entity, float Damage);
+	/* 적 1마리가 받을 최종 피해와 걸 상태이상(번호, 없으면 INDEX_NONE)을 쌓는다 — 다음 Mass 처리 때 피해 Processor가 반영 */
+	void AddPendingHit(FMassEntityHandle Entity, float Damage, int32 StatusIndex);
 
-	/* 쌓인 피해를 통째로 넘기고 비운다 */
-	TMap<FMassEntityHandle, float> ConsumePendingHits();
+	/* 쌓인 것을 통째로 넘기고 비운다 */
+	TMap<FMassEntityHandle, FJY_PendingMassHit> ConsumePendingHits();
 
 	/* 죽은 적 1마리를 지운다 — 엔티티는 이번 Mass 단계 끝에, 복제 데이터는 바로 */
 	void DestroyEnemy(FMassExecutionContext& Context, FMassEntityHandle Entity, int32 ReplicationID);
@@ -103,8 +104,8 @@ private:
 
 	FJY_NavFlowField FlowField;
 
-	/* 적별로 이번 프레임에 받은 최종 피해 합 — 공격(CombatQuery::ApplyHit)이 쌓고 UJY_MassDamageProcessor가 비운다 */
-	TMap<FMassEntityHandle, float> PendingHitsBuffer;
+	/* 적별로 이번 프레임에 받은 피해 합과 걸 상태이상 — 공격(CombatQuery::ApplyHit)이 쌓고 UJY_MassDamageProcessor가 비운다 */
+	TMap<FMassEntityHandle, FJY_PendingMassHit> PendingHitsBuffer;
 
 	/* 서버·클라 — ReplicationID로 내 엔티티 찾기 */
 

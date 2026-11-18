@@ -237,7 +237,8 @@ TArray<FMassEntityHandle> UJY_MassEnemySubsystem::SpawnWave(const UJY_EnemyDefin
 		const FTransformFragment& TransformFragment = EntityManager.GetFragmentDataChecked<FTransformFragment>(Entity);
 		const FTransform& Transform = TransformFragment.GetTransform();
 		const FJY_EnemyHealthFragment& Health = EntityManager.GetFragmentDataChecked<FJY_EnemyHealthFragment>(Entity);
-		const FJY_EnemyState EnemyState = UJY_MassNetWriteProcessor::MakeEnemyState(Transform, Health, Behavior, RoomOrigin);
+		const uint8 NoStatusFlags = 0;
+		const FJY_EnemyState EnemyState = UJY_MassNetWriteProcessor::MakeEnemyState(Transform, Health, Behavior, NoStatusFlags, RoomOrigin);
 		const int32 ReplicationID = RoomEnemyNetActor->AddEnemy(static_cast<uint8>(DefinitionIndex), EnemyState);
 
 		/* 서버 엔티티 → 복제 데이터 연결. 클라는 반대 방향(EntityByReplicationID)으로 찾는다 */
@@ -271,14 +272,18 @@ void UJY_MassEnemySubsystem::DestroyAllEnemies()
 }
 
 // [Server]
-void UJY_MassEnemySubsystem::AddPendingHit(FMassEntityHandle Entity, float Damage)
+void UJY_MassEnemySubsystem::AddPendingHit(FMassEntityHandle Entity, float Damage, int32 StatusIndex)
 {
-	float& PendingDamage = PendingHitsBuffer.FindOrAdd(Entity, 0.0f);
-	PendingDamage += Damage;
+	FJY_PendingMassHit& PendingHit = PendingHitsBuffer.FindOrAdd(Entity);
+	PendingHit.Damage += Damage;
+	if (StatusIndex != INDEX_NONE)
+	{
+		PendingHit.StatusFlags |= static_cast<uint8>(1 << StatusIndex);
+	}
 }
 
 // [Server]
-TMap<FMassEntityHandle, float> UJY_MassEnemySubsystem::ConsumePendingHits()
+TMap<FMassEntityHandle, FJY_PendingMassHit> UJY_MassEnemySubsystem::ConsumePendingHits()
 {
 	return MoveTemp(PendingHitsBuffer);
 }

@@ -24,7 +24,7 @@ protected:
 
 public:
 	/* 서버 엔티티 값을 보낼 형태(방 기준 상대 위치, 0~255 비율)로 바꾼다 */
-	static FJY_EnemyState MakeEnemyState(const FTransform& Transform, const FJY_EnemyHealthFragment& Health, const FJY_EnemyBehaviorFragment& Behavior, const FVector& RoomOrigin);
+	static FJY_EnemyState MakeEnemyState(const FTransform& Transform, const FJY_EnemyHealthFragment& Health, const FJY_EnemyBehaviorFragment& Behavior, uint8 StatusFlags, const FVector& RoomOrigin);
 
 private:
 	FMassEntityQuery EntityQuery;

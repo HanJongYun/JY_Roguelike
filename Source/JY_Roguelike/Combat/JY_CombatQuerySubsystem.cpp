@@ -215,7 +215,7 @@ void UJY_CombatQuerySubsystem::AppendMassTargetsInShape(const FJY_HitShape& Shap
 	MassEnemySubsystem->FindEnemiesInShape(Shape, Center, Forward, OUT OutTargets);
 }
 
-/* 조종 클라의 연출용 판정이 실수로 불러도 서버에만 쌓인다. 피격 큐·밀어내기·상태이상은 Mass 적에 아직 없다 */
+/* 조종 클라의 연출용 판정이 실수로 불러도 서버에만 쌓인다. 피격 큐·밀어내기는 Mass 적에 아직 없다 */
 // [Server]
 void UJY_CombatQuerySubsystem::AddMassEnemyHit(const FJY_CombatTarget& Target, const FJY_HitPayload& Payload) const
 {
@@ -224,8 +224,17 @@ void UJY_CombatQuerySubsystem::AddMassEnemyHit(const FJY_CombatTarget& Target, c
 		return;
 
 	const FJY_DamageResult DamageResult = ComputeDamage(Payload);
+
+	/* Mass 적은 GE 대신 상태이상 번호로 건다 — 수치는 DA_JY_StatusEffectData의 Mass 칸 */
+	int32 StatusIndex = INDEX_NONE;
+	if (Payload.StatusTag.IsValid() == true)
+	{
+		const UJY_StatusEffectData* StatusEffectData = UJY_AssetManager::Get().GetStatusEffectData();
+		StatusIndex = StatusEffectData->FindStatusEffectIndex(Payload.StatusTag);
+	}
+
 	UJY_MassEnemySubsystem* MassEnemySubsystem = World->GetSubsystem<UJY_MassEnemySubsystem>();
-	MassEnemySubsystem->AddPendingHit(Target.Entity, DamageResult.Damage);
+	MassEnemySubsystem->AddPendingHit(Target.Entity, DamageResult.Damage, StatusIndex);
 }
 
 // [Server]

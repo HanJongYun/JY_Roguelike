@@ -46,6 +46,7 @@ struct FJY_EnemyState
 	UPROPERTY()
 	uint8 ShieldPct = 0;
 
+	/* 걸린 상태이상 — 비트 번호 = DA_JY_StatusEffectData 목록 번호 */
 	UPROPERTY()
 	uint8 StatusFlags = 0;
 
@@ -87,7 +88,7 @@ struct FJY_EnemyHealthFragment : public FMassFragment
 	UPROPERTY(EditAnywhere)
 	float ShieldMax = 0.0f;
 
-	/* 맞을 때마다 1 증가 — 255 다음은 0 */
+	/* 직접 피해를 받을 때마다 1 증가 — 255 다음은 0. 상태이상 틱으로는 안 오른다 */
 	UPROPERTY()
 	uint8 HitSerial = 0;
 };
@@ -134,4 +135,45 @@ struct FJY_NavPolyFragment : public FMassFragment
 	GENERATED_BODY()
 
 	NavNodeRef PolyRef = INVALID_NAVNODEREF;
+};
+
+/* ---------- 상태이상 (서버) ---------- */
+
+namespace JY_Mass
+{
+	/* 적 1마리에 걸 수 있는 상태이상 종류 수 — 복제 값(FJY_EnemyState::StatusFlags)이 uint8 비트 */
+	constexpr int32 MaxStatusCount = 8;
+}
+
+/* 상태이상 하나의 시각 (월드 시각, 초) */
+struct FJY_EnemyStatusSlot
+{
+	/* 풀리는 시각 */
+	double EndSeconds = 0.0;
+
+	/* 다음에 체력을 깎을 시각 */
+	double NextTickSeconds = 0.0;
+};
+
+/* 적에게 걸린 상태이상 — 처음부터 붙여 두고 값으로 켜고 끈다. 번호 = DA_JY_StatusEffectData 목록 번호 */
+USTRUCT()
+struct FJY_EnemyStatusFragment : public FMassFragment
+{
+	GENERATED_BODY()
+
+	FJY_EnemyStatusSlot Slots[JY_Mass::MaxStatusCount];
+
+	/* 지금 걸린 상태의 비트 — 그대로 복제 값 StatusFlags가 된다 */
+	UPROPERTY()
+	uint8 ActiveFlags = 0;
+};
+
+/* 적 1마리가 이번 프레임에 받은 것 */
+struct FJY_PendingMassHit
+{
+	/* 직접 피해 합 */
+	float Damage = 0.0f;
+
+	/* 걸 상태이상의 비트 */
+	uint8 StatusFlags = 0;
 };

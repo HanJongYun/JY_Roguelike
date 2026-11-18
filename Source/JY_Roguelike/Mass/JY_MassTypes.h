@@ -127,14 +127,11 @@ struct FJY_EnemyVisualFragment : public FMassFragment
 	uint8 StatusFlags = 0;
 };
 
-/* 적이 밟고 있는 NavMesh 다각형 (서버) — 스폰 때 채우고, 이동하면 갱신 */
+/* 적이 밟고 있는 NavMesh 다각형 (서버) — 스폰 때 채우고, 이동하면 갱신. 위치는 Transform 하나에만 둔다 */
 USTRUCT()
 struct FJY_NavPolyFragment : public FMassFragment
 {
 	GENERATED_BODY()
 
 	NavNodeRef PolyRef = INVALID_NAVNODEREF;
-
-	/* NavMesh 위 마지막 위치 — 다음 프레임 NavMesh 붙이기의 출발점 */
-	FVector Location = FVector::ZeroVector;
 };

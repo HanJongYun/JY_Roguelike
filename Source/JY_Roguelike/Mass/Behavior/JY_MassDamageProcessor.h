@@ -3,16 +3,16 @@
 #include "CoreMinimal.h"
 #include "MassProcessor.h"
 #include "MassEntityQuery.h"
-#include "JY_EnemySpawningProcessor.generated.h"
+#include "JY_MassDamageProcessor.generated.h"
 
-/* 예고 시간이 지난 서버 적을 Spawning에서 Chase로 바꾼다 */
+/* 쌓인 피해를 적 체력에 반영하고, 체력이 0이 된 적을 지운다 — 적 체력을 바꾸는 유일한 곳 */
 UCLASS()
-class UJY_EnemySpawningProcessor : public UMassProcessor
+class UJY_MassDamageProcessor : public UMassProcessor
 {
 	GENERATED_BODY()
 
 public:
-	UJY_EnemySpawningProcessor();
+	UJY_MassDamageProcessor();
 
 protected:
 	virtual void ConfigureQueries(const TSharedRef<FMassEntityManager>& EntityManager) override;

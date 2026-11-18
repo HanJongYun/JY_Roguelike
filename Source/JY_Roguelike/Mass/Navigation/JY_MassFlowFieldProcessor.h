@@ -3,16 +3,16 @@
 #include "CoreMinimal.h"
 #include "MassProcessor.h"
 #include "MassEntityQuery.h"
-#include "JY_EnemyDamageProcessor.generated.h"
+#include "JY_MassFlowFieldProcessor.generated.h"
 
-/* 쌓인 피해를 적 체력에 반영하고, 체력이 0이 된 적을 지운다 — 적 체력을 바꾸는 유일한 곳 */
+/* 쫓는 적마다 밟은 다각형의 다음 문을 플로우 필드에서 읽어 갈 곳(MoveTarget)에 넣는다 */
 UCLASS()
-class UJY_EnemyDamageProcessor : public UMassProcessor
+class UJY_MassFlowFieldProcessor : public UMassProcessor
 {
 	GENERATED_BODY()
 
 public:
-	UJY_EnemyDamageProcessor();
+	UJY_MassFlowFieldProcessor();
 
 protected:
 	virtual void ConfigureQueries(const TSharedRef<FMassEntityManager>& EntityManager) override;

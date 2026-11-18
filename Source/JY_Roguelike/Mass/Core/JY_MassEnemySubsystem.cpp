@@ -7,7 +7,7 @@
 #include "MassNavigationSubsystem.h"
 #include "MassExecutionContext.h"
 #include "Mass/JY_MassTypes.h"
-#include "Mass/Net/JY_EnemyNetWriteProcessor.h"
+#include "Mass/Net/JY_MassNetWriteProcessor.h"
 #include "Mass/Net/JY_RoomEnemyNetActor.h"
 #include "Mass/EntityFragments.h"
 #include "MassEntitySubsystem.h"
@@ -70,16 +70,30 @@ void UJY_MassEnemySubsystem::HandlePrePhysicsStarted(float DeltaSeconds)
 
 	PlayerLocation = PlayerPawn->GetActorLocation();
 
+	/* 길 표를 읽을 적이 없으면 갱신하지 않는다 — 표는 남겨 둔다(다음 웨이브 때 플레이어가 NavMesh 밖이어도 마지막 표로 쫓아오게) */
+	if (EntityByReplicationID.Num() == 0)
+		return;
+
 	const ARecastNavMesh* NavMesh = GetNavMesh();
 	if (NavMesh == nullptr)
 		return;
 
+	/* 갈 곳은 바닥 점이어야 한다 — 엔진은 갈 곳이 바닥 위라고 보고 남은 거리를 잰다(캡슐 중심을 주면 높이 차만큼 못 닿음). NavMesh 밖에 서면 표는 그대로 두고 아래에서 좌우만 따라간다 */
+	FNavLocation PlayerNavPoint;
+	if (NavMesh->ProjectPoint(PlayerLocation, OUT PlayerNavPoint, NavMesh->GetDefaultQueryExtent()) == false)
+	{
+		/* 발밑 NavMesh를 못 찾아도 좌우로는 플레이어를 따라가게 — 높이만 마지막 바닥 높이 */
+		PlayerNavLocation = FVector(PlayerLocation.X, PlayerLocation.Y, PlayerNavLocation.Z);
+		return;
+	}
+
+	PlayerNavLocation = PlayerNavPoint.Location;
+
 	/* 같은 다각형 안에서 움직이는 동안은 표가 그대로 맞다 — 다각형을 옮겼을 때만 다시 만든다 */
-	const NavNodeRef PlayerPoly = NavMesh->FindNearestPoly(PlayerLocation, NavMesh->GetDefaultQueryExtent());
-	if (PlayerPoly == INVALID_NAVNODEREF || PlayerPoly == FlowField.GetGoalPoly())
+	if (PlayerNavPoint.NodeRef == FlowField.GetGoalPoly())
 		return;
 
-	FlowField.Rebuild(*NavMesh, PlayerPoly, PlayerLocation);
+	FlowField.Rebuild(*NavMesh, PlayerNavPoint.NodeRef, PlayerNavLocation);
 }
 
 // [Server]
@@ -95,11 +109,11 @@ void UJY_MassEnemySubsystem::InitializeNavPolys(TConstArrayView<FMassEntityHandl
 		FTransformFragment& TransformFragment = EntityManager.GetFragmentDataChecked<FTransformFragment>(Entity);
 		FTransform& Transform = TransformFragment.GetMutableTransform();
 
-		/* 모든 스폰을 NavMesh 위에서 시작시킨다 — NavMesh 붙이기가 이 위치·다각형에서 출발한다 */
+		/* 모든 스폰을 NavMesh 위에서 시작시킨다 — 이동(UJY_MassApplyMovementProcessor)이 이 위치·다각형에서 출발한다 */
 		FNavLocation NavLocation;
 		if (NavMesh->ProjectPoint(Transform.GetLocation(), OUT NavLocation, NavMesh->GetDefaultQueryExtent()) == false)
 		{
-			/* 실패한 적은 PolyRef가 비어 길·NavMesh 붙이기가 건너뛰어 그 자리에 선다 — 스폰 포인트 배치 실수를 찾으려고 남긴다 */
+			/* 실패한 적은 PolyRef가 비어 길·이동이 건너뛰어 그 자리에 선다 — 스폰 포인트 배치 실수를 찾으려고 남긴다 */
 			UE_LOG(LogJY, Warning, TEXT("[Server] JYMassSpawn NavMesh 투영 실패 — 스폰 위치 %s 가 NavMesh 밖, 적이 움직이지 않음"), *Transform.GetLocation().ToString());
 			continue;
 		}
@@ -107,7 +121,6 @@ void UJY_MassEnemySubsystem::InitializeNavPolys(TConstArrayView<FMassEntityHandl
 		Transform.SetLocation(NavLocation.Location);
 		FJY_NavPolyFragment& NavPoly = EntityManager.GetFragmentDataChecked<FJY_NavPolyFragment>(Entity);
 		NavPoly.PolyRef = NavLocation.NodeRef;
-		NavPoly.Location = NavLocation.Location;
 	}
 }
 
@@ -224,7 +237,7 @@ TArray<FMassEntityHandle> UJY_MassEnemySubsystem::SpawnWave(const UJY_EnemyDefin
 		const FTransformFragment& TransformFragment = EntityManager.GetFragmentDataChecked<FTransformFragment>(Entity);
 		const FTransform& Transform = TransformFragment.GetTransform();
 		const FJY_EnemyHealthFragment& Health = EntityManager.GetFragmentDataChecked<FJY_EnemyHealthFragment>(Entity);
-		const FJY_EnemyState EnemyState = UJY_EnemyNetWriteProcessor::MakeEnemyState(Transform, Health, Behavior, RoomOrigin);
+		const FJY_EnemyState EnemyState = UJY_MassNetWriteProcessor::MakeEnemyState(Transform, Health, Behavior, RoomOrigin);
 		const int32 ReplicationID = RoomEnemyNetActor->AddEnemy(static_cast<uint8>(DefinitionIndex), EnemyState);
 
 		/* 서버 엔티티 → 복제 데이터 연결. 클라는 반대 방향(EntityByReplicationID)으로 찾는다 */

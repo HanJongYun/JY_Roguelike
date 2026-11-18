@@ -31,14 +31,15 @@ public:
 	/* 목표 다각형부터 이어진 다각형 전부의 다음 걸음을 다시 계산한다 */
 	void Rebuild(const ARecastNavMesh& NavMesh, NavNodeRef InGoalPoly, const FVector& GoalLocation);
 
-	void Reset();
-
 	/* 이 다각형의 다음 걸음 (목표에 이어지지 않은 다각형이면 nullptr) */
 	const FJY_NavFlowStep* FindStep(NavNodeRef PolyRef) const { return StepByPoly.Find(PolyRef); }
 
 	NavNodeRef GetGoalPoly() const { return GoalPoly; }
 
 	const TMap<NavNodeRef, FJY_NavFlowStep>& GetSteps() const { return StepByPoly; }
+
+private:
+	void Reset();
 
 private:
 	NavNodeRef GoalPoly = INVALID_NAVNODEREF;

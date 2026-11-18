@@ -1,4 +1,4 @@
-#include "Mass/Navigation/JY_EnemyFlowFieldProcessor.h"
+#include "Mass/Navigation/JY_MassFlowFieldProcessor.h"
 
 #include "Mass/Core/JY_MassEnemySubsystem.h"
 #include "Mass/JY_MassProcessorOrder.h"
@@ -9,18 +9,27 @@
 #include "MassMovementFragments.h"
 #include "MassNavigationFragments.h"
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(JY_EnemyFlowFieldProcessor)
+#include UE_INLINE_GENERATED_CPP_BY_NAME(JY_MassFlowFieldProcessor)
 
-namespace JY_EnemyFlowField
+namespace JY_MassFlowField
 {
 	/* 문 위의 갈 곳에 이만큼 붙으면 문에 도착한 것으로 본다 — 0이면 방향이 0이 돼 멈춤(GetSafeNormal2D, Vector.h:656) */
 	constexpr float PortalReachedTolerance = 0.1f;
 
 	/* 문 끝에서 이만큼 안쪽 — NavMesh는 이미 몸 반경만큼 벽에서 떨어져 있어, 가장자리에 비비지 않을 여유만 */
 	constexpr float PortalEdgeInset = 30.0f;
+
+	/* 그 다각형에 있는 적이 갈 곳 — 플레이어 다각형이면 사이에 벽이 없으니 플레이어, 아니면 플레이어 쪽 직선이 문을 지나는 점(트인 곳은 곧장, 기둥 앞은 모서리를 끼고 돈다) */
+	FVector GetTargetLocation(const FJY_NavFlowField& FlowField, NavNodeRef Poly, const FJY_NavFlowStep& FlowStep, const FVector& EnemyLocation, const FVector& PlayerNavLocation)
+	{
+		if (Poly == FlowField.GetGoalPoly())
+			return PlayerNavLocation;
+
+		return FlowStep.GetPortalCrossing(EnemyLocation, PlayerNavLocation, PortalEdgeInset);
+	}
 }
 
-UJY_EnemyFlowFieldProcessor::UJY_EnemyFlowFieldProcessor()
+UJY_MassFlowFieldProcessor::UJY_MassFlowFieldProcessor()
 	: EntityQuery(*this)
 {
 	/* 길은 서버가 정하고 클라는 위치만 받는다 */
@@ -30,7 +39,7 @@ UJY_EnemyFlowFieldProcessor::UJY_EnemyFlowFieldProcessor()
 	JY_MassProcessorOrder::PlaceInTasks(ExecutionOrder);
 }
 
-void UJY_EnemyFlowFieldProcessor::ConfigureQueries(const TSharedRef<FMassEntityManager>& EntityManager) //override
+void UJY_MassFlowFieldProcessor::ConfigureQueries(const TSharedRef<FMassEntityManager>& EntityManager) //override
 {
 	EntityQuery.AddRequirement<FTransformFragment>(EMassFragmentAccess::ReadOnly);
 	EntityQuery.AddRequirement<FJY_EnemyBehaviorFragment>(EMassFragmentAccess::ReadOnly);
@@ -42,7 +51,7 @@ void UJY_EnemyFlowFieldProcessor::ConfigureQueries(const TSharedRef<FMassEntityM
 
 /* 플로우 필드는 PrePhysics 시작 알림에서 게임 스레드가 다시 만든 뒤라, 여기서는 읽기만 한다 */
 // [Server]
-void UJY_EnemyFlowFieldProcessor::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context) //override
+void UJY_MassFlowFieldProcessor::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context) //override
 {
 	const UWorld* World = EntityManager.GetWorld();
 
@@ -50,7 +59,7 @@ void UJY_EnemyFlowFieldProcessor::Execute(FMassEntityManager& EntityManager, FMa
 	{
 		const UJY_MassEnemySubsystem& MassEnemySubsystem = ChunkContext.GetSubsystemChecked<UJY_MassEnemySubsystem>();
 		const FJY_NavFlowField& FlowField = MassEnemySubsystem.GetFlowField();
-		const FVector& PlayerLocation = MassEnemySubsystem.GetPlayerLocation();
+		const FVector& PlayerNavLocation = MassEnemySubsystem.GetPlayerNavLocation();
 
 		const TConstArrayView<FTransformFragment> Transforms = ChunkContext.GetFragmentView<FTransformFragment>();
 		const TConstArrayView<FJY_EnemyBehaviorFragment> Behaviors = ChunkContext.GetFragmentView<FJY_EnemyBehaviorFragment>();
@@ -69,25 +78,19 @@ void UJY_EnemyFlowFieldProcessor::Execute(FMassEntityManager& EntityManager, FMa
 			if (FlowStep == nullptr)
 				continue;
 
-			/* 플레이어와 같은 다각형이면 사이에 벽이 없으니 바로 간다 */
+			/* 갈 곳과 남은 거리는 같은 다각형(Guide)에서 꺼낸다 — 평소엔 내가 서 있는 다각형 */
 			const FVector EnemyLocation = Transforms[EntityIt].GetTransform().GetLocation();
-			const bool bInGoalPoly = PolyRef == FlowField.GetGoalPoly();
-			/* 문 가운데가 아니라 플레이어 쪽 직선이 문을 지나는 점 — 트인 곳은 곧장, 기둥 앞은 모서리를 끼고 돈다 */
-			FVector TargetLocation = bInGoalPoly ? PlayerLocation : FlowStep->GetPortalCrossing(EnemyLocation, PlayerLocation, JY_EnemyFlowField::PortalEdgeInset);
+			NavNodeRef GuidePoly = PolyRef;
+			const FJY_NavFlowStep* GuideStep = FlowStep;
+			FVector TargetLocation = JY_MassFlowField::GetTargetLocation(FlowField, GuidePoly, *GuideStep, EnemyLocation, PlayerNavLocation);
 
-			/* 문 선 위에 서면 아직 이 다각형이라 갈 곳이 발밑이 된다 — 다음 다각형의 갈 곳으로 넘긴다. 일찍 넘기면 다음 갈 곳까지 직선이 모서리를 스친다 */
-			if (bInGoalPoly == false && FVector::Dist2D(EnemyLocation, TargetLocation) < JY_EnemyFlowField::PortalReachedTolerance)
+			/* 문 위 갈 곳에 이미 서 있으면 아직 이 다각형이라 갈 곳이 발밑이 된다 — 다음 다각형을 기준으로 바꾼다. 일찍 바꾸면 다음 갈 곳까지 직선이 모서리를 스친다 */
+			if (GuidePoly != FlowField.GetGoalPoly() && FVector::Dist2D(EnemyLocation, TargetLocation) < JY_MassFlowField::PortalReachedTolerance)
 			{
-				const FJY_NavFlowStep* NextStep = FlowField.FindStep(FlowStep->NextPoly);
-				const bool bNextIsGoal = FlowStep->NextPoly == FlowField.GetGoalPoly();
-				if (bNextIsGoal == true)
-				{
-					TargetLocation = PlayerLocation;
-				}
-				else if (NextStep != nullptr)
-				{
-					TargetLocation = NextStep->GetPortalCrossing(EnemyLocation, PlayerLocation, JY_EnemyFlowField::PortalEdgeInset);
-				}
+				/* NextPoly는 Rebuild가 표에 먼저 넣은 다각형이라 항상 있다 (JY_NavFlowField.cpp:69) */
+				GuidePoly = FlowStep->NextPoly;
+				GuideStep = FlowField.FindStep(GuidePoly);
+				TargetLocation = JY_MassFlowField::GetTargetLocation(FlowField, GuidePoly, *GuideStep, EnemyLocation, PlayerNavLocation);
 			}
 			const float DistanceToTarget = FVector::Dist(EnemyLocation, TargetLocation);
 
@@ -98,7 +101,8 @@ void UJY_EnemyFlowFieldProcessor::Execute(FMassEntityManager& EntityManager, FMa
 			}
 			MoveTarget.Center = TargetLocation;
 			MoveTarget.Forward = (TargetLocation - EnemyLocation).GetSafeNormal2D();
-			MoveTarget.DistanceToGoal = bInGoalPoly ? DistanceToTarget : DistanceToTarget + FlowStep->DistanceToGoal;
+			/* 플레이어 다각형의 DistanceToGoal은 0이라 따로 가르지 않는다 (JY_NavFlowField.cpp:32) */
+			MoveTarget.DistanceToGoal = DistanceToTarget + GuideStep->DistanceToGoal;
 
 			/* [임시코드] (2.5에서 StateTree 추격 Task가 채움) 엔진 Steering은 이 속도로 가고, 0이면 안 움직인다 (MassSteeringProcessors.cpp, MassNavMeshPathFollowTask.cpp:134) */
 			MoveTarget.DesiredSpeed.Set(MovementParameters.DefaultDesiredSpeed);

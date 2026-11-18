@@ -3,16 +3,16 @@
 #include "CoreMinimal.h"
 #include "MassProcessor.h"
 #include "MassEntityQuery.h"
-#include "JY_EnemyFlowFieldProcessor.generated.h"
+#include "JY_MassSpawningProcessor.generated.h"
 
-/* 쫓는 적마다 밟은 다각형의 다음 문을 플로우 필드에서 읽어 갈 곳(MoveTarget)에 넣는다 */
+/* 예고 시간이 지난 서버 적을 Spawning에서 Chase로 바꾼다 */
 UCLASS()
-class UJY_EnemyFlowFieldProcessor : public UMassProcessor
+class UJY_MassSpawningProcessor : public UMassProcessor
 {
 	GENERATED_BODY()
 
 public:
-	UJY_EnemyFlowFieldProcessor();
+	UJY_MassSpawningProcessor();
 
 protected:
 	virtual void ConfigureQueries(const TSharedRef<FMassEntityManager>& EntityManager) override;

@@ -1,4 +1,4 @@
-#include "Mass/Net/JY_EnemyNetWriteProcessor.h"
+#include "Mass/Net/JY_MassNetWriteProcessor.h"
 
 #include "Mass/Core/JY_MassEnemySubsystem.h"
 #include "Mass/JY_MassTypes.h"
@@ -6,9 +6,9 @@
 #include "Mass/EntityFragments.h"
 #include "MassExecutionContext.h"
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(JY_EnemyNetWriteProcessor)
+#include UE_INLINE_GENERATED_CPP_BY_NAME(JY_MassNetWriteProcessor)
 
-namespace JY_EnemyNetWrite
+namespace JY_MassNetWrite
 {
 	constexpr float MaxRatioByte = 255.0f;
 
@@ -21,7 +21,7 @@ namespace JY_EnemyNetWrite
 	}
 }
 
-UJY_EnemyNetWriteProcessor::UJY_EnemyNetWriteProcessor()
+UJY_MassNetWriteProcessor::UJY_MassNetWriteProcessor()
 	: EntityQuery(*this)
 {
 	/* 클라는 받기만 한다 — 엔진 기본값 Server|Standalone(MassProcessor.cpp:138)에서 Standalone을 뺌 */
@@ -34,7 +34,7 @@ UJY_EnemyNetWriteProcessor::UJY_EnemyNetWriteProcessor()
 	bRequiresGameThreadExecution = true;
 }
 
-void UJY_EnemyNetWriteProcessor::ConfigureQueries(const TSharedRef<FMassEntityManager>& EntityManager) //override
+void UJY_MassNetWriteProcessor::ConfigureQueries(const TSharedRef<FMassEntityManager>& EntityManager) //override
 {
 	EntityQuery.AddRequirement<FTransformFragment>(EMassFragmentAccess::ReadOnly);
 	EntityQuery.AddRequirement<FJY_EnemyHealthFragment>(EMassFragmentAccess::ReadOnly);
@@ -44,7 +44,7 @@ void UJY_EnemyNetWriteProcessor::ConfigureQueries(const TSharedRef<FMassEntityMa
 
 /* 비교는 청크 안의 Fragment끼리 끝내고, 바뀐 적만 Actor 표(TMap)로 찾아 고친다 — 보낼 값끼리 비교하므로 1cm 미만 이동은 보내지 않음 */
 // [Server]
-void UJY_EnemyNetWriteProcessor::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context) //override
+void UJY_MassNetWriteProcessor::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context) //override
 {
 	UWorld* World = EntityManager.GetWorld();
 	UJY_MassEnemySubsystem* MassEnemySubsystem = World->GetSubsystem<UJY_MassEnemySubsystem>();
@@ -74,7 +74,7 @@ void UJY_EnemyNetWriteProcessor::Execute(FMassEntityManager& EntityManager, FMas
 }
 
 /* FVector_NetQuantize는 받는 쪽에서 1cm로 반올림된다 (NetSerialization.h:430) — 서버도 미리 반올림해야 소수점만 바뀐 값을 안 보낸다 */
-FJY_EnemyState UJY_EnemyNetWriteProcessor::MakeEnemyState(const FTransform& Transform, const FJY_EnemyHealthFragment& Health, const FJY_EnemyBehaviorFragment& Behavior, const FVector& RoomOrigin)
+FJY_EnemyState UJY_MassNetWriteProcessor::MakeEnemyState(const FTransform& Transform, const FJY_EnemyHealthFragment& Health, const FJY_EnemyBehaviorFragment& Behavior, const FVector& RoomOrigin)
 {
 	const FVector RelativeLocation = Transform.GetLocation() - RoomOrigin;
 
@@ -91,11 +91,11 @@ FJY_EnemyState UJY_EnemyNetWriteProcessor::MakeEnemyState(const FTransform& Tran
 	/* 최대 체력 0은 에셋(DA_MassEnemy_*) 값 실수 — 0으로 나누지 않고 드러낸다 */
 	if (ensureMsgf(Health.Max > 0.0f, TEXT("FJY_EnemyHealthFragment::Max가 0 이하 — DA_MassEnemy_* 서버 Trait 값 확인")))
 	{
-		EnemyState.HealthPct = JY_EnemyNetWrite::ToRatioByte(Health.Current, Health.Max);
+		EnemyState.HealthPct = JY_MassNetWrite::ToRatioByte(Health.Current, Health.Max);
 	}
 	if (Health.ShieldMax > 0.0f)
 	{
-		EnemyState.ShieldPct = JY_EnemyNetWrite::ToRatioByte(Health.Shield, Health.ShieldMax);
+		EnemyState.ShieldPct = JY_MassNetWrite::ToRatioByte(Health.Shield, Health.ShieldMax);
 	}
 	EnemyState.HitSerial = Health.HitSerial;
 	return EnemyState;

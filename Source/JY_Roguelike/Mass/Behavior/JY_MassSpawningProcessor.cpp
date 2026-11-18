@@ -1,12 +1,12 @@
-#include "Mass/Behavior/JY_EnemySpawningProcessor.h"
+#include "Mass/Behavior/JY_MassSpawningProcessor.h"
 
 #include "Mass/JY_MassProcessorOrder.h"
 #include "Mass/JY_MassTypes.h"
 #include "MassExecutionContext.h"
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(JY_EnemySpawningProcessor)
+#include UE_INLINE_GENERATED_CPP_BY_NAME(JY_MassSpawningProcessor)
 
-UJY_EnemySpawningProcessor::UJY_EnemySpawningProcessor()
+UJY_MassSpawningProcessor::UJY_MassSpawningProcessor()
 	: EntityQuery(*this)
 {
 	/* 상태는 서버가 정해 복제로 보낸다 — 엔진 기본값 Server|Standalone(MassProcessor.cpp:138)에서 Standalone을 뺌 */
@@ -17,14 +17,14 @@ UJY_EnemySpawningProcessor::UJY_EnemySpawningProcessor()
 	JY_MassProcessorOrder::PlaceInBehavior(ExecutionOrder);
 }
 
-void UJY_EnemySpawningProcessor::ConfigureQueries(const TSharedRef<FMassEntityManager>& EntityManager) //override
+void UJY_MassSpawningProcessor::ConfigureQueries(const TSharedRef<FMassEntityManager>& EntityManager) //override
 {
 	EntityQuery.AddRequirement<FJY_EnemyBehaviorFragment>(EMassFragmentAccess::ReadWrite);
 }
 
 /* [임시코드] (2.5 StateTree에서 등장 대기 상태로 옮기면 삭제 — 옮길지는 2.5에서 결정) 150마리 비교 한 번씩이라 태그로 거르지 않는다 */
 // [Server]
-void UJY_EnemySpawningProcessor::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context) //override
+void UJY_MassSpawningProcessor::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context) //override
 {
 	const UWorld* World = EntityManager.GetWorld();
 	const double NowSeconds = World->GetTimeSeconds();

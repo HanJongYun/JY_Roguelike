@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "MassProcessor.h"
 #include "MassEntityQuery.h"
-#include "JY_EnemyNetWriteProcessor.generated.h"
+#include "JY_MassNetWriteProcessor.generated.h"
 
 struct FJY_EnemyBehaviorFragment;
 struct FJY_EnemyHealthFragment;
@@ -11,12 +11,12 @@ struct FJY_EnemyState;
 
 /* 서버 적의 복제 데이터가 바뀌면 복제 Actor의 데이터를 고쳐 클라로 보내게 한다 */
 UCLASS()
-class UJY_EnemyNetWriteProcessor : public UMassProcessor
+class UJY_MassNetWriteProcessor : public UMassProcessor
 {
 	GENERATED_BODY()
 
 public:
-	UJY_EnemyNetWriteProcessor();
+	UJY_MassNetWriteProcessor();
 
 protected:
 	virtual void ConfigureQueries(const TSharedRef<FMassEntityManager>& EntityManager) override;

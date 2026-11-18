@@ -231,7 +231,7 @@ void UJY_CombatQuerySubsystem::AddMassEnemyHit(const FJY_CombatTarget& Target, c
 // [Server]
 void UJY_CombatQuerySubsystem::ApplyHit(const FJY_CombatTarget& Target, const FJY_HitPayload& Payload) const
 {
-	/* Mass 적은 체력을 여기서 바꾸지 않고 쌓아 둔다 — 다음 Mass 처리 때 UJY_EnemyDamageProcessor가 반영 */
+	/* Mass 적은 체력을 여기서 바꾸지 않고 쌓아 둔다 — 다음 Mass 처리 때 UJY_MassDamageProcessor가 반영 */
 	if (Target.IsMassEnemy() == true)
 	{
 		AddMassEnemyHit(Target, Payload);

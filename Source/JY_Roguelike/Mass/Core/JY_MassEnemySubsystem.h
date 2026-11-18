@@ -54,8 +54,11 @@ public:
 	/* 플레이어 쪽으로 가는 다각형별 다음 걸음 (서버) */
 	const FJY_NavFlowField& GetFlowField() const { return FlowField; }
 
-	/* 이번 프레임 시작 때 복사한 플레이어 위치 (서버) */
+	/* 이번 프레임 시작 때 복사한 플레이어 위치 = 캡슐 중심 (서버) — 사거리·타격처럼 몸 기준일 때 */
 	const FVector& GetPlayerLocation() const { return PlayerLocation; }
+
+	/* 플레이어 발밑 NavMesh 점 (서버) — 이동의 갈 곳처럼 바닥 기준일 때 */
+	const FVector& GetPlayerNavLocation() const { return PlayerNavLocation; }
 
 	/* 이 월드의 NavMesh (없으면 nullptr) */
 	const ARecastNavMesh* GetNavMesh() const;
@@ -73,7 +76,7 @@ public:
 	void DestroyEnemy(FMassExecutionContext& Context, FMassEntityHandle Entity, int32 ReplicationID);
 
 private:
-	/* Mass PrePhysics 처리 직전 — 플레이어 위치를 복사하고, 다른 다각형으로 넘어갔으면 플로우 필드를 다시 만든다 */
+	/* Mass PrePhysics 처리 직전 — 플레이어 위치를 복사하고, 적이 있을 때만 바닥 점과 플로우 필드를 갱신한다 */
 	void HandlePrePhysicsStarted(float DeltaSeconds);
 
 	/* 새로 만든 적마다 선 자리의 다각형을 넣는다 */
@@ -96,9 +99,11 @@ private:
 
 	FVector PlayerLocation = FVector::ZeroVector;
 
+	FVector PlayerNavLocation = FVector::ZeroVector;
+
 	FJY_NavFlowField FlowField;
 
-	/* 적별로 이번 프레임에 받은 최종 피해 합 — 공격(CombatQuery::ApplyHit)이 쌓고 UJY_EnemyDamageProcessor가 비운다 */
+	/* 적별로 이번 프레임에 받은 최종 피해 합 — 공격(CombatQuery::ApplyHit)이 쌓고 UJY_MassDamageProcessor가 비운다 */
 	TMap<FMassEntityHandle, float> PendingHitsBuffer;
 
 	/* 서버·클라 — ReplicationID로 내 엔티티 찾기 */

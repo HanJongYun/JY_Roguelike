@@ -15,6 +15,7 @@ UJY_GameplayAbility_Dash::UJY_GameplayAbility_Dash(const FObjectInitializer& Obj
 	/* 발동 태그 대신 구르기 시작 때 붙인다 — 발동 태그면 방향을 안 보내는 변조 클라가 무적만 유지할 수 있다 */
 	RollingTags.AddTag(JYGameplayTags::State_Dashing);
 	RollingTags.AddTag(JYGameplayTags::Gameplay_DamageImmunity);
+	RollingTags.AddTag(JYGameplayTags::Gameplay_IgnoreEnemyCollision);
 
 	/* 대시는 공격을 끊는다 (하데스식) */
 	CancelAbilitiesWithTag.AddTag(JYGameplayTags::Ability_Type_Attack);

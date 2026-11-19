@@ -19,7 +19,7 @@ public:
 protected:
 	/* 설정값 — 몽타주 노티파이 디테일 패널 */
 
-	/* 구간 동안 붙일 태그 (State.Dashing·Gameplay.DamageImmunity 등) */
+	/* 구간 동안 붙일 태그 (State.Dashing·Gameplay.DamageImmunity·Gameplay.IgnoreEnemyCollision 등) */
 	UPROPERTY(EditAnywhere, Category = "JY")
 	FGameplayTagContainer Tags;
 };

@@ -81,4 +81,16 @@ public:
 	/* Mass 적 값을 클라로 보내는 간격 (초) — 클라는 이 사이를 보간으로 채운다 */
 	UPROPERTY(EditDefaultsOnly, Category = "Mass", Meta = (ClampMin = "0.0"))
 	float EnemyNetSendInterval = 0.05f;
+
+	/* 플레이어와 겹친 Mass 적이 밖으로 밀려나는 빠르기 (cm/s) */
+	UPROPERTY(EditDefaultsOnly, Category = "Mass", Meta = (ClampMin = "0.0"))
+	float EnemyPlayerPushSpeed = 300.0f;
+
+	/* 겹친 깊이가 이 값보다 얕아지면 밀려나는 빠르기가 줄어든다 (cm) — 다 빠져나올 때 미끄러지지 않게 */
+	UPROPERTY(EditDefaultsOnly, Category = "Mass", Meta = (ClampMin = "1.0"))
+	float EnemyPlayerPushSlowdownDistance = 40.0f;
+
+	/* 플레이어 둘레 이 거리 안의 Mass 적에게만 길막이 캡슐을 놓는다 (cm) */
+	UPROPERTY(EditDefaultsOnly, Category = "Mass", Meta = (ClampMin = "0.0"))
+	float EnemyBlockerSearchRadius = 300.0f;
 };

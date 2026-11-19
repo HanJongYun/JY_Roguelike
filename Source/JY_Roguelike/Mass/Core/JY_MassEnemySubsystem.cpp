@@ -38,6 +38,9 @@ namespace JY_MassEnemy
 		return NetMode == NM_DedicatedServer || NetMode == NM_ListenServer;
 	}
 
+	/* 보간 구간 하나의 최대 길이 = 전송 간격의 이 배수 — 오래 서 있다 움직일 때 느리게 출발하지 않게 */
+	constexpr float MaxInterpSendIntervals = 2.0f;
+
 	/* 상태마다 틀 모션 칸 — 상태를 늘리면 여기에 한 줄 */
 	EJY_EnemyAnimSlot GetAnimSlot(EJY_EnemyState State)
 	{
@@ -85,6 +88,7 @@ void UJY_MassEnemySubsystem::HandlePrePhysicsStarted(float DeltaSeconds)
 		return;
 
 	PlayerLocation = PlayerPawn->GetActorLocation();
+	PlayerPawn->GetSimpleCollisionCylinder(OUT PlayerRadius, OUT PlayerHalfHeight);
 
 	/* 길 표를 읽을 적이 없으면 갱신하지 않는다 — 표는 남겨 둔다(다음 웨이브 때 플레이어가 NavMesh 밖이어도 마지막 표로 쫓아오게) */
 	if (EntityByReplicationID.Num() == 0)
@@ -353,6 +357,7 @@ void UJY_MassEnemySubsystem::SpawnReplicatedEnemies(const FJY_FastArrayEnemyCont
 	const UJY_GameData* GameData = UJY_AssetManager::Get().GetGameData();
 	const FVector RoomOrigin = EnemyContainer.OwnerActor->GetRoomOrigin();
 	const float ServerSeconds = EnemyContainer.OwnerActor->GetLastSendServerSeconds();
+	const float MaxInterpSeconds = GameData->EnemyNetSendInterval * JY_MassEnemy::MaxInterpSendIntervals;
 	for (const TPair<uint8, TArray<int32>>& Pair : AddedIndicesByDefinition)
 	{
 		const UJY_EnemyDefinition* EnemyDefinition = GameData->EnemyDefinitions[Pair.Key];
@@ -370,7 +375,7 @@ void UJY_MassEnemySubsystem::SpawnReplicatedEnemies(const FJY_FastArrayEnemyCont
 		{
 			const FJY_FastArrayEnemyItem& EnemyItem = EnemyContainer.Items[DefinitionEnemyIndices[Index]];
 			EntityByReplicationID.Add(EnemyItem.ReplicationID, SpawnedEntities[Index]);
-			ApplyEnemyState(SpawnedEntities[Index], EnemyItem.EnemyState, RoomOrigin, ServerSeconds, true);
+			ApplyEnemyState(SpawnedEntities[Index], EnemyItem.EnemyState, RoomOrigin, ServerSeconds, MaxInterpSeconds, true);
 		}
 	}
 }
@@ -380,11 +385,13 @@ void UJY_MassEnemySubsystem::UpdateReplicatedEnemies(const FJY_FastArrayEnemyCon
 {
 	const FVector RoomOrigin = EnemyContainer.OwnerActor->GetRoomOrigin();
 	const float ServerSeconds = EnemyContainer.OwnerActor->GetLastSendServerSeconds();
+	const UJY_GameData* GameData = UJY_AssetManager::Get().GetGameData();
+	const float MaxInterpSeconds = GameData->EnemyNetSendInterval * JY_MassEnemy::MaxInterpSendIntervals;
 	for (const int32 EnemyIndex : ChangedIndices)
 	{
 		const FJY_FastArrayEnemyItem& EnemyItem = EnemyContainer.Items[EnemyIndex];
 		const FMassEntityHandle Entity = EntityByReplicationID.FindChecked(EnemyItem.ReplicationID);
-		ApplyEnemyState(Entity, EnemyItem.EnemyState, RoomOrigin, ServerSeconds, false);
+		ApplyEnemyState(Entity, EnemyItem.EnemyState, RoomOrigin, ServerSeconds, MaxInterpSeconds, false);
 	}
 }
 
@@ -405,7 +412,7 @@ void UJY_MassEnemySubsystem::DestroyReplicatedEnemies(const FJY_FastArrayEnemyCo
 }
 
 // [OwnClient]
-void UJY_MassEnemySubsystem::ApplyEnemyState(FMassEntityHandle Entity, const FJY_EnemyState& EnemyState, const FVector& RoomOrigin, float ServerSeconds, bool bSnapToTarget)
+void UJY_MassEnemySubsystem::ApplyEnemyState(FMassEntityHandle Entity, const FJY_EnemyState& EnemyState, const FVector& RoomOrigin, float ServerSeconds, float MaxInterpSeconds, bool bSnapToTarget)
 {
 	FMassEntityManager& EntityManager = GetEntityManager();
 
@@ -419,12 +426,10 @@ void UJY_MassEnemySubsystem::ApplyEnemyState(FMassEntityHandle Entity, const FJY
 	FJY_EnemyNetInterpFragment& Interp = EntityManager.GetFragmentDataChecked<FJY_EnemyNetInterpFragment>(Entity);
 
 	/* 구간 길이 = 서버가 이 적을 보낸 시각의 차이 — 받은 간격이 흔들려도 서버에서 흐른 시간대로 간다 (CharacterMovementComponent.cpp:8286) */
-	const UJY_GameData* GameData = UJY_AssetManager::Get().GetGameData();
 	const float ServerDeltaSeconds = ServerSeconds - Interp.LastServerSeconds;
 
-	/* 오래 서 있다 움직이면 차이가 몇 초가 되어 느리게 출발한다 — 전송 간격의 2배로 자른다 */
-	const float MaxDuration = GameData->EnemyNetSendInterval * 2.0f;
-	const float Duration = FMath::Clamp(ServerDeltaSeconds, 0.0f, MaxDuration);
+	/* 오래 서 있다 움직이면 차이가 몇 초가 되어 느리게 출발한다 — 상한으로 자른다 */
+	const float Duration = FMath::Clamp(ServerDeltaSeconds, 0.0f, MaxInterpSeconds);
 	Interp.LastServerSeconds = ServerSeconds;
 
 	const bool bTargetChanged = TargetLocation.Equals(Interp.TargetLocation) == false || TargetRotation.Equals(Interp.TargetRotation) == false;

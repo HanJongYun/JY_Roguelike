@@ -58,6 +58,12 @@ public:
 	/* 이번 프레임 시작 때 복사한 플레이어 위치 = 캡슐 중심 (서버) — 사거리·타격처럼 몸 기준일 때 */
 	const FVector& GetPlayerLocation() const { return PlayerLocation; }
 
+	/* 플레이어 캡슐 반지름 (서버) */
+	float GetPlayerRadius() const { return PlayerRadius; }
+
+	/* 플레이어 캡슐 반높이 (서버) */
+	float GetPlayerHalfHeight() const { return PlayerHalfHeight; }
+
 	/* 플레이어 발밑 NavMesh 점 (서버) — 이동의 갈 곳처럼 바닥 기준일 때 */
 	const FVector& GetPlayerNavLocation() const { return PlayerNavLocation; }
 
@@ -89,8 +95,8 @@ private:
 
 	TArray<FMassEntityHandle> SpawnEntitiesAt(const UMassEntityConfigAsset& EnemyConfig, TConstArrayView<FVector> Locations);
 
-	/* 복제 데이터의 표시 값을 클라 엔티티에 넣고, 위치·방향은 보간 구간으로 적는다 — bSnapToTarget이면 받은 자리에 바로 놓는다 */
-	void ApplyEnemyState(FMassEntityHandle Entity, const FJY_EnemyState& EnemyState, const FVector& RoomOrigin, float ServerSeconds, bool bSnapToTarget);
+	/* 복제 데이터의 표시 값을 클라 엔티티에 넣고, 위치·방향은 보간 구간으로 적는다 — 구간 길이는 MaxInterpSeconds를 넘지 않고, bSnapToTarget이면 받은 자리에 바로 놓는다 */
+	void ApplyEnemyState(FMassEntityHandle Entity, const FJY_EnemyState& EnemyState, const FVector& RoomOrigin, float ServerSeconds, float MaxInterpSeconds, bool bSnapToTarget);
 
 private:
 	/* 서버 */
@@ -99,6 +105,10 @@ private:
 	TObjectPtr<AJY_RoomEnemyNetActor> RoomEnemyNetActor;
 
 	FVector PlayerLocation = FVector::ZeroVector;
+
+	float PlayerRadius = 0.0f;
+
+	float PlayerHalfHeight = 0.0f;
 
 	FVector PlayerNavLocation = FVector::ZeroVector;
 

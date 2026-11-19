@@ -53,6 +53,7 @@ namespace JYGameplayTags
 
 	/* Gameplay */
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Gameplay_DamageImmunity, "Gameplay.DamageImmunity", "데미지 무시 (UJY_HealthSet::PreGameplayEffectExecute).");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Gameplay_IgnoreEnemyCollision, "Gameplay.IgnoreEnemyCollision", "붙어 있는 동안 Mass 적을 통과한다 — 벽은 그대로 막힌다. 대시 GA와 스킬 몽타주의 JY Grant Tags 구간이 붙인다 (UJY_MassBlockerSubsystem).");
 	/* Room.Type */
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Room_Type_Combat,        "Room.Type.Combat",        "전투 방 — 웨이브를 다 깨야 문이 열린다.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Room_Type_Combat_Start,  "Room.Type.Combat.Start",  "지역 첫 방 — 전투 방의 하나라 웨이브 규칙을 그대로 따른다.");

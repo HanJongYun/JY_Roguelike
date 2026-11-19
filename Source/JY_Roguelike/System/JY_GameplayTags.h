@@ -54,8 +54,9 @@ namespace JYGameplayTags
 	/* State — 어빌리티가 실행 중에 붙이는 태그 */
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Dashing);
 
-	/* Gameplay — 데미지 규칙 */
+	/* Gameplay — 데미지·충돌 규칙 */
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Gameplay_DamageImmunity);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Gameplay_IgnoreEnemyCollision);
 
 	/* Room.Type — 방의 성격 (DA_Room_*에서 지정) */
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Room_Type_Combat);

@@ -46,6 +46,9 @@ void AJY_RoomEnemyNetActor::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	DOREPLIFETIME(AJY_RoomEnemyNetActor, RoomOrigin);
+
+	/* 일반 변수는 같은 묶음의 목록(EnemyContainer) 콜백보다 먼저 들어온다 (DataReplication.cpp:1052 → 1171) */
+	DOREPLIFETIME(AJY_RoomEnemyNetActor, LastSendServerSeconds);
 	DOREPLIFETIME(AJY_RoomEnemyNetActor, EnemyContainer);
 }
 

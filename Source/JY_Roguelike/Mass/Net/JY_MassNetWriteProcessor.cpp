@@ -5,6 +5,8 @@
 #include "Mass/Net/JY_RoomEnemyNetActor.h"
 #include "Mass/EntityFragments.h"
 #include "MassExecutionContext.h"
+#include "System/JY_AssetManager.h"
+#include "System/JY_GameData.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(JY_MassNetWriteProcessor)
 
@@ -48,11 +50,21 @@ void UJY_MassNetWriteProcessor::ConfigureQueries(const TSharedRef<FMassEntityMan
 void UJY_MassNetWriteProcessor::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context) //override
 {
 	UWorld* World = EntityManager.GetWorld();
+
+	/* 매 프레임이 아니라 전송 간격마다만 비교한다 — 사이는 클라 보간(UJY_MassNetInterpProcessor)이 채운다 */
+	const double WorldSeconds = World->GetTimeSeconds();
+	if (WorldSeconds < NextSendSeconds)
+		return;
+
+	const UJY_GameData* GameData = UJY_AssetManager::Get().GetGameData();
+	NextSendSeconds = FMath::Max(NextSendSeconds + GameData->EnemyNetSendInterval, WorldSeconds);
+
 	UJY_MassEnemySubsystem* MassEnemySubsystem = World->GetSubsystem<UJY_MassEnemySubsystem>();
 	AJY_RoomEnemyNetActor* RoomEnemyNetActor = MassEnemySubsystem->GetRoomEnemyNetActor();
 	const FVector RoomOrigin = RoomEnemyNetActor->GetRoomOrigin();
 
-	auto WriteChangedStates = [RoomEnemyNetActor, RoomOrigin](FMassExecutionContext& ChunkContext)
+	bool bAnyStateChanged = false;
+	auto WriteChangedStates = [RoomEnemyNetActor, RoomOrigin, &bAnyStateChanged](FMassExecutionContext& ChunkContext)
 	{
 		const TConstArrayView<FTransformFragment> Transforms = ChunkContext.GetFragmentView<FTransformFragment>();
 		const TConstArrayView<FJY_EnemyHealthFragment> Healths = ChunkContext.GetFragmentView<FJY_EnemyHealthFragment>();
@@ -70,9 +82,16 @@ void UJY_MassNetWriteProcessor::Execute(FMassEntityManager& EntityManager, FMass
 
 			RoomEnemyNetActor->UpdateEnemy(LastSentToClient.ReplicationID, EnemyState);
 			LastSentToClient.LastSentState = EnemyState;
+			bAnyStateChanged = true;
 		}
 	};
 	EntityQuery.ForEachEntityChunk(Context, WriteChangedStates);
+
+	/* 보낼 적이 있을 때만 시각을 고친다 — 전부 서 있으면 시각도 안 간다 */
+	if (bAnyStateChanged == true)
+	{
+		RoomEnemyNetActor->SetLastSendServerSeconds(static_cast<float>(WorldSeconds));
+	}
 }
 
 /* FVector_NetQuantize는 받는 쪽에서 1cm로 반올림된다 (NetSerialization.h:430) — 서버도 미리 반올림해야 소수점만 바뀐 값을 안 보낸다 */

@@ -94,10 +94,18 @@ public:
 
 	const FVector& GetRoomOrigin() const { return RoomOrigin; }
 
+	void SetLastSendServerSeconds(float InLastSendServerSeconds) { LastSendServerSeconds = InLastSendServerSeconds; }
+
+	float GetLastSendServerSeconds() const { return LastSendServerSeconds; }
+
 private:
 	/* 복제 — ReplicatedUsing 없음, RelativeLocation을 월드 위치로 되돌릴 때 쓴다 */
 	UPROPERTY(Replicated)
 	FVector_NetQuantize RoomOrigin = FVector::ZeroVector;
+
+	/* 복제 — ReplicatedUsing 없음, 적 값을 마지막으로 보낸 서버 시각 (초). 클라가 보간 구간 길이를 구할 때 쓴다 */
+	UPROPERTY(Replicated)
+	float LastSendServerSeconds = 0.0f;
 
 	/* 복제 — ReplicatedUsing 없음, 목록 콜백(FJY_FastArrayEnemyContainer::PostReplicatedAdd·Change)이 받는다 */
 	UPROPERTY(Replicated)

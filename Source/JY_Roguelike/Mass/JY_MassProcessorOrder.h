@@ -18,4 +18,7 @@ namespace JY_MassProcessorOrder
 
 	/* 위치를 정하는 단계에 넣는다 */
 	void PlaceInMovement(FMassProcessorExecutionOrder& ExecutionOrder);
+
+	/* 클라 — 그리기 전에 위치를 정하는 단계에 넣는다 */
+	void PlaceBeforeRepresentation(FMassProcessorExecutionOrder& ExecutionOrder);
 }

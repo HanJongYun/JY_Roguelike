@@ -3,6 +3,7 @@
 #include "MassCommonTypes.h"
 #include "MassNavigationProcessors.h"
 #include "MassProcessor.h"
+#include "MassRepresentationTypes.h"
 
 /* 같은 그룹 안의 순서는 보장되지 않는다 — 순서가 필요한 것끼리는 "JY.Movement.X"처럼 하위 그룹으로 나눈다 (MassProcessorDependencySolver.cpp:535) */
 namespace JY_MassProcessorOrder
@@ -32,4 +33,11 @@ void JY_MassProcessorOrder::PlaceInMovement(FMassProcessorExecutionOrder& Execut
 	/* 원하는 속도는 엔진 ApplyForce가 만든다 (MassMovementProcessors.cpp:25) — 그리드는 엔진 Movement 뒤만 걸려 있어(MassNavigationProcessors.cpp:164) 우리 위치로 칸을 갱신하게 직접 앞에 둔다 */
 	ExecutionOrder.ExecuteAfter.Add(UE::Mass::ProcessorGroupNames::ApplyForces);
 	ExecutionOrder.ExecuteBefore.Add(UMassNavigationObstacleGridProcessor::StaticClass()->GetFName());
+}
+
+void JY_MassProcessorOrder::PlaceBeforeRepresentation(FMassProcessorExecutionOrder& ExecutionOrder)
+{
+	/* 엔진 그리기는 LODCollector → LOD → Representation 순서로 위치를 읽는다 (MassRepresentationProcessor.cpp:56) */
+	ExecutionOrder.ExecuteBefore.Add(UE::Mass::ProcessorGroupNames::LODCollector);
+	ExecutionOrder.ExecuteBefore.Add(UE::Mass::ProcessorGroupNames::Representation);
 }

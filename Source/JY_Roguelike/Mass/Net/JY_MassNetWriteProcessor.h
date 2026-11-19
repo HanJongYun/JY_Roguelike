@@ -28,4 +28,7 @@ public:
 
 private:
 	FMassEntityQuery EntityQuery;
+
+	/* 다음에 비교·전송할 월드 시각 (초) */
+	double NextSendSeconds = 0.0;
 };

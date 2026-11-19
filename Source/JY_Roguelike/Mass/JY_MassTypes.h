@@ -20,6 +20,14 @@ enum class EJY_EnemyState : uint8
 	Wait,
 };
 
+/* 모션 목록(TP_JY_*)의 칸 순서 — 모든 적이 이 순서로 채운다. 그 적만의 모션은 뒤에 붙인다 */
+UENUM()
+enum class EJY_EnemyAnimSlot : uint8
+{
+	Idle,
+	Run,
+};
+
 /* ---------- 서버 → 클라: 복제로 넘기는 데이터 ---------- */
 
 /* 적 1마리 복제 데이터 — 필드별로 바뀐 것만 전송된다 */
@@ -148,6 +156,30 @@ struct FJY_EnemyVisualFragment : public FMassFragment
 
 	UPROPERTY()
 	uint8 StatusFlags = 0;
+};
+
+/* 받은 위치 사이를 채우는 구간 하나 — 출발(받는 순간 그려져 있던 자리) → 도착(받은 서버 자리) */
+USTRUCT()
+struct FJY_EnemyNetInterpFragment : public FMassFragment
+{
+	GENERATED_BODY()
+
+	FVector StartLocation = FVector::ZeroVector;
+
+	FVector TargetLocation = FVector::ZeroVector;
+
+	FQuat StartRotation = FQuat::Identity;
+
+	FQuat TargetRotation = FQuat::Identity;
+
+	/* 이 구간을 가는 데 쓸 시간 (초) — 서버가 보낸 시각의 차이 */
+	float Duration = 0.0f;
+
+	/* 이 구간에서 지난 시간 (초) — Duration에 닿으면 도착 */
+	float Elapsed = 0.0f;
+
+	/* 이 적의 값을 마지막으로 받았을 때의 서버 전송 시각 (초) */
+	float LastServerSeconds = 0.0f;
 };
 
 /* 적이 밟고 있는 NavMesh 다각형 (서버) — 스폰 때 채우고, 이동하면 갱신. 위치는 Transform 하나에만 둔다 */

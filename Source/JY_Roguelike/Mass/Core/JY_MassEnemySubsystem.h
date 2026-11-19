@@ -89,8 +89,8 @@ private:
 
 	TArray<FMassEntityHandle> SpawnEntitiesAt(const UMassEntityConfigAsset& EnemyConfig, TConstArrayView<FVector> Locations);
 
-	/* 복제 데이터의 위치·방향·표시 값을 클라 엔티티에 넣는다 */
-	void ApplyEnemyState(FMassEntityHandle Entity, const FJY_EnemyState& EnemyState, const FVector& RoomOrigin);
+	/* 복제 데이터의 표시 값을 클라 엔티티에 넣고, 위치·방향은 보간 구간으로 적는다 — bSnapToTarget이면 받은 자리에 바로 놓는다 */
+	void ApplyEnemyState(FMassEntityHandle Entity, const FJY_EnemyState& EnemyState, const FVector& RoomOrigin, float ServerSeconds, bool bSnapToTarget);
 
 private:
 	/* 서버 */

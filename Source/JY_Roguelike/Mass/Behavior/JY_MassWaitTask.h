@@ -5,6 +5,7 @@
 #include "JY_MassWaitTask.generated.h"
 
 struct FJY_EnemyBehaviorFragment;
+struct FMassDesiredMovementFragment;
 struct FMassMoveTargetFragment;
 struct FTransformFragment;
 
@@ -36,4 +37,5 @@ private:
 	TStateTreeExternalDataHandle<FJY_EnemyBehaviorFragment> BehaviorHandle;
 	TStateTreeExternalDataHandle<FMassMoveTargetFragment> MoveTargetHandle;
 	TStateTreeExternalDataHandle<FTransformFragment> TransformHandle;
+	TStateTreeExternalDataHandle<FMassDesiredMovementFragment> DesiredMovementHandle;
 };

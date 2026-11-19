@@ -37,6 +37,22 @@ namespace JY_MassEnemy
 		const ENetMode NetMode = World.GetNetMode();
 		return NetMode == NM_DedicatedServer || NetMode == NM_ListenServer;
 	}
+
+	/* 상태마다 틀 모션 칸 — 상태를 늘리면 여기에 한 줄 */
+	EJY_EnemyAnimSlot GetAnimSlot(EJY_EnemyState State)
+	{
+		switch (State)
+		{
+		case EJY_EnemyState::Spawning:
+		case EJY_EnemyState::Wait:
+			return EJY_EnemyAnimSlot::Idle;
+		case EJY_EnemyState::Chase:
+			return EJY_EnemyAnimSlot::Run;
+		}
+
+		checkNoEntry();
+		return EJY_EnemyAnimSlot::Idle;
+	}
 }
 
 /* 복제 Actor는 퍼시스턴트 레벨에 두어 방이 바뀌어도 남는다 */
@@ -336,6 +352,7 @@ void UJY_MassEnemySubsystem::SpawnReplicatedEnemies(const FJY_FastArrayEnemyCont
 
 	const UJY_GameData* GameData = UJY_AssetManager::Get().GetGameData();
 	const FVector RoomOrigin = EnemyContainer.OwnerActor->GetRoomOrigin();
+	const float ServerSeconds = EnemyContainer.OwnerActor->GetLastSendServerSeconds();
 	for (const TPair<uint8, TArray<int32>>& Pair : AddedIndicesByDefinition)
 	{
 		const UJY_EnemyDefinition* EnemyDefinition = GameData->EnemyDefinitions[Pair.Key];
@@ -353,7 +370,7 @@ void UJY_MassEnemySubsystem::SpawnReplicatedEnemies(const FJY_FastArrayEnemyCont
 		{
 			const FJY_FastArrayEnemyItem& EnemyItem = EnemyContainer.Items[DefinitionEnemyIndices[Index]];
 			EntityByReplicationID.Add(EnemyItem.ReplicationID, SpawnedEntities[Index]);
-			ApplyEnemyState(SpawnedEntities[Index], EnemyItem.EnemyState, RoomOrigin);
+			ApplyEnemyState(SpawnedEntities[Index], EnemyItem.EnemyState, RoomOrigin, ServerSeconds, true);
 		}
 	}
 }
@@ -362,11 +379,12 @@ void UJY_MassEnemySubsystem::SpawnReplicatedEnemies(const FJY_FastArrayEnemyCont
 void UJY_MassEnemySubsystem::UpdateReplicatedEnemies(const FJY_FastArrayEnemyContainer& EnemyContainer, TConstArrayView<int32> ChangedIndices)
 {
 	const FVector RoomOrigin = EnemyContainer.OwnerActor->GetRoomOrigin();
+	const float ServerSeconds = EnemyContainer.OwnerActor->GetLastSendServerSeconds();
 	for (const int32 EnemyIndex : ChangedIndices)
 	{
 		const FJY_FastArrayEnemyItem& EnemyItem = EnemyContainer.Items[EnemyIndex];
 		const FMassEntityHandle Entity = EntityByReplicationID.FindChecked(EnemyItem.ReplicationID);
-		ApplyEnemyState(Entity, EnemyItem.EnemyState, RoomOrigin);
+		ApplyEnemyState(Entity, EnemyItem.EnemyState, RoomOrigin, ServerSeconds, false);
 	}
 }
 
@@ -387,16 +405,51 @@ void UJY_MassEnemySubsystem::DestroyReplicatedEnemies(const FJY_FastArrayEnemyCo
 }
 
 // [OwnClient]
-void UJY_MassEnemySubsystem::ApplyEnemyState(FMassEntityHandle Entity, const FJY_EnemyState& EnemyState, const FVector& RoomOrigin)
+void UJY_MassEnemySubsystem::ApplyEnemyState(FMassEntityHandle Entity, const FJY_EnemyState& EnemyState, const FVector& RoomOrigin, float ServerSeconds, bool bSnapToTarget)
 {
 	FMassEntityManager& EntityManager = GetEntityManager();
 
 	const float Yaw = FRotator::DecompressAxisFromByte(EnemyState.Yaw);
 	const FRotator Rotation(0.0, Yaw, 0.0);
+	const FVector TargetLocation = RoomOrigin + EnemyState.RelativeLocation;
+	const FQuat TargetRotation = Rotation.Quaternion();
+
 	FTransformFragment& TransformFragment = EntityManager.GetFragmentDataChecked<FTransformFragment>(Entity);
 	FTransform& Transform = TransformFragment.GetMutableTransform();
-	Transform.SetLocation(RoomOrigin + EnemyState.RelativeLocation);
-	Transform.SetRotation(Rotation.Quaternion());
+	FJY_EnemyNetInterpFragment& Interp = EntityManager.GetFragmentDataChecked<FJY_EnemyNetInterpFragment>(Entity);
+
+	/* 구간 길이 = 서버가 이 적을 보낸 시각의 차이 — 받은 간격이 흔들려도 서버에서 흐른 시간대로 간다 (CharacterMovementComponent.cpp:8286) */
+	const UJY_GameData* GameData = UJY_AssetManager::Get().GetGameData();
+	const float ServerDeltaSeconds = ServerSeconds - Interp.LastServerSeconds;
+
+	/* 오래 서 있다 움직이면 차이가 몇 초가 되어 느리게 출발한다 — 전송 간격의 2배로 자른다 */
+	const float MaxDuration = GameData->EnemyNetSendInterval * 2.0f;
+	const float Duration = FMath::Clamp(ServerDeltaSeconds, 0.0f, MaxDuration);
+	Interp.LastServerSeconds = ServerSeconds;
+
+	const bool bTargetChanged = TargetLocation.Equals(Interp.TargetLocation) == false || TargetRotation.Equals(Interp.TargetRotation) == false;
+	if (bSnapToTarget == true || Duration <= UE_SMALL_NUMBER)
+	{
+		Transform.SetLocation(TargetLocation);
+		Transform.SetRotation(TargetRotation);
+		Interp.StartLocation = TargetLocation;
+		Interp.StartRotation = TargetRotation;
+		Interp.TargetLocation = TargetLocation;
+		Interp.TargetRotation = TargetRotation;
+		Interp.Duration = 0.0f;
+		Interp.Elapsed = 0.0f;
+	}
+	/* 체력·상태만 바뀐 수신은 가던 구간을 그대로 둔다 */
+	else if (bTargetChanged == true)
+	{
+		/* 출발은 지금 그려진 자리 — 앞 구간을 다 못 갔어도 남은 거리가 새 구간에 합쳐진다 */
+		Interp.StartLocation = Transform.GetLocation();
+		Interp.StartRotation = Transform.GetRotation();
+		Interp.TargetLocation = TargetLocation;
+		Interp.TargetRotation = TargetRotation;
+		Interp.Duration = Duration;
+		Interp.Elapsed = 0.0f;
+	}
 
 	FJY_EnemyVisualFragment& Visual = EntityManager.GetFragmentDataChecked<FJY_EnemyVisualFragment>(Entity);
 	Visual.State = EnemyState.State;
@@ -404,11 +457,12 @@ void UJY_MassEnemySubsystem::ApplyEnemyState(FMassEntityHandle Entity, const FJY
 	Visual.ShieldPct = EnemyState.ShieldPct;
 	Visual.StatusFlags = EnemyState.StatusFlags;
 
-	/* [임시코드] (2.5에서 StateTree 상태별 모션으로 교체) 추격이면 달리기, 아니면 대기 — 번호는 TP_Wolf_ISKMTest 순서. 이 칸은 Transient라 Config에 값을 못 넣는다 (MassRepresentationFragments.h:137) */
+	/* 엔진은 모션 목록의 번호로만 모션을 고른다 (AnimSequenceTransformProviderData.h:108) */
 	FMassRepresentationAnimationFragment* Animation = EntityManager.GetFragmentDataPtr<FMassRepresentationAnimationFragment>(Entity);
 	if (Animation != nullptr)
 	{
-		Animation->AnimData.SequenceIndex = EnemyState.State == EJY_EnemyState::Chase ? 1 : 0;
+		const EJY_EnemyAnimSlot AnimSlot = JY_MassEnemy::GetAnimSlot(EnemyState.State);
+		Animation->AnimData.SequenceIndex = static_cast<int32>(AnimSlot);
 		Animation->AnimData.BlendTime = 0.2f;
 	}
 }

@@ -77,4 +77,8 @@ public:
 	/* Mass 적 종류 — 배열 번호가 복제되는 정의 번호(DefinitionIndex). 서버·클라가 같은 순서로 읽는다 */
 	UPROPERTY(EditDefaultsOnly, Category = "Mass")
 	TArray<TObjectPtr<const UJY_EnemyDefinition>> EnemyDefinitions;
+
+	/* Mass 적 값을 클라로 보내는 간격 (초) — 클라는 이 사이를 보간으로 채운다 */
+	UPROPERTY(EditDefaultsOnly, Category = "Mass", Meta = (ClampMin = "0.0"))
+	float EnemyNetSendInterval = 0.05f;
 };

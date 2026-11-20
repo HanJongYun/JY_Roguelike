@@ -19,6 +19,15 @@ void JY_MassStateTreeWake::WakeEntities(FMassExecutionContext& Context, UMassSig
 	SignalSubsystem.SignalEntitiesDeferred(Context, WakeSignalName, Entities);
 }
 
+/* 처리 바깥이라 미룰 단계가 없다 — 바로 보내도 다른 Processor와 겹치지 않는다 */
+void JY_MassStateTreeWake::WakeEntitiesOutsideProcessing(UMassSignalSubsystem& SignalSubsystem, TConstArrayView<FMassEntityHandle> Entities)
+{
+	if (Entities.Num() == 0)
+		return;
+
+	SignalSubsystem.SignalEntities(WakeSignalName, Entities);
+}
+
 void JY_MassStateTreeWake::WakeEntityAfterDelay(FMassExecutionContext& Context, UMassSignalSubsystem& SignalSubsystem, FMassEntityHandle Entity, float DelaySeconds)
 {
 	SignalSubsystem.DelaySignalEntityDeferred(Context, WakeSignalName, Entity, DelaySeconds);

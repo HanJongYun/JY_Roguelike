@@ -18,6 +18,9 @@ enum class EJY_EnemyState : uint8
 
 	/* 플레이어 앞에 서서 공격 차례를 기다린다 */
 	Wait,
+
+	/* 맞고 날아가는 중 — 착지할 때까지 쫓지도 밀리지도 않는다 */
+	Knockback,
 };
 
 /* 모션 목록(TP_JY_*)의 칸 순서 — 모든 적이 이 순서로 채운다. 그 적만의 모션은 뒤에 붙인다 */
@@ -26,6 +29,7 @@ enum class EJY_EnemyAnimSlot : uint8
 {
 	Idle,
 	Run,
+	Knockback,
 };
 
 /* ---------- 서버 → 클라: 복제로 넘기는 데이터 ---------- */
@@ -120,6 +124,29 @@ struct FJY_EnemyBehaviorFragment : public FMassFragment
 	/* 플레이어가 이 적의 거리(FJY_EnemyRangeParams) 안에 있나 — 바뀌는 순간 StateTree를 깨운다 */
 	UPROPERTY()
 	bool bInsideRange = false;
+};
+
+/* 넉백으로 날아가는 값 (서버) — 처음부터 붙여 두고 bActive로 켜고 끈다. 위치의 Z = 바닥 높이 + Height */
+USTRUCT()
+struct FJY_EnemyKnockbackFragment : public FMassFragment
+{
+	GENERATED_BODY()
+
+	/* 날아가는 속도 (cm/s) — Z는 위로 뜨는 속도 */
+	UPROPERTY()
+	FVector Velocity = FVector::ZeroVector;
+
+	/* 바닥에서 뜬 높이 (cm) */
+	UPROPERTY()
+	float Height = 0.0f;
+
+	/* 질량 (kg) — 받은 힘 ÷ 질량 = 날아가는 속도. 값은 Mass Config의 JY Enemy Navigation Trait에서 정한다 */
+	UPROPERTY()
+	float Mass = 1.0f;
+
+	/* 날아가는 중 — 착지하면 꺼진다 */
+	UPROPERTY()
+	bool bActive = false;
 };
 
 /* 적 종류마다 다른 거리 — 값은 Mass Config의 JY Enemy Navigation Trait에서 정한다 */

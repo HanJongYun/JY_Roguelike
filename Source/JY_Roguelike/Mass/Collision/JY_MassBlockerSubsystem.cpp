@@ -89,6 +89,10 @@ void UJY_MassBlockerSubsystem::HandlePrePhysicsFinished(float DeltaSeconds)
 	BlockerActor->BeginPlacement();
 	for (const FJY_CombatTarget& NearbyEnemy : NearbyEnemies)
 	{
+		/* 날아가는 적은 길을 막지 않는다 */
+		if (MassEnemySubsystem->GetEnemyState(NearbyEnemy.Entity) == EJY_EnemyState::Knockback)
+			continue;
+
 		const FAgentRadiusFragment& RadiusFragment = EntityManager.GetFragmentDataChecked<FAgentRadiusFragment>(NearbyEnemy.Entity);
 
 		/* 캡슐은 절대 플레이어를 밀지 않는다 — 겹친 적은 서버가 밀어낸 뒤에 놓인다 (UJY_MassPlayerPushProcessor) */

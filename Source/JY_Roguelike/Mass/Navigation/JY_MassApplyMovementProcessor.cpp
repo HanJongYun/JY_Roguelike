@@ -2,13 +2,63 @@
 
 #include "Mass/Core/JY_MassEnemySubsystem.h"
 #include "Mass/JY_MassProcessorOrder.h"
+#include "Mass/JY_MassStateTreeWake.h"
 #include "Mass/JY_MassTypes.h"
 #include "MassCommonFragments.h"
 #include "MassExecutionContext.h"
 #include "MassMovementFragments.h"
+#include "MassSignalSubsystem.h"
 #include "NavMesh/RecastNavMesh.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(JY_MassApplyMovementProcessor)
+
+namespace JY_MassApplyMovement
+{
+	/*
+	 * 넉백 한 프레임 — 수평은 바닥 점을 NavMesh 위로 옮기고(벽을 못 뚫음), 높이는 중력으로 따로 계산해 바닥 높이에 더한다.
+	 * 착지했으면 true
+	 */
+	// [Server]
+	bool MoveKnockback(const ARecastNavMesh& NavMesh, float DeltaSeconds, float GravityZ, FTransform& Transform, FJY_NavPolyFragment& NavPoly, FJY_EnemyKnockbackFragment& Knockback, FMassVelocityFragment& Velocity)
+	{
+		/* Transform의 Z는 바닥 높이 + 뜬 높이라, 뜬 높이를 빼야 다각형 위의 점이 된다 */
+		const FVector CurrentLocation = Transform.GetLocation();
+		const FVector GroundLocation(CurrentLocation.X, CurrentLocation.Y, CurrentLocation.Z - Knockback.Height);
+		const FNavLocation StartLocation(GroundLocation, NavPoly.PolyRef);
+		const FVector HorizontalVelocity(Knockback.Velocity.X, Knockback.Velocity.Y, 0.0f);
+		const FVector MovedLocation = GroundLocation + HorizontalVelocity * DeltaSeconds;
+
+		FNavLocation SnappedLocation;
+		if (NavMesh.FindMoveAlongSurface(StartLocation, MovedLocation, OUT SnappedLocation) == false)
+		{
+			SnappedLocation = StartLocation;
+		}
+
+		/* 벽에 막혀 못 간 만큼 수평 속도를 잃는다 — 안 그러면 벽에 붙은 채 남은 속도로 계속 미끄러진다 */
+		const FVector MovedGroundDelta = SnappedLocation.Location - GroundLocation;
+		Knockback.Velocity.X = MovedGroundDelta.X / DeltaSeconds;
+		Knockback.Velocity.Y = MovedGroundDelta.Y / DeltaSeconds;
+
+		Knockback.Velocity.Z += GravityZ * DeltaSeconds;
+		Knockback.Height += Knockback.Velocity.Z * DeltaSeconds;
+
+		/* 내려오는 중에 바닥에 닿아야 착지 — 위로 띄우는 힘 없이 맞아도 첫 프레임에 바로 닿아 끝난다 */
+		const bool bLanded = Knockback.Height <= 0.0f && Knockback.Velocity.Z <= 0.0f;
+		if (bLanded == true)
+		{
+			Knockback.Height = 0.0f;
+			Knockback.Velocity = FVector::ZeroVector;
+			Knockback.bActive = false;
+		}
+
+		const FVector NewLocation = SnappedLocation.Location + FVector(0.0f, 0.0f, Knockback.Height);
+		Velocity.Value = (NewLocation - CurrentLocation) / DeltaSeconds;
+		Transform.SetLocation(NewLocation);
+		NavPoly.PolyRef = SnappedLocation.NodeRef;
+
+		return bLanded;
+	}
+}
 
 UJY_MassApplyMovementProcessor::UJY_MassApplyMovementProcessor()
 	: EntityQuery(*this)
@@ -25,7 +75,10 @@ void UJY_MassApplyMovementProcessor::ConfigureQueries(const TSharedRef<FMassEnti
 	EntityQuery.AddRequirement<FJY_NavPolyFragment>(EMassFragmentAccess::ReadWrite);
 	EntityQuery.AddRequirement<FMassVelocityFragment>(EMassFragmentAccess::ReadWrite);
 	EntityQuery.AddRequirement<FMassDesiredMovementFragment>(EMassFragmentAccess::ReadOnly);
+	EntityQuery.AddRequirement<FJY_EnemyBehaviorFragment>(EMassFragmentAccess::ReadOnly);
+	EntityQuery.AddRequirement<FJY_EnemyKnockbackFragment>(EMassFragmentAccess::ReadWrite);
 	EntityQuery.AddSubsystemRequirement<UJY_MassEnemySubsystem>(EMassFragmentAccess::ReadOnly);
+	EntityQuery.AddSubsystemRequirement<UMassSignalSubsystem>(EMassFragmentAccess::ReadWrite);
 
 	/* 엔진 이동은 이 태그가 붙은 적을 건너뛴다 (MassMovementProcessors.cpp:86) — 위치는 여기서만 한 번 쓴다 */
 	EntityQuery.AddTagRequirement<FMassCustomMovementTag>(EMassFragmentPresence::All);
@@ -51,12 +104,37 @@ void UJY_MassApplyMovementProcessor::Execute(FMassEntityManager& EntityManager, 
 		const TArrayView<FJY_NavPolyFragment> NavPolys = ChunkContext.GetMutableFragmentView<FJY_NavPolyFragment>();
 		const TArrayView<FMassVelocityFragment> Velocities = ChunkContext.GetMutableFragmentView<FMassVelocityFragment>();
 		const TConstArrayView<FMassDesiredMovementFragment> DesiredMovements = ChunkContext.GetFragmentView<FMassDesiredMovementFragment>();
+		const TConstArrayView<FJY_EnemyBehaviorFragment> Behaviors = ChunkContext.GetFragmentView<FJY_EnemyBehaviorFragment>();
+		const TArrayView<FJY_EnemyKnockbackFragment> Knockbacks = ChunkContext.GetMutableFragmentView<FJY_EnemyKnockbackFragment>();
+		const float GravityZ = MassEnemySubsystem.GetGravityZ();
+
+		/* 착지한 적 — 다음에 쫓을지 설지는 적마다의 StateTree가 정한다 */
+		TArray<FMassEntityHandle, TInlineAllocator<16>> LandedEntities;
 
 		for (FMassExecutionContext::FEntityIterator EntityIt = ChunkContext.CreateEntityIterator(); EntityIt; ++EntityIt)
 		{
 			FJY_NavPolyFragment& NavPoly = NavPolys[EntityIt];
 			if (NavPoly.PolyRef == INVALID_NAVNODEREF)
 				continue;
+
+			/* 날아가는 적은 원하는 속도 대신 넉백 속도로 따로 옮긴다 */
+			if (Behaviors[EntityIt].State == EJY_EnemyState::Knockback)
+			{
+				/* 착지한 뒤 StateTree가 상태를 바꿀 때까지의 한 프레임 — 그 자리에 둔다 */
+				if (Knockbacks[EntityIt].bActive == false)
+				{
+					Velocities[EntityIt].Value = FVector::ZeroVector;
+					continue;
+				}
+
+				FTransform& KnockbackTransform = Transforms[EntityIt].GetMutableTransform();
+				const bool bLanded = JY_MassApplyMovement::MoveKnockback(*NavMesh, DeltaSeconds, GravityZ, KnockbackTransform, NavPoly, Knockbacks[EntityIt], Velocities[EntityIt]);
+				if (bLanded == true)
+				{
+					LandedEntities.Add(ChunkContext.GetEntity(EntityIt));
+				}
+				continue;
+			}
 
 			/* 안 움직이는 적(등장 예고 중·서 있는 적)은 NavMesh 검색을 건너뛴다 — 출발점과 도착점이 같아 결과가 같다 */
 			const FVector& DesiredVelocity = DesiredMovements[EntityIt].DesiredVelocity;
@@ -84,6 +162,9 @@ void UJY_MassApplyMovementProcessor::Execute(FMassEntityManager& EntityManager, 
 			Transform.SetLocation(SnappedLocation.Location);
 			NavPoly.PolyRef = SnappedLocation.NodeRef;
 		}
+
+		UMassSignalSubsystem& SignalSubsystem = ChunkContext.GetMutableSubsystemChecked<UMassSignalSubsystem>();
+		JY_MassStateTreeWake::WakeEntities(ChunkContext, SignalSubsystem, LandedEntities);
 	};
 	EntityQuery.ForEachEntityChunk(Context, MoveOnNavMesh);
 }

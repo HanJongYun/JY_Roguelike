@@ -78,9 +78,9 @@ void UJY_MassPlayerPushProcessor::Execute(FMassEntityManager& EntityManager, FMa
 
 		for (FMassExecutionContext::FEntityIterator EntityIt = ChunkContext.CreateEntityIterator(); EntityIt; ++EntityIt)
 		{
-			/* 예고 중인 적은 아직 몸이 없다 */
+			/* 예고 중인 적은 아직 몸이 없고, 날아가는 적은 넉백 속도로만 움직인다 */
 			const EJY_EnemyState EnemyState = Behaviors[EntityIt].State;
-			if (EnemyState == EJY_EnemyState::Spawning)
+			if (EnemyState == EJY_EnemyState::Spawning || EnemyState == EJY_EnemyState::Knockback)
 				continue;
 
 			/* Transform은 발 위치 — 플레이어가 머리 위를 뛰어넘는 동안은 겹친 것이 아니다 */

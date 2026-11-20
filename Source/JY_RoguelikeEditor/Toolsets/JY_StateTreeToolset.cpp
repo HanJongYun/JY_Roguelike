@@ -177,6 +177,27 @@ FString UJY_StateTreeToolset::AddTransition(UStateTree* StateTree, const FString
 	return FString();
 }
 
+FString UJY_StateTreeToolset::SetTransitionPriority(UStateTree* StateTree, const FString& FromStateName, int32 TransitionIndex, const FString& Priority)
+{
+	UStateTreeState* FromState = JY_StateTreeToolset::FindState(StateTree, FromStateName);
+	if (FromState == nullptr)
+		return FString::Printf(TEXT("상태를 찾지 못함: %s"), *FromStateName);
+
+	if (FromState->Transitions.IsValidIndex(TransitionIndex) == false)
+		return FString::Printf(TEXT("전환 번호가 범위 밖: %d (전환 %d개)"), TransitionIndex, FromState->Transitions.Num());
+
+	const UEnum* PriorityEnum = StaticEnum<EStateTreeTransitionPriority>();
+	const int64 PriorityValue = PriorityEnum->GetValueByNameString(Priority);
+	if (PriorityValue == INDEX_NONE)
+		return FString::Printf(TEXT("모르는 Priority: %s"), *Priority);
+
+	FromState->Modify();
+	FromState->Transitions[TransitionIndex].Priority = static_cast<EStateTreeTransitionPriority>(PriorityValue);
+	UStateTreeEditingSubsystem::MarkAsModified(StateTree);
+	StateTree->MarkPackageDirty();
+	return FString();
+}
+
 FString UJY_StateTreeToolset::CompileStateTree(UStateTree* StateTree)
 {
 	if (StateTree == nullptr)

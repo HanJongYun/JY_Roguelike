@@ -65,6 +65,10 @@ public:
 	UFUNCTION(Exec, BlueprintAuthorityOnly)
 	void JYMassDamageAll(float Damage);
 
+	/* 내 주변 반경 안의 Mass 적을 바깥으로 날리기 — 힘 ÷ 적 질량 = 속도 (예: ServerExec "JYMassKnockback 500 40000 30000" = 반경 5m, 미는 힘, 띄우는 힘) */
+	UFUNCTION(Exec, BlueprintAuthorityOnly)
+	void JYMassKnockback(float Radius, float HorizontalImpulse, float VerticalImpulse);
+
 	/* [임시코드] 플로우 필드 보이기 켜기·끄기 — 다각형 테두리(초록)·문 방향(노랑), 적마다 갈 곳(빨강) (예: ServerExec "JYShowFlowField 1") — 2장 B 끝나면 삭제 */
 	UFUNCTION(Exec, BlueprintAuthorityOnly)
 	void JYShowFlowField(bool bEnable);

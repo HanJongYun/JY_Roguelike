@@ -41,6 +41,9 @@ public:
 	/* 서버 적 전부의 체력을 깎는다 (치트 시험용) */
 	void DamageAllEnemies(float Damage);
 
+	/* 중심에서 반경 안의 적을 바깥쪽으로 날린다 (서버) — 힘 ÷ 적의 질량 = 속도. HorizontalImpulse = 바깥으로 미는 힘, VerticalImpulse = 위로 띄우는 힘 */
+	void KnockbackEnemies(const FVector& Center, float Radius, float HorizontalImpulse, float VerticalImpulse);
+
 	/* 새로 받은 복제 데이터마다 그 종류의 설계도로 엔티티를 만든다 */
 	void SpawnReplicatedEnemies(const FJY_FastArrayEnemyContainer& EnemyContainer, TConstArrayView<int32> AddedIndices);
 
@@ -64,6 +67,9 @@ public:
 	/* 플레이어 캡슐 반높이 (서버) */
 	float GetPlayerHalfHeight() const { return PlayerHalfHeight; }
 
+	/* 이번 프레임 시작 때 복사한 월드 중력 (서버, cm/s², 아래가 음수) */
+	float GetGravityZ() const { return GravityZ; }
+
 	/* 플레이어 발밑 NavMesh 점 (서버) — 이동의 갈 곳처럼 바닥 기준일 때 */
 	const FVector& GetPlayerNavLocation() const { return PlayerNavLocation; }
 
@@ -72,6 +78,9 @@ public:
 
 	/* 모양 안의 맞을 수 있는 적(예고 중 제외)을 대상 목록에 더한다. Center = 모양 중심, Forward = 수평 앞 방향 */
 	void FindEnemiesInShape(const FJY_HitShape& Shape, const FVector& Center, const FVector& Forward, TArray<FJY_CombatTarget>& OutTargets) const;
+
+	/* 적 1마리의 지금 상태 — 서버는 정한 값, 클라는 복제받은 값 */
+	EJY_EnemyState GetEnemyState(FMassEntityHandle Entity) const;
 
 	/* 적 1마리가 받을 최종 피해와 걸 상태이상(번호, 없으면 INDEX_NONE)을 쌓는다 — 다음 Mass 처리 때 피해 Processor가 반영 */
 	void AddPendingHit(FMassEntityHandle Entity, float Damage, int32 StatusIndex);
@@ -111,6 +120,8 @@ private:
 	float PlayerHalfHeight = 0.0f;
 
 	FVector PlayerNavLocation = FVector::ZeroVector;
+
+	float GravityZ = 0.0f;
 
 	FJY_NavFlowField FlowField;
 

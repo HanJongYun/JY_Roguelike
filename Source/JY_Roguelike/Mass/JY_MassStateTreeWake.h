@@ -15,6 +15,9 @@ namespace JY_MassStateTreeWake
 	/* 이 적들의 StateTree를 다음 Behavior 단계에 한 번 돌린다 — Processor·Task 안에서 부른다 */
 	void WakeEntities(FMassExecutionContext& Context, UMassSignalSubsystem& SignalSubsystem, TConstArrayView<FMassEntityHandle> Entities);
 
+	/* 이 적들의 StateTree를 다음 Behavior 단계에 한 번 돌린다 — 치트·공격처럼 Mass 처리 바깥에서 부른다 */
+	void WakeEntitiesOutsideProcessing(UMassSignalSubsystem& SignalSubsystem, TConstArrayView<FMassEntityHandle> Entities);
+
 	/* 이 적의 StateTree를 DelaySeconds 뒤에 한 번 돌린다 */
 	void WakeEntityAfterDelay(FMassExecutionContext& Context, UMassSignalSubsystem& SignalSubsystem, FMassEntityHandle Entity, float DelaySeconds);
 }

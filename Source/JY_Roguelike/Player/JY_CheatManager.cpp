@@ -290,6 +290,18 @@ void UJY_CheatManager::JYMassDamageAll(float Damage)
 	MassEnemySubsystem->DamageAllEnemies(Damage);
 }
 
+// [Server]
+void UJY_CheatManager::JYMassKnockback(float Radius, float HorizontalImpulse, float VerticalImpulse)
+{
+	const APlayerController* PlayerController = GetOuterAPlayerController();
+	const APawn* Pawn = PlayerController->GetPawn();
+	if (Pawn == nullptr)
+		return;
+
+	UJY_MassEnemySubsystem* MassEnemySubsystem = GetWorld()->GetSubsystem<UJY_MassEnemySubsystem>();
+	MassEnemySubsystem->KnockbackEnemies(Pawn->GetActorLocation(), Radius, HorizontalImpulse, VerticalImpulse);
+}
+
 namespace JY_FlowFieldDebug
 {
 	/* 보내는 간격 = 선이 남는 시간 — 다음 묶음이 올 때 앞 묶음이 사라져 옛 화살표가 겹치지 않는다 */

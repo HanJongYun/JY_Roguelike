@@ -58,6 +58,17 @@ public:
 	static FString AddTransition(UStateTree* StateTree, const FString& FromStateName, const FString& Trigger, const FString& ToStateName, const FString& ConditionStructPath, const FString& ConditionPropertiesText);
 
 	/**
+	 * 상태의 전환 하나의 우선순위를 바꾼다. 여러 전환이 같이 맞으면 우선순위가 높은 것이 쓰이고, 같으면 안쪽(자식) 상태의 전환이 먼저다.
+	 * @param StateTree 대상 에셋
+	 * @param FromStateName 전환이 달린 상태 이름
+	 * @param TransitionIndex 그 상태의 전환 번호 (0부터)
+	 * @param Priority Low / Normal / Medium / High / Critical
+	 * @return 성공이면 빈 문자열, 아니면 실패 이유
+	 */
+	UFUNCTION(meta = (AICallable), Category = "JY|StateTree")
+	static FString SetTransitionPriority(UStateTree* StateTree, const FString& FromStateName, int32 TransitionIndex, const FString& Priority);
+
+	/**
 	 * StateTree를 컴파일한다(에디터 Compile 버튼과 같음). 저장은 하지 않는다.
 	 * @param StateTree 대상 에셋
 	 * @return 성공이면 "OK", 아니면 컴파일 메시지

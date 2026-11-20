@@ -6,7 +6,9 @@
 #include "MassCommonFragments.h"
 #include "MassNavigationSubsystem.h"
 #include "MassExecutionContext.h"
+#include "Mass/JY_MassStateTreeWake.h"
 #include "Mass/JY_MassTypes.h"
+#include "MassSignalSubsystem.h"
 #include "Mass/Net/JY_MassNetWriteProcessor.h"
 #include "Mass/Net/JY_RoomEnemyNetActor.h"
 #include "Mass/EntityFragments.h"
@@ -51,6 +53,8 @@ namespace JY_MassEnemy
 			return EJY_EnemyAnimSlot::Idle;
 		case EJY_EnemyState::Chase:
 			return EJY_EnemyAnimSlot::Run;
+		case EJY_EnemyState::Knockback:
+			return EJY_EnemyAnimSlot::Knockback;
 		}
 
 		checkNoEntry();
@@ -78,8 +82,11 @@ void UJY_MassEnemySubsystem::OnWorldBeginPlay(UWorld& InWorld) //override
 // [Server]
 void UJY_MassEnemySubsystem::HandlePrePhysicsStarted(float DeltaSeconds)
 {
+	const UWorld* World = GetWorld();
+	GravityZ = World->GetGravityZ();
+
 	/* 데디 서버의 PC는 접속한 플레이어 것뿐 — 플레이어는 항상 한 명 */
-	const APlayerController* PlayerController = GetWorld()->GetFirstPlayerController();
+	const APlayerController* PlayerController = World->GetFirstPlayerController();
 	if (PlayerController == nullptr)
 		return;
 
@@ -222,6 +229,19 @@ void UJY_MassEnemySubsystem::FindEnemiesInShape(const FJY_HitShape& Shape, const
 	}
 }
 
+/* 상태는 서버가 Behavior, 클라가 복제받은 Visual에 들고 있다 */
+// [Server] [OwnClient]
+EJY_EnemyState UJY_MassEnemySubsystem::GetEnemyState(FMassEntityHandle Entity) const
+{
+	const FMassEntityManager& EntityManager = GetEntityManager();
+	const FJY_EnemyBehaviorFragment* Behavior = EntityManager.GetFragmentDataPtr<FJY_EnemyBehaviorFragment>(Entity);
+	if (Behavior != nullptr)
+		return Behavior->State;
+
+	const FJY_EnemyVisualFragment& Visual = EntityManager.GetFragmentDataChecked<FJY_EnemyVisualFragment>(Entity);
+	return Visual.State;
+}
+
 /* Processor 실행 중에는 부르면 안 된다 — 타이머·치트처럼 Mass 처리 바깥에서만 (MassEntityManager.cpp:846) */
 // [Server]
 TArray<FMassEntityHandle> UJY_MassEnemySubsystem::SpawnWave(const UJY_EnemyDefinition& EnemyDefinition, TConstArrayView<FVector> Locations, float SpawnWarningSeconds)
@@ -341,6 +361,48 @@ void UJY_MassEnemySubsystem::DamageAllEnemies(float Damage)
 		Health.Current = FMath::Max(Health.Current - Damage, 0.0f);
 		++Health.HitSerial;
 	}
+}
+
+/*
+ * 속도만 적어 두고 상태는 StateTree가 바꾼다 — 실제로 옮기는 것은 UJY_MassApplyMovementProcessor.
+ * 치트·공격처럼 Mass 처리 바깥에서만 부른다
+ */
+// [Server]
+void UJY_MassEnemySubsystem::KnockbackEnemies(const FVector& Center, float Radius, float HorizontalImpulse, float VerticalImpulse)
+{
+	UWorld* World = GetWorld();
+	if (JY_MassEnemy::IsEnemyServer(*World) == false)
+		return;
+
+	/* 공격 판정과 같은 길로 반경 안의 적을 찾는다 — 예고 중인 적은 여기서 빠진다 */
+	FJY_HitShape SearchShape;
+	SearchShape.Type = EJY_HitShapeType::Sphere;
+	SearchShape.Radius = Radius;
+	TArray<FJY_CombatTarget> Targets;
+	FindEnemiesInShape(SearchShape, Center, FVector::ForwardVector, OUT Targets);
+
+	FMassEntityManager& EntityManager = GetEntityManager();
+	TArray<FMassEntityHandle> KnockedBackEntities;
+	KnockedBackEntities.Reserve(Targets.Num());
+	for (const FJY_CombatTarget& Target : Targets)
+	{
+		/* 정확히 같은 자리면 방향이 없다 — 엔진 회피와 같은 기본 방향 (MassAvoidanceProcessors.cpp:948) */
+		const FVector FromCenter(Target.Location.X - Center.X, Target.Location.Y - Center.Y, 0.0f);
+		const float Distance = FromCenter.Size();
+		const FVector OutwardDirection = Distance > UE_KINDA_SMALL_NUMBER ? FromCenter / Distance : FVector::ForwardVector;
+
+		/* 날아가는 중에 또 맞으면 높이는 그대로 두고 속도만 새로 정한다 */
+		FJY_EnemyKnockbackFragment& Knockback = EntityManager.GetFragmentDataChecked<FJY_EnemyKnockbackFragment>(Target.Entity);
+		const float HorizontalSpeed = HorizontalImpulse / Knockback.Mass;
+		const float VerticalSpeed = VerticalImpulse / Knockback.Mass;
+		Knockback.Velocity = OutwardDirection * HorizontalSpeed + FVector(0.0f, 0.0f, VerticalSpeed);
+		Knockback.bActive = true;
+
+		KnockedBackEntities.Add(Target.Entity);
+	}
+
+	UMassSignalSubsystem* SignalSubsystem = World->GetSubsystem<UMassSignalSubsystem>();
+	JY_MassStateTreeWake::WakeEntitiesOutsideProcessing(*SignalSubsystem, KnockedBackEntities);
 }
 
 // [OwnClient]

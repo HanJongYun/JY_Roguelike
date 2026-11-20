@@ -257,4 +257,7 @@ struct FJY_PendingMassHit
 
 	/* 걸 상태이상의 비트 */
 	uint8 StatusFlags = 0;
+
+	/* 날리는 힘 (XY = 미는 방향 × 힘, Z = 띄우는 힘) — 여러 번 맞으면 마지막 것 */
+	FVector KnockbackForce = FVector::ZeroVector;
 };

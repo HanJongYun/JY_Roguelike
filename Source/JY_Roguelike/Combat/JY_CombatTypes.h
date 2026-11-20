@@ -97,6 +97,9 @@ struct FJY_HitPayload
 	/* 밀려나며 떠오르는 높이 (cm) — 0이면 바닥을 미끄러짐 */
 	float KnockbackHeight = 0.0f;
 
+	/* Mass 적을 날리는 힘 (XY = 미는 방향 × 힘, Z = 띄우는 힘) — 힘 ÷ 적 질량 = 속도 */
+	FVector KnockbackForce = FVector::ZeroVector;
+
 	/* 부서지는 물체를 날리는 방향 (월드, 수평) — 0이면 공격자 → 물체 */
 	FVector ObjectPushDirection = FVector::ZeroVector;
 

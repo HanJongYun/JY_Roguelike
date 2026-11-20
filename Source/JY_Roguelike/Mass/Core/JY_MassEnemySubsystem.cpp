@@ -312,13 +312,19 @@ void UJY_MassEnemySubsystem::DestroyAllEnemies()
 }
 
 // [Server]
-void UJY_MassEnemySubsystem::AddPendingHit(FMassEntityHandle Entity, float Damage, int32 StatusIndex)
+void UJY_MassEnemySubsystem::AddPendingHit(FMassEntityHandle Entity, float Damage, int32 StatusIndex, const FVector& KnockbackForce)
 {
 	FJY_PendingMassHit& PendingHit = PendingHitsBuffer.FindOrAdd(Entity);
 	PendingHit.Damage += Damage;
 	if (StatusIndex != INDEX_NONE)
 	{
 		PendingHit.StatusFlags |= static_cast<uint8>(1 << StatusIndex);
+	}
+
+	/* 같은 프레임에 힘 없는 타격이 뒤에 와도 앞 타격의 힘을 지우지 않는다 */
+	if (KnockbackForce.IsNearlyZero() == false)
+	{
+		PendingHit.KnockbackForce = KnockbackForce;
 	}
 }
 

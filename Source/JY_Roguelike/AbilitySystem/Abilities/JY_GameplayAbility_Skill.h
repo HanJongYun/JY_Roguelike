@@ -52,6 +52,14 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "JY|Skill")
 	float KnockbackSpeed = 400.0f;
 
+	/* Mass 적을 옆으로 미는 힘 — 힘 ÷ 적 질량 = 속도 (cm/s) */
+	UPROPERTY(EditDefaultsOnly, Category = "JY|Skill", meta = (ClampMin = "0.0"))
+	float KnockbackForce = 0.0f;
+
+	/* Mass 적을 위로 띄우는 힘 — 힘 ÷ 적 질량 = 속도 (cm/s) */
+	UPROPERTY(EditDefaultsOnly, Category = "JY|Skill", meta = (ClampMin = "0.0"))
+	float KnockbackLiftForce = 0.0f;
+
 	/* 피격 연출 큐 */
 	UPROPERTY(EditDefaultsOnly, Category = "JY|Skill", Meta = (Categories = "GameplayCue"))
 	FGameplayTag HitCueTag;

@@ -216,7 +216,7 @@ void UJY_CombatQuerySubsystem::AppendMassTargetsInShape(const FJY_HitShape& Shap
 	MassEnemySubsystem->FindEnemiesInShape(Shape, Center, Forward, OUT OutTargets);
 }
 
-/* 조종 클라의 연출용 판정이 실수로 불러도 서버에만 쌓인다. 피격 큐·밀어내기는 Mass 적에 아직 없다 */
+/* 조종 클라의 연출용 판정이 실수로 불러도 서버에만 쌓인다. 피격 큐는 Mass 적에 아직 없다 */
 // [Server]
 void UJY_CombatQuerySubsystem::AddMassEnemyHit(const FJY_CombatTarget& Target, const FJY_HitPayload& Payload) const
 {
@@ -235,7 +235,7 @@ void UJY_CombatQuerySubsystem::AddMassEnemyHit(const FJY_CombatTarget& Target, c
 	}
 
 	UJY_MassEnemySubsystem* MassEnemySubsystem = World->GetSubsystem<UJY_MassEnemySubsystem>();
-	MassEnemySubsystem->AddPendingHit(Target.Entity, DamageResult.Damage, StatusIndex);
+	MassEnemySubsystem->AddPendingHit(Target.Entity, DamageResult.Damage, StatusIndex, Payload.KnockbackForce);
 }
 
 // [Server]

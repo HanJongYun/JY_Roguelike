@@ -19,6 +19,8 @@ UJY_GameplayAbility_Plunge::UJY_GameplayAbility_Plunge(const FObjectInitializer&
 	: Super(ObjectInitializer)
 {
 	KnockbackSpeed = 1200.0f;
+	KnockbackForce = 40000.0f;
+	KnockbackLiftForce = 30000.0f;
 }
 
 // [Server] [OwnClient]
@@ -283,7 +285,7 @@ void UJY_GameplayAbility_Plunge::OnHitEvent(FGameplayEventData Payload)
 	const float FallRadiusScale = FMath::Lerp(1.0f, MaxFallRadiusScale, FallAlpha);
 
 	const FJY_HitShape ScaledShape = ScaleHitShape(HitShape, FallRadiusScale);
-	ApplyHitInShape(ScaledShape, HitOrigin, SkillEntry.ActionMultiplier, SkillEntry.SkillTag, KnockbackSpeed, HitCueTag, HitCameraShake);
+	ApplyHitInShape(ScaledShape, HitOrigin, SkillEntry.ActionMultiplier, SkillEntry.SkillTag, KnockbackSpeed, KnockbackForce, KnockbackLiftForce, HitCueTag, HitCameraShake);
 }
 
 void UJY_GameplayAbility_Plunge::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) //override

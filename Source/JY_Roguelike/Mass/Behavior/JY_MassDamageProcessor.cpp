@@ -4,7 +4,9 @@
 #include "Mass/Core/JY_MassEnemySubsystem.h"
 #include "Mass/JY_MassTypes.h"
 #include "Mass/JY_MassProcessorOrder.h"
+#include "Mass/JY_MassStateTreeWake.h"
 #include "MassExecutionContext.h"
+#include "MassSignalSubsystem.h"
 #include "System/JY_AssetManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(JY_MassDamageProcessor)
@@ -39,6 +41,8 @@ void UJY_MassDamageProcessor::ConfigureQueries(const TSharedRef<FMassEntityManag
 	EntityQuery.AddRequirement<FJY_EnemyHealthFragment>(EMassFragmentAccess::ReadWrite);
 	EntityQuery.AddRequirement<FJY_EnemyStatusFragment>(EMassFragmentAccess::ReadWrite);
 	EntityQuery.AddRequirement<FJY_EnemyLastSentToClientFragment>(EMassFragmentAccess::ReadOnly);
+	EntityQuery.AddRequirement<FJY_EnemyKnockbackFragment>(EMassFragmentAccess::ReadWrite);
+	EntityQuery.AddSubsystemRequirement<UMassSignalSubsystem>(EMassFragmentAccess::ReadWrite);
 }
 
 /* 걸린 상태이상의 틱이 있어 매 프레임 모든 적을 돈다 — 피해 목록에 있어도 이미 지워진 적은 쿼리에 없어 그냥 버려진다 */
@@ -59,6 +63,8 @@ void UJY_MassDamageProcessor::Execute(FMassEntityManager& EntityManager, FMassEx
 		const TArrayView<FJY_EnemyHealthFragment> Healths = ChunkContext.GetMutableFragmentView<FJY_EnemyHealthFragment>();
 		const TArrayView<FJY_EnemyStatusFragment> Statuses = ChunkContext.GetMutableFragmentView<FJY_EnemyStatusFragment>();
 		const TConstArrayView<FJY_EnemyLastSentToClientFragment> LastSentToClients = ChunkContext.GetFragmentView<FJY_EnemyLastSentToClientFragment>();
+		const TArrayView<FJY_EnemyKnockbackFragment> Knockbacks = ChunkContext.GetMutableFragmentView<FJY_EnemyKnockbackFragment>();
+		TArray<FMassEntityHandle> KnockedBackEntities;
 
 		for (FMassExecutionContext::FEntityIterator EntityIt = ChunkContext.CreateEntityIterator(); EntityIt; ++EntityIt)
 		{
@@ -120,18 +126,32 @@ void UJY_MassDamageProcessor::Execute(FMassEntityManager& EntityManager, FMassEx
 				}
 			}
 
-			if (TotalDamage <= 0.0f)
+			if (TotalDamage > 0.0f)
+			{
+				/* 실드·방어 규칙은 아직 없다 — 계산이 끝난 최종 피해를 체력에서만 뺀다 */
+				Health.Current = FMath::Max(Health.Current - TotalDamage, 0.0f);
+
+				/* 임시 사망 — 사망 상태·연출 없이 바로 지운다 */
+				if (Health.Current <= 0.0f)
+				{
+					MassEnemySubsystem->DestroyEnemy(ChunkContext, Entity, LastSentToClients[EntityIt].ReplicationID);
+					continue;
+				}
+			}
+
+			/* 띄우는 힘이 없으면 첫 프레임에 착지해 밀리지 않는다 — 바닥에 붙어 밀리는 넉백이 생기기 전까지 건너뛴다 */
+			if (PendingHit == nullptr || PendingHit->KnockbackForce.Z <= 0.0f)
 				continue;
 
-			/* 실드·방어 규칙은 아직 없다 — 계산이 끝난 최종 피해를 체력에서만 뺀다 */
-			Health.Current = FMath::Max(Health.Current - TotalDamage, 0.0f);
-
-			/* 임시 사망 — 사망 상태·연출 없이 바로 지운다 */
-			if (Health.Current <= 0.0f)
-			{
-				MassEnemySubsystem->DestroyEnemy(ChunkContext, Entity, LastSentToClients[EntityIt].ReplicationID);
-			}
+			/* 날아가는 중에 또 맞으면 높이는 그대로 두고 속도만 새로 정한다 */
+			FJY_EnemyKnockbackFragment& Knockback = Knockbacks[EntityIt];
+			Knockback.Velocity = PendingHit->KnockbackForce / Knockback.Mass;
+			Knockback.bActive = true;
+			KnockedBackEntities.Add(Entity);
 		}
+
+		UMassSignalSubsystem& SignalSubsystem = ChunkContext.GetMutableSubsystemChecked<UMassSignalSubsystem>();
+		JY_MassStateTreeWake::WakeEntities(ChunkContext, SignalSubsystem, KnockedBackEntities);
 	};
 	EntityQuery.ForEachEntityChunk(Context, ApplyHitsAndStatusTicks);
 }

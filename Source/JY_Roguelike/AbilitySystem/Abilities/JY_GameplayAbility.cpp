@@ -69,7 +69,7 @@ void UJY_GameplayAbility::FaceDirection(const FVector& Direction) const
 
 // [Server] [OwnClient]
 /* 서버 확인을 기다리면 왕복 지연만큼 늦어 조종 클라는 같은 판정을 미리 돌려 화면만 흔든다. 밀기 방향 = 판정 원점 → 대상 */
-void UJY_GameplayAbility::ApplyHitInShape(const FJY_HitShape& Shape, const FTransform& Origin, int32 ActionMultiplier, const FGameplayTag& ActionTag, float KnockbackSpeed, FGameplayTag HitCueTag, TSubclassOf<UCameraShakeBase> HitCameraShake, const FVector& ObjectPushDirection) const
+void UJY_GameplayAbility::ApplyHitInShape(const FJY_HitShape& Shape, const FTransform& Origin, int32 ActionMultiplier, const FGameplayTag& ActionTag, float KnockbackSpeed, float KnockbackForce, float KnockbackLiftForce, FGameplayTag HitCueTag, TSubclassOf<UCameraShakeBase> HitCameraShake, const FVector& ObjectPushDirection) const
 {
 	AActor* AvatarActor = GetAvatarActorFromActorInfo();
 	const UWorld* World = GetWorld();
@@ -105,6 +105,7 @@ void UJY_GameplayAbility::ApplyHitInShape(const FJY_HitShape& Shape, const FTran
 			HitPayload.ElementTag = ElementTag;
 			HitPayload.StatusTag = StatusTag;
 			HitPayload.KnockbackImpulse = FVector2f(KnockbackDirection.X, KnockbackDirection.Y) * KnockbackSpeed;
+			HitPayload.KnockbackForce = KnockbackDirection * KnockbackForce + FVector::UpVector * KnockbackLiftForce;
 			HitPayload.HitCueTag = HitCueTag;
 			HitPayload.Instigator = AvatarActor;
 			HitPayload.ObjectPushDirection = ObjectPushDirection;

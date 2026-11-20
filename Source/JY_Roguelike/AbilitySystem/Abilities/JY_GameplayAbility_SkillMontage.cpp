@@ -82,5 +82,5 @@ void UJY_GameplayAbility_SkillMontage::OnHitEvent(FGameplayEventData Payload)
 	++HitEventIndex;
 
 	const FJY_SkillEntry& SkillEntry = GetCurrentSkillEntry();
-	ApplyHitInShape(EventShape, HitOrigin, SkillEntry.ActionMultiplier, SkillEntry.SkillTag, KnockbackSpeed, HitCueTag, HitCameraShake);
+	ApplyHitInShape(EventShape, HitOrigin, SkillEntry.ActionMultiplier, SkillEntry.SkillTag, KnockbackSpeed, KnockbackForce, KnockbackLiftForce, HitCueTag, HitCameraShake);
 }

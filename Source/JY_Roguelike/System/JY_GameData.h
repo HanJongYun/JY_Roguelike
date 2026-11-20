@@ -16,6 +16,7 @@ class UJY_SkillData;
 class UJY_StatusEffectData;
 class UGameplayEffect;
 class UJY_EnemyDefinition;
+class UJY_BlessingDefinition;
 
 /* 게임 전체가 같이 쓰는 데이터 한 벌 (에셋 DA_JY_GameData) */
 UCLASS(BlueprintType, Const)
@@ -73,6 +74,10 @@ public:
 	/* 회복 GE (GE_JY_Heal) — 크기는 SetByCaller.Heal */
 	UPROPERTY(EditDefaultsOnly, Category = "GameplayEffect")
 	TSubclassOf<UGameplayEffect> HealGameplayEffect;
+
+	/* 모든 축복 (DA_JY_Blessing_*) — 치트·3택1이 여기서 고른다 */
+	UPROPERTY(EditDefaultsOnly, Category = "Blessing")
+	TArray<TObjectPtr<const UJY_BlessingDefinition>> BlessingDefinitions;
 
 	/* Mass 적 종류 — 배열 번호가 복제되는 정의 번호(DefinitionIndex). 서버·클라가 같은 순서로 읽는다 */
 	UPROPERTY(EditDefaultsOnly, Category = "Mass")

@@ -6,6 +6,7 @@
 #include "Combat/JY_CombatTypes.h"
 #include "Combat/JY_HitReactionComponent.h"
 #include "Skill/JY_SkillLoadoutComponent.h"
+#include "Blessing/JY_OwnedBlessingComponent.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -67,6 +68,7 @@ AJY_Character::AJY_Character()
 	InteractionComponent = CreateDefaultSubobject<UJY_InteractionComponent>(TEXT("InteractionComponent"));
 	HitReactionComponent = CreateDefaultSubobject<UJY_HitReactionComponent>(TEXT("HitReactionComponent"));
 	SkillLoadoutComponent = CreateDefaultSubobject<UJY_SkillLoadoutComponent>(TEXT("SkillLoadoutComponent"));
+	OwnedBlessingComponent = CreateDefaultSubobject<UJY_OwnedBlessingComponent>(TEXT("OwnedBlessingComponent"));
 	HealthComponent->OnDeathStarted.AddDynamic(this, &ThisClass::OnDeathStarted);
 
 	/* 외형 전용 — 판정은 따로 한다 */

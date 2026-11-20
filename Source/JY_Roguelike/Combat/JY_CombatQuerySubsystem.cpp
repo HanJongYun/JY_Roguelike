@@ -1,6 +1,7 @@
 #include "Combat/JY_CombatQuerySubsystem.h"
 #include "AbilitySystem/JY_AbilitySystemComponent.h"
 #include "AbilitySystem/Attributes/JY_CombatSet.h"
+#include "Blessing/JY_OwnedBlessingComponent.h"
 #include "System/JY_AssetManager.h"
 #include "System/JY_GameData.h"
 #include "Combat/JY_HitReactionComponent.h"
@@ -333,9 +334,20 @@ FJY_DamageResult UJY_CombatQuerySubsystem::ComputeDamage(const FJY_HitPayload& P
 		DamageInput.AttackBonus = FMath::RoundToInt(InstigatorJYASC->GetNumericAttribute(UJY_CombatSet::GetAttackBonusAttribute()) * PercentToRate);
 		DamageInput.CritChance = FMath::RoundToInt(InstigatorJYASC->GetNumericAttribute(UJY_CombatSet::GetCritChanceAttribute()) * PercentToRate);
 		DamageInput.CritMultiplier = FMath::RoundToInt(InstigatorJYASC->GetNumericAttribute(UJY_CombatSet::GetCritMultiplierAttribute()) * PercentToRate);
+
+		const UJY_OwnedBlessingComponent* OwnedBlessingComponent = InstigatorActor->FindComponentByClass<UJY_OwnedBlessingComponent>();
+		DamageInput.IncreaseRate = OwnedBlessingComponent->GetIncreaseRate(Payload.ActionTag);
 	}
 
-	return CalculateDamage(DamageInput);
+	const FJY_DamageResult DamageResult = CalculateDamage(DamageInput);
+
+	/* [임시코드] ④-1 PIE 확인용 — 확인 끝나면 삭제 */
+	if (Payload.DamageType == EJY_DamageType::Strike)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[JY_QA][Server] Strike 행동=%s 속성=%s 상태이상=%s 공격력=%.1f 행동배율=%d 축복증가=%d 치명=%d 최종피해=%.1f"), *Payload.ActionTag.ToString(), *Payload.ElementTag.ToString(), *Payload.StatusTag.ToString(), DamageInput.BaseAttack, DamageInput.ActionMultiplier, DamageInput.IncreaseRate, DamageResult.bCritical ? 1 : 0, DamageResult.Damage);
+	}
+
+	return DamageResult;
 }
 
 // [Server]

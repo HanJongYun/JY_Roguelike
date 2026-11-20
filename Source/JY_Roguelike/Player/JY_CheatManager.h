@@ -21,6 +21,10 @@ public:
 	UFUNCTION(Exec, BlueprintAuthorityOnly)
 	void JYHeal(float Amount);
 
+	/* 축복 얻기 — 이름은 에셋 이름에서 DA_JY_Blessing_ 뒤 (예: JYGiveBlessing Fire_BasicAttack) */
+	UFUNCTION(Exec, BlueprintAuthorityOnly)
+	void JYGiveBlessing(const FString& BlessingName);
+
 	/* 영혼석 더하기 (예: JYAddSoul 100) */
 	UFUNCTION(Exec, BlueprintAuthorityOnly)
 	void JYAddSoul(int32 Amount);

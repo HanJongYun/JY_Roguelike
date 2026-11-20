@@ -18,6 +18,7 @@ class UJY_HealthComponent;
 class UJY_InteractionComponent;
 class UJY_HitReactionComponent;
 class UJY_SkillLoadoutComponent;
+class UJY_OwnedBlessingComponent;
 struct FInputActionValue;
 
 /* 쿼터뷰 카메라로 움직이는 플레이어 캐릭터 */
@@ -91,6 +92,10 @@ private:
 	/* 스킬 슬롯 — 빙의 때 DA_JY_SkillData대로 지급, 해제 때 회수 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "JY|Skill", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UJY_SkillLoadoutComponent> SkillLoadoutComponent;
+
+	/* 가진 축복 — 타격 때 그 행동의 속성·상태이상·피해 증가를 채운다 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "JY|Blessing", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UJY_OwnedBlessingComponent> OwnedBlessingComponent;
 
 	/* 손에 든 무기 외형. 메시 에셋은 BP_JY_Character에서 지정 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "JY|Weapon", meta = (AllowPrivateAccess = "true"))

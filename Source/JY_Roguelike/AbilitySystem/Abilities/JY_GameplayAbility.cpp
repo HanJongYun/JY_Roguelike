@@ -1,5 +1,7 @@
 #include "AbilitySystem/Abilities/JY_GameplayAbility.h"
 #include "AbilitySystem/JY_AbilitySystemComponent.h"
+#include "Blessing/JY_BlessingDefinition.h"
+#include "Blessing/JY_OwnedBlessingComponent.h"
 #include "Combat/JY_CombatQuerySubsystem.h"
 #include "System/JY_GameplayTags.h"
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
@@ -79,6 +81,17 @@ void UJY_GameplayAbility::ApplyHitInShape(const FJY_HitShape& Shape, const FTran
 
 	if (CurrentActorInfo->IsNetAuthority() == true)
 	{
+		/* 이 행동에 축복이 붙어 있으면 칼 피해가 그 계열 속성이 되고 상태이상을 건다. 없으면 물리 */
+		FGameplayTag ElementTag = JYGameplayTags::Element_Physical;
+		FGameplayTag StatusTag;
+		const UJY_OwnedBlessingComponent* OwnedBlessingComponent = AvatarActor->FindComponentByClass<UJY_OwnedBlessingComponent>();
+		const UJY_BlessingDefinition* ActionBlessing = OwnedBlessingComponent->FindActionBlessing(ActionTag);
+		if (ActionBlessing != nullptr)
+		{
+			ElementTag = ActionBlessing->ElementTag;
+			StatusTag = ActionBlessing->StatusTag;
+		}
+
 		const FVector OriginLocation = Origin.GetLocation();
 		for (const FJY_CombatTarget& Target : Targets)
 		{
@@ -89,7 +102,8 @@ void UJY_GameplayAbility::ApplyHitInShape(const FJY_HitShape& Shape, const FTran
 			HitPayload.DamageType = EJY_DamageType::Strike;
 			HitPayload.ActionMultiplier = ActionMultiplier;
 			HitPayload.ActionTag = ActionTag;
-			HitPayload.ElementTag = JYGameplayTags::Element_Physical;
+			HitPayload.ElementTag = ElementTag;
+			HitPayload.StatusTag = StatusTag;
 			HitPayload.KnockbackImpulse = FVector2f(KnockbackDirection.X, KnockbackDirection.Y) * KnockbackSpeed;
 			HitPayload.HitCueTag = HitCueTag;
 			HitPayload.Instigator = AvatarActor;

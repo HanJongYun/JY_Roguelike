@@ -1,6 +1,8 @@
 #include "Player/JY_CheatManager.h"
 #include "Player/JY_PlayerState.h"
 #include "AbilitySystem/JY_AbilitySystemComponent.h"
+#include "Blessing/JY_BlessingDefinition.h"
+#include "Blessing/JY_OwnedBlessingComponent.h"
 #include "Combat/JY_CombatQuerySubsystem.h"
 #include "Interfaces/JY_HitReactable.h"
 #include "Interfaces/JY_InterfaceUtils.h"
@@ -76,6 +78,27 @@ void UJY_CheatManager::ApplyHealthDelta(float Delta)
 	const FGameplayEffectSpecHandle SpecHandle = JYASC->MakeOutgoingSpec(EffectClass, 1.0f, EffectContext);
 	SpecHandle.Data->SetSetByCallerMagnitude(MagnitudeTag, FMath::Abs(Delta));
 	JYASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
+}
+
+// [Server]
+void UJY_CheatManager::JYGiveBlessing(const FString& BlessingName)
+{
+	const FString AssetName = TEXT("DA_JY_Blessing_") + BlessingName;
+	const UJY_GameData* GameData = UJY_AssetManager::Get().GetGameData();
+	for (const UJY_BlessingDefinition* Blessing : GameData->BlessingDefinitions)
+	{
+		if (Blessing->GetName().Equals(AssetName, ESearchCase::IgnoreCase) == false)
+			continue;
+
+		const APlayerController* PlayerController = GetOuterAPlayerController();
+		const APawn* Pawn = PlayerController->GetPawn();
+		if (Pawn == nullptr)
+			return;
+
+		UJY_OwnedBlessingComponent* OwnedBlessingComponent = Pawn->FindComponentByClass<UJY_OwnedBlessingComponent>();
+		OwnedBlessingComponent->AddBlessing(Blessing);
+		return;
+	}
 }
 
 // [Server]

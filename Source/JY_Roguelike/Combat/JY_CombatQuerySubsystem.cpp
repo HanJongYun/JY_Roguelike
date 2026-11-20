@@ -339,15 +339,7 @@ FJY_DamageResult UJY_CombatQuerySubsystem::ComputeDamage(const FJY_HitPayload& P
 		DamageInput.IncreaseRate = OwnedBlessingComponent->GetIncreaseRate(Payload.ActionTag);
 	}
 
-	const FJY_DamageResult DamageResult = CalculateDamage(DamageInput);
-
-	/* [임시코드] ④-1 PIE 확인용 — 확인 끝나면 삭제 */
-	if (Payload.DamageType == EJY_DamageType::Strike)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[JY_QA][Server] Strike 행동=%s 속성=%s 상태이상=%s 공격력=%.1f 행동배율=%d 축복증가=%d 치명=%d 최종피해=%.1f"), *Payload.ActionTag.ToString(), *Payload.ElementTag.ToString(), *Payload.StatusTag.ToString(), DamageInput.BaseAttack, DamageInput.ActionMultiplier, DamageInput.IncreaseRate, DamageResult.bCritical ? 1 : 0, DamageResult.Damage);
-	}
-
-	return DamageResult;
+	return CalculateDamage(DamageInput);
 }
 
 // [Server]

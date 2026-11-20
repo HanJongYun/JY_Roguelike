@@ -22,6 +22,7 @@ void UJY_EnemyNavigationTrait::BuildTemplate(FMassEntityTemplateBuildContext& Bu
 	/* 처음 값을 넣어 붙인다 — 엔진 Trait와 같은 방식 (MassLODTrait.cpp:126) */
 	FJY_EnemyKnockbackFragment& Knockback = BuildContext.AddFragment_GetRef<FJY_EnemyKnockbackFragment>();
 	Knockback.Mass = Mass;
+	Knockback.GroundDeceleration = KnockbackGroundDeceleration;
 
 	/* 같은 값은 적 종류끼리 하나를 같이 쓴다 — 엔진 이동 Trait와 같은 방식 (MassMovementTrait.cpp:24) */
 	FMassEntityManager& EntityManager = UE::Mass::Utils::GetEntityManagerChecked(World);

@@ -16,7 +16,7 @@ namespace JY_MassApplyMovement
 {
 	/*
 	 * 넉백 한 프레임 — 수평은 바닥 점을 NavMesh 위로 옮기고(벽을 못 뚫음), 높이는 중력으로 따로 계산해 바닥 높이에 더한다.
-	 * 착지했으면 true
+	 * 공중에서는 수평 속도를 그대로 두고, 바닥에 붙으면 감속해 멈춘다. 멈췄으면 true
 	 */
 	// [Server]
 	bool MoveKnockback(const ARecastNavMesh& NavMesh, float DeltaSeconds, float GravityZ, FTransform& Transform, FJY_NavPolyFragment& NavPoly, FJY_EnemyKnockbackFragment& Knockback, FMassVelocityFragment& Velocity)
@@ -42,13 +42,29 @@ namespace JY_MassApplyMovement
 		Knockback.Velocity.Z += GravityZ * DeltaSeconds;
 		Knockback.Height += Knockback.Velocity.Z * DeltaSeconds;
 
-		/* 내려오는 중에 바닥에 닿아야 착지 — 위로 띄우는 힘 없이 맞아도 첫 프레임에 바로 닿아 끝난다 */
-		const bool bLanded = Knockback.Height <= 0.0f && Knockback.Velocity.Z <= 0.0f;
-		if (bLanded == true)
+		/* 내려오는 중에 바닥에 닿아야 바닥 — 위로 띄우는 힘 없이 맞으면 첫 프레임부터 바닥이다 */
+		bool bStopped = false;
+		const bool bOnGround = Knockback.Height <= 0.0f && Knockback.Velocity.Z <= 0.0f;
+		if (bOnGround == true)
 		{
 			Knockback.Height = 0.0f;
-			Knockback.Velocity = FVector::ZeroVector;
-			Knockback.bActive = false;
+			Knockback.Velocity.Z = 0.0f;
+
+			/* 바닥 마찰 — 방향은 그대로 두고 빠르기만 줄인다. 벽에 정면으로 막혀 속도를 다 잃은 적도 여기서 멈춘다 */
+			const float GroundSpeed = Knockback.Velocity.Size2D();
+			const float SlowedSpeed = GroundSpeed - Knockback.GroundDeceleration * DeltaSeconds;
+			if (SlowedSpeed <= 0.0f)
+			{
+				Knockback.Velocity = FVector::ZeroVector;
+				Knockback.bActive = false;
+				bStopped = true;
+			}
+			else
+			{
+				const float SpeedScale = SlowedSpeed / GroundSpeed;
+				Knockback.Velocity.X *= SpeedScale;
+				Knockback.Velocity.Y *= SpeedScale;
+			}
 		}
 
 		const FVector NewLocation = SnappedLocation.Location + FVector(0.0f, 0.0f, Knockback.Height);
@@ -56,7 +72,7 @@ namespace JY_MassApplyMovement
 		Transform.SetLocation(NewLocation);
 		NavPoly.PolyRef = SnappedLocation.NodeRef;
 
-		return bLanded;
+		return bStopped;
 	}
 }
 
@@ -108,8 +124,8 @@ void UJY_MassApplyMovementProcessor::Execute(FMassEntityManager& EntityManager, 
 		const TArrayView<FJY_EnemyKnockbackFragment> Knockbacks = ChunkContext.GetMutableFragmentView<FJY_EnemyKnockbackFragment>();
 		const float GravityZ = MassEnemySubsystem.GetGravityZ();
 
-		/* 착지한 적 — 다음에 쫓을지 설지는 적마다의 StateTree가 정한다 */
-		TArray<FMassEntityHandle, TInlineAllocator<16>> LandedEntities;
+		/* 넉백이 끝나 멈춘 적 — 다음에 쫓을지 설지는 적마다의 StateTree가 정한다 */
+		TArray<FMassEntityHandle, TInlineAllocator<16>> StoppedEntities;
 
 		for (FMassExecutionContext::FEntityIterator EntityIt = ChunkContext.CreateEntityIterator(); EntityIt; ++EntityIt)
 		{
@@ -117,10 +133,10 @@ void UJY_MassApplyMovementProcessor::Execute(FMassEntityManager& EntityManager, 
 			if (NavPoly.PolyRef == INVALID_NAVNODEREF)
 				continue;
 
-			/* 날아가는 적은 원하는 속도 대신 넉백 속도로 따로 옮긴다 */
+			/* 넉백 중인 적은 원하는 속도 대신 넉백 속도로 따로 옮긴다 */
 			if (Behaviors[EntityIt].State == EJY_EnemyState::Knockback)
 			{
-				/* 착지한 뒤 StateTree가 상태를 바꿀 때까지의 한 프레임 — 그 자리에 둔다 */
+				/* 멈춘 뒤 StateTree가 상태를 바꿀 때까지의 한 프레임 — 그 자리에 둔다 */
 				if (Knockbacks[EntityIt].bActive == false)
 				{
 					Velocities[EntityIt].Value = FVector::ZeroVector;
@@ -128,10 +144,10 @@ void UJY_MassApplyMovementProcessor::Execute(FMassEntityManager& EntityManager, 
 				}
 
 				FTransform& KnockbackTransform = Transforms[EntityIt].GetMutableTransform();
-				const bool bLanded = JY_MassApplyMovement::MoveKnockback(*NavMesh, DeltaSeconds, GravityZ, KnockbackTransform, NavPoly, Knockbacks[EntityIt], Velocities[EntityIt]);
-				if (bLanded == true)
+				const bool bStopped = JY_MassApplyMovement::MoveKnockback(*NavMesh, DeltaSeconds, GravityZ, KnockbackTransform, NavPoly, Knockbacks[EntityIt], Velocities[EntityIt]);
+				if (bStopped == true)
 				{
-					LandedEntities.Add(ChunkContext.GetEntity(EntityIt));
+					StoppedEntities.Add(ChunkContext.GetEntity(EntityIt));
 				}
 				continue;
 			}
@@ -164,7 +180,7 @@ void UJY_MassApplyMovementProcessor::Execute(FMassEntityManager& EntityManager, 
 		}
 
 		UMassSignalSubsystem& SignalSubsystem = ChunkContext.GetMutableSubsystemChecked<UMassSignalSubsystem>();
-		JY_MassStateTreeWake::WakeEntities(ChunkContext, SignalSubsystem, LandedEntities);
+		JY_MassStateTreeWake::WakeEntities(ChunkContext, SignalSubsystem, StoppedEntities);
 	};
 	EntityQuery.ForEachEntityChunk(Context, MoveOnNavMesh);
 }

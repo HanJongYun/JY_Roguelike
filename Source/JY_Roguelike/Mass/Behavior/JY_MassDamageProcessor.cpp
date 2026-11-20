@@ -139,11 +139,10 @@ void UJY_MassDamageProcessor::Execute(FMassEntityManager& EntityManager, FMassEx
 				}
 			}
 
-			/* 띄우는 힘이 없으면 첫 프레임에 착지해 밀리지 않는다 — 바닥에 붙어 밀리는 넉백이 생기기 전까지 건너뛴다 */
-			if (PendingHit == nullptr || PendingHit->KnockbackForce.Z <= 0.0f)
+			if (PendingHit == nullptr || PendingHit->KnockbackForce.IsNearlyZero() == true)
 				continue;
 
-			/* 날아가는 중에 또 맞으면 높이는 그대로 두고 속도만 새로 정한다 */
+			/* 띄우는 힘이 없으면 바닥에 붙어 밀린다. 날아가는 중에 또 맞으면 높이는 그대로 두고 속도만 새로 정한다 */
 			FJY_EnemyKnockbackFragment& Knockback = Knockbacks[EntityIt];
 			Knockback.Velocity = PendingHit->KnockbackForce / Knockback.Mass;
 			Knockback.bActive = true;

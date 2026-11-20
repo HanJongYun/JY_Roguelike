@@ -21,6 +21,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "JY|Skill", Meta = (ClampMin = "0"))
 	float PathWidth = 200.0f;
 
+	/* 도착한 몸 앞으로 상자를 더 뻗는 길이 (cm) — 칼이 닿는 거리 */
+	UPROPERTY(EditDefaultsOnly, Category = "JY|Skill", Meta = (ClampMin = "0"))
+	float FrontReach = 0.0f;
+
 private:
 	/* 돌진 시작 위치 */
 	FVector StartLocation = FVector::ZeroVector;

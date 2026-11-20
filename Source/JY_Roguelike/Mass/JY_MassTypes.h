@@ -144,7 +144,11 @@ struct FJY_EnemyKnockbackFragment : public FMassFragment
 	UPROPERTY()
 	float Mass = 1.0f;
 
-	/* 날아가는 중 — 착지하면 꺼진다 */
+	/* 바닥에 붙어 밀릴 때 1초에 줄어드는 속도 (cm/s²). 값은 Mass Config의 JY Enemy Navigation Trait에서 정한다 */
+	UPROPERTY()
+	float GroundDeceleration = 0.0f;
+
+	/* 밀리는 중 — 바닥에서 멈추면 꺼진다 */
 	UPROPERTY()
 	bool bActive = false;
 };

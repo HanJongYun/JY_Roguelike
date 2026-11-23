@@ -21,6 +21,12 @@ enum class EJY_EnemyState : uint8
 
 	/* 맞고 날아가는 중 — 착지할 때까지 쫓지도 밀리지도 않는다 */
 	Knockback,
+
+	/* 맞고 움찔하는 중 — 피격 모션이 끝날 때까지 그 자리에 선다 */
+	Hit,
+
+	/* 죽는 중 — 죽는 모션이 끝나면 지워진다. 맞지도 길을 막지도 않는다 */
+	Dying,
 };
 
 /* 모션 목록(TP_JY_*)의 칸 순서 — 모든 적이 이 순서로 채운다. 그 적만의 모션은 뒤에 붙인다 */
@@ -29,7 +35,13 @@ enum class EJY_EnemyAnimSlot : uint8
 {
 	Idle,
 	Run,
+
+	/* 한 번만 재생 */
+	Hit,
 	Knockback,
+
+	/* 한 번만 재생 */
+	Death,
 };
 
 /* ---------- 서버 → 클라: 복제로 넘기는 데이터 ---------- */
@@ -124,6 +136,22 @@ struct FJY_EnemyBehaviorFragment : public FMassFragment
 	/* 플레이어가 이 적의 거리(FJY_EnemyRangeParams) 안에 있나 — 바뀌는 순간 StateTree를 깨운다 */
 	UPROPERTY()
 	bool bInsideRange = false;
+
+	/* 피격 모션 길이 (초) — 만들 때 모션 목록(TP_JY_*)의 Hit 칸에서 읽는다 */
+	UPROPERTY()
+	float HitSeconds = 0.0f;
+
+	/* 죽는 모션 길이 (초) — 만들 때 모션 목록(TP_JY_*)의 Death 칸에서 읽는다 */
+	UPROPERTY()
+	float DeathSeconds = 0.0f;
+
+	/* 움찔하기가 끝나는 월드 시각 (초) — 또 맞으면 뒤로 밀린다 */
+	UPROPERTY()
+	double HitEndSeconds = 0.0;
+
+	/* 죽는 모션이 끝나 지워질 월드 시각 (초) */
+	UPROPERTY()
+	double DeathEndSeconds = 0.0;
 };
 
 /* 넉백으로 날아가는 값 (서버) — 처음부터 붙여 두고 bActive로 켜고 끈다. 위치의 Z = 바닥 높이 + Height */
@@ -187,6 +215,10 @@ struct FJY_EnemyVisualFragment : public FMassFragment
 
 	UPROPERTY()
 	uint8 StatusFlags = 0;
+
+	/* 마지막으로 받은 타격 번호 — 움찔하는 중에 또 맞았는지 알아낸다 */
+	UPROPERTY()
+	uint8 HitSerial = 0;
 };
 
 /* 받은 위치 사이를 채우는 구간 하나 — 출발(받는 순간 그려져 있던 자리) → 도착(받은 서버 자리) */

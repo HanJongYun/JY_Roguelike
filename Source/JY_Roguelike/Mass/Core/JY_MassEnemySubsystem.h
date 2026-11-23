@@ -13,6 +13,7 @@ class UMassEntityConfigAsset;
 class UJY_EnemyDefinition;
 class AJY_RoomEnemyNetActor;
 struct FJY_EnemyState;
+struct FAnimSequenceTrackAutoPlayData;
 struct FMassEntityManager;
 struct FJY_FastArrayEnemyContainer;
 struct FJY_HitShape;
@@ -38,7 +39,7 @@ public:
 	/* 서버 적 전부를 한 방향으로 옮긴다 (치트 시험용) */
 	void MoveAllEnemies(const FVector& Offset);
 
-	/* 서버 적 전부의 체력을 깎는다 (치트 시험용) */
+	/* 서버 적 전부에게 피해를 준다 (치트 시험용) */
 	void DamageAllEnemies(float Damage);
 
 	/* 중심에서 반경 안의 적을 바깥쪽으로 날린다 (서버) — 힘 ÷ 적의 질량 = 속도. HorizontalImpulse = 바깥으로 미는 힘, VerticalImpulse = 위로 띄우는 힘 */
@@ -76,7 +77,10 @@ public:
 	/* 이 월드의 NavMesh (없으면 nullptr) */
 	const ARecastNavMesh* GetNavMesh() const;
 
-	/* 모양 안의 맞을 수 있는 적(예고 중 제외)을 대상 목록에 더한다. Center = 모양 중심, Forward = 수평 앞 방향 */
+	/* 이 상태의 적이 공격에 맞나 */
+	static bool CanBeHit(EJY_EnemyState State);
+
+	/* 모양 안의 맞을 수 있는 적(CanBeHit)을 대상 목록에 더한다. Center = 모양 중심, Forward = 수평 앞 방향 */
 	void FindEnemiesInShape(const FJY_HitShape& Shape, const FVector& Center, const FVector& Forward, TArray<FJY_CombatTarget>& OutTargets) const;
 
 	/* 적 1마리의 지금 상태 — 서버는 정한 값, 클라는 복제받은 값 */
@@ -88,7 +92,7 @@ public:
 	/* 쌓인 것을 통째로 넘기고 비운다 */
 	TMap<FMassEntityHandle, FJY_PendingMassHit> ConsumePendingHits();
 
-	/* 죽은 적 1마리를 지운다 — 엔티티는 이번 Mass 단계 끝에, 복제 데이터는 바로 */
+	/* 죽는 모션이 끝난 적 1마리를 지운다 — 엔티티는 이번 Mass 단계 끝에, 복제 데이터는 바로 */
 	void DestroyEnemy(FMassExecutionContext& Context, FMassEntityHandle Entity, int32 ReplicationID);
 
 private:
@@ -106,6 +110,9 @@ private:
 
 	/* 복제 데이터의 표시 값을 클라 엔티티에 넣고, 위치·방향은 보간 구간으로 적는다 — 구간 길이는 MaxInterpSeconds를 넘지 않고, bSnapToTarget이면 받은 자리에 바로 놓는다 */
 	void ApplyEnemyState(FMassEntityHandle Entity, const FJY_EnemyState& EnemyState, const FVector& RoomOrigin, float ServerSeconds, float MaxInterpSeconds, bool bSnapToTarget);
+
+	/* 클라 적 1마리가 지금 틀고 있는 칸의 모션을 AnimData대로 처음부터 다시 튼다 */
+	void RestartEnemyAnimation(FMassEntityHandle Entity, const FAnimSequenceTrackAutoPlayData& AnimData);
 
 private:
 	/* 서버 */

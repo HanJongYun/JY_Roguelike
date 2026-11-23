@@ -29,7 +29,7 @@ UJY_MassDamageProcessor::UJY_MassDamageProcessor()
 
 	ProcessingPhase = EMassProcessingPhase::PrePhysics;
 
-	/* 체력·사망은 적의 상태를 정하는 일이라 Behavior 단계 */
+	/* 체력·움찔·죽음은 적의 상태를 정하는 일이라 Behavior 단계 */
 	JY_MassProcessorOrder::PlaceInBehavior(ExecutionOrder);
 
 	/* 서브시스템 피해 목록과 복제 Actor(UObject)를 고치므로 게임 스레드에서만 */
@@ -42,10 +42,11 @@ void UJY_MassDamageProcessor::ConfigureQueries(const TSharedRef<FMassEntityManag
 	EntityQuery.AddRequirement<FJY_EnemyStatusFragment>(EMassFragmentAccess::ReadWrite);
 	EntityQuery.AddRequirement<FJY_EnemyLastSentToClientFragment>(EMassFragmentAccess::ReadOnly);
 	EntityQuery.AddRequirement<FJY_EnemyKnockbackFragment>(EMassFragmentAccess::ReadWrite);
+	EntityQuery.AddRequirement<FJY_EnemyBehaviorFragment>(EMassFragmentAccess::ReadWrite);
 	EntityQuery.AddSubsystemRequirement<UMassSignalSubsystem>(EMassFragmentAccess::ReadWrite);
 }
 
-/* 걸린 상태이상의 틱이 있어 매 프레임 모든 적을 돈다 — 피해 목록에 있어도 이미 지워진 적은 쿼리에 없어 그냥 버려진다 */
+/* 걸린 상태이상의 틱과 죽는 모션이 끝난 적 지우기가 있어 매 프레임 모든 적을 돈다 — 피해 목록에 있어도 이미 지워진 적은 쿼리에 없어 그냥 버려진다 */
 // [Server]
 void UJY_MassDamageProcessor::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context) //override
 {
@@ -64,13 +65,28 @@ void UJY_MassDamageProcessor::Execute(FMassEntityManager& EntityManager, FMassEx
 		const TArrayView<FJY_EnemyStatusFragment> Statuses = ChunkContext.GetMutableFragmentView<FJY_EnemyStatusFragment>();
 		const TConstArrayView<FJY_EnemyLastSentToClientFragment> LastSentToClients = ChunkContext.GetFragmentView<FJY_EnemyLastSentToClientFragment>();
 		const TArrayView<FJY_EnemyKnockbackFragment> Knockbacks = ChunkContext.GetMutableFragmentView<FJY_EnemyKnockbackFragment>();
-		TArray<FMassEntityHandle> KnockedBackEntities;
+		const TArrayView<FJY_EnemyBehaviorFragment> Behaviors = ChunkContext.GetMutableFragmentView<FJY_EnemyBehaviorFragment>();
+
+		/* 날아가기·움찔하기·죽기 — 상태를 바꾸는 것은 적마다의 StateTree라 깨워 준다 */
+		TArray<FMassEntityHandle> WokenEntities;
 
 		for (FMassExecutionContext::FEntityIterator EntityIt = ChunkContext.CreateEntityIterator(); EntityIt; ++EntityIt)
 		{
 			const FMassEntityHandle Entity = ChunkContext.GetEntity(EntityIt);
 			FJY_EnemyHealthFragment& Health = Healths[EntityIt];
 			FJY_EnemyStatusFragment& Status = Statuses[EntityIt];
+			FJY_EnemyBehaviorFragment& Behavior = Behaviors[EntityIt];
+
+			/* 죽는 중 — 피해도 상태이상 틱도 받지 않고, 죽는 모션이 끝나면 지운다 */
+			if (Health.Current <= 0.0f)
+			{
+				if (NowSeconds >= Behavior.DeathEndSeconds)
+				{
+					MassEnemySubsystem->DestroyEnemy(ChunkContext, Entity, LastSentToClients[EntityIt].ReplicationID);
+				}
+				continue;
+			}
+
 			const FJY_PendingMassHit* PendingHit = PendingHits.Find(Entity);
 
 			/* 걸린 상태도 새로 받은 것도 없는 적이 대부분이다 */
@@ -131,26 +147,45 @@ void UJY_MassDamageProcessor::Execute(FMassEntityManager& EntityManager, FMassEx
 				/* 실드·방어 규칙은 아직 없다 — 계산이 끝난 최종 피해를 체력에서만 뺀다 */
 				Health.Current = FMath::Max(Health.Current - TotalDamage, 0.0f);
 
-				/* 임시 사망 — 사망 상태·연출 없이 바로 지운다 */
+				/* 죽이는 타격은 넉백 없이 죽는 모션으로 — 걸린 상태이상도 같이 끈다 */
 				if (Health.Current <= 0.0f)
 				{
-					MassEnemySubsystem->DestroyEnemy(ChunkContext, Entity, LastSentToClients[EntityIt].ReplicationID);
+					Behavior.DeathEndSeconds = NowSeconds + Behavior.DeathSeconds;
+
+					/* 움찔 시간이 남은 채 죽으면 죽는 중에 움찔 상태로 넘어간다 */
+					Behavior.HitEndSeconds = 0.0;
+					Status.ActiveFlags = 0;
+					WokenEntities.Add(Entity);
 					continue;
 				}
 			}
 
-			if (PendingHit == nullptr || PendingHit->KnockbackForce.IsNearlyZero() == true)
+			if (PendingHit == nullptr)
 				continue;
 
-			/* 띄우는 힘이 없으면 바닥에 붙어 밀린다. 날아가는 중에 또 맞으면 높이는 그대로 두고 속도만 새로 정한다 */
-			FJY_EnemyKnockbackFragment& Knockback = Knockbacks[EntityIt];
-			Knockback.Velocity = PendingHit->KnockbackForce / Knockback.Mass;
-			Knockback.bActive = true;
-			KnockedBackEntities.Add(Entity);
+			if (PendingHit->KnockbackForce.IsNearlyZero() == false)
+			{
+				/* 띄우는 힘이 없으면 바닥에 붙어 밀린다. 날아가는 중에 또 맞으면 높이는 그대로 두고 속도만 새로 정한다 */
+				FJY_EnemyKnockbackFragment& Knockback = Knockbacks[EntityIt];
+				Knockback.Velocity = PendingHit->KnockbackForce / Knockback.Mass;
+				Knockback.bActive = true;
+
+				/* 날아가는 타격은 움찔하지 않는다 — 착지한 뒤 남은 움찔 시간으로 서 있지 않게 */
+				Behavior.HitEndSeconds = 0.0;
+				WokenEntities.Add(Entity);
+				continue;
+			}
+
+			/* 독구름처럼 피해 없는 것과 날아가는 중의 타격은 움찔하지 않는다. 움찔하는 중에 또 맞으면 끝나는 시각만 뒤로 밀린다 */
+			if (PendingHit->Damage > 0.0f && Behavior.State != EJY_EnemyState::Knockback)
+			{
+				Behavior.HitEndSeconds = NowSeconds + Behavior.HitSeconds;
+				WokenEntities.Add(Entity);
+			}
 		}
 
 		UMassSignalSubsystem& SignalSubsystem = ChunkContext.GetMutableSubsystemChecked<UMassSignalSubsystem>();
-		JY_MassStateTreeWake::WakeEntities(ChunkContext, SignalSubsystem, KnockedBackEntities);
+		JY_MassStateTreeWake::WakeEntities(ChunkContext, SignalSubsystem, WokenEntities);
 	};
 	EntityQuery.ForEachEntityChunk(Context, ApplyHitsAndStatusTicks);
 }

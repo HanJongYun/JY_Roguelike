@@ -17,6 +17,11 @@
 #include "System/JY_GameData.h"
 #include "MassEntityConfigAsset.h"
 #include "MassRepresentationFragments.h"
+#include "MassRepresentationSubsystem.h"
+#include "MassVisualizationComponent.h"
+#include "MassVisualizationTrait.h"
+#include "Animation/AnimSequenceTransformProviderData.h"
+#include "Components/InstancedSkinnedMeshComponent.h"
 #include "MassSpawnerSubsystem.h"
 #include "MassSpawnerTypes.h"
 #include "MassSpawnLocationProcessor.h"
@@ -55,10 +60,43 @@ namespace JY_MassEnemy
 			return EJY_EnemyAnimSlot::Run;
 		case EJY_EnemyState::Knockback:
 			return EJY_EnemyAnimSlot::Knockback;
+		case EJY_EnemyState::Hit:
+			return EJY_EnemyAnimSlot::Hit;
+		case EJY_EnemyState::Dying:
+			return EJY_EnemyAnimSlot::Death;
 		}
 
 		checkNoEntry();
 		return EJY_EnemyAnimSlot::Idle;
+	}
+
+	/* 피격·죽음은 끝 자세에서 멈추고, 나머지는 되풀이한다 */
+	EAnimSequenceTrackLoopMode GetAnimLoopMode(EJY_EnemyAnimSlot AnimSlot)
+	{
+		const bool bPlaysOnce = AnimSlot == EJY_EnemyAnimSlot::Hit || AnimSlot == EJY_EnemyAnimSlot::Death;
+		return bPlaysOnce == true ? EAnimSequenceTrackLoopMode::Clamp : EAnimSequenceTrackLoopMode::Loop;
+	}
+
+	/*
+	 * 모션 목록(TP_JY_*)에서 그 칸 애니의 길이를 읽는다 — 그리기 Trait는 클라 전용이지만 설계도 에셋에는 서버에도 들어 있다.
+	 * Mass는 목록의 재생 속도가 아니라 FMassRepresentationAnimationFragment의 속도(1배)로 틀어서 길이가 곧 재생 시간이다 (MassVisualizationComponent.cpp:768)
+	 */
+	float GetAnimSlotSeconds(const UMassEntityConfigAsset& EntityConfig, EJY_EnemyAnimSlot AnimSlot)
+	{
+		const UMassEntityTraitBase* Trait = EntityConfig.FindTrait(UMassVisualizationTrait::StaticClass());
+		const UMassVisualizationTrait* VisualizationTrait = Cast<UMassVisualizationTrait>(Trait);
+		if (VisualizationTrait == nullptr)
+			return 0.0f;
+
+		const TArray<FMassSkinnedMeshInstanceVisualizationMeshDesc>& Meshes = VisualizationTrait->SkinnedMeshInstanceDesc.Meshes;
+		if (Meshes.Num() == 0)
+			return 0.0f;
+
+		const UAnimSequenceTransformProviderData* MotionList = Cast<UAnimSequenceTransformProviderData>(Meshes[0].TransformProvider);
+		if (MotionList == nullptr)
+			return 0.0f;
+
+		return MotionList->GetSequencePlayLength(static_cast<int32>(AnimSlot));
 	}
 }
 
@@ -204,8 +242,7 @@ void UJY_MassEnemySubsystem::FindEnemiesInShape(const FJY_HitShape& Shape, const
 			continue;
 		}
 
-		/* 예고 중인 적은 아직 싸움에 끼지 않는다 */
-		if (EnemyState == EJY_EnemyState::Spawning)
+		if (CanBeHit(EnemyState) == false)
 			continue;
 
 		const FTransformFragment& TransformFragment = EntityManager.GetFragmentDataChecked<FTransformFragment>(Entity);
@@ -227,6 +264,13 @@ void UJY_MassEnemySubsystem::FindEnemiesInShape(const FJY_HitShape& Shape, const
 		Target.Entity = Entity;
 		Target.Location = BodyCenter;
 	}
+}
+
+/* 예고 중인 적은 아직 싸움에 끼지 않고, 죽는 중인 적은 이미 빠졌다 — 안 맞는 상태를 늘리면 여기에 한 줄 */
+// [Server] [OwnClient]
+bool UJY_MassEnemySubsystem::CanBeHit(EJY_EnemyState State)
+{
+	return State != EJY_EnemyState::Spawning && State != EJY_EnemyState::Dying;
 }
 
 /* 상태는 서버가 Behavior, 클라가 복제받은 Visual에 들고 있다 */
@@ -265,6 +309,14 @@ TArray<FMassEntityHandle> UJY_MassEnemySubsystem::SpawnWave(const UJY_EnemyDefin
 	SpawnedEntities = SpawnEntitiesAt(*EnemyDefinition.EntityConfig, Locations);
 	InitializeNavPolys(SpawnedEntities);
 
+	/* 움찔하는 시간·죽는 시간은 손으로 적지 않고 모션 길이를 그대로 쓴다 — 칸이 비면 움찔하지 않고, 죽으면 바로 사라진다 */
+	const float HitSeconds = JY_MassEnemy::GetAnimSlotSeconds(*EnemyDefinition.EntityConfig, EJY_EnemyAnimSlot::Hit);
+	const float DeathSeconds = JY_MassEnemy::GetAnimSlotSeconds(*EnemyDefinition.EntityConfig, EJY_EnemyAnimSlot::Death);
+	if (HitSeconds <= 0.0f || DeathSeconds <= 0.0f)
+	{
+		UE_LOG(LogJY, Warning, TEXT("[Server] JYMassSpawn %s 의 모션 목록에 Hit(%.2f초)·Death(%.2f초) 칸이 비어 있음"), *EnemyDefinition.GetName(), HitSeconds, DeathSeconds);
+	}
+
 	const double SpawningEndSeconds = World->GetTimeSeconds() + SpawnWarningSeconds;
 	FMassEntityManager& EntityManager = GetEntityManager();
 	for (const FMassEntityHandle& Entity : SpawnedEntities)
@@ -272,6 +324,8 @@ TArray<FMassEntityHandle> UJY_MassEnemySubsystem::SpawnWave(const UJY_EnemyDefin
 		FJY_EnemyBehaviorFragment& Behavior = EntityManager.GetFragmentDataChecked<FJY_EnemyBehaviorFragment>(Entity);
 		Behavior.State = EJY_EnemyState::Spawning;
 		Behavior.SpawningEndSeconds = SpawningEndSeconds;
+		Behavior.HitSeconds = HitSeconds;
+		Behavior.DeathSeconds = DeathSeconds;
 
 		/* 엔티티가 실제로 선 위치로 복제 데이터를 만든다 — 위치 배열 순서와 엔티티 순서가 같다고 가정하지 않음 */
 		const FTransformFragment& TransformFragment = EntityManager.GetFragmentDataChecked<FTransformFragment>(Entity);
@@ -356,16 +410,13 @@ void UJY_MassEnemySubsystem::MoveAllEnemies(const FVector& Offset)
 	}
 }
 
-/* 치트 시험용 — 실제 피해는 3장 피해 Processor가 준다 */
+/* 치트 시험용 — 공격과 같은 길(피해 목록 → 피해 Processor)로 넣어 움찔·죽음도 똑같이 일어난다 */
 // [Server]
 void UJY_MassEnemySubsystem::DamageAllEnemies(float Damage)
 {
-	FMassEntityManager& EntityManager = GetEntityManager();
 	for (const TPair<int32, FMassEntityHandle>& Pair : EntityByReplicationID)
 	{
-		FJY_EnemyHealthFragment& Health = EntityManager.GetFragmentDataChecked<FJY_EnemyHealthFragment>(Pair.Value);
-		Health.Current = FMath::Max(Health.Current - Damage, 0.0f);
-		++Health.HitSerial;
+		AddPendingHit(Pair.Value, Damage, INDEX_NONE, FVector::ZeroVector);
 	}
 }
 
@@ -380,7 +431,7 @@ void UJY_MassEnemySubsystem::KnockbackEnemies(const FVector& Center, float Radiu
 	if (JY_MassEnemy::IsEnemyServer(*World) == false)
 		return;
 
-	/* 공격 판정과 같은 길로 반경 안의 적을 찾는다 — 예고 중인 적은 여기서 빠진다 */
+	/* 공격 판정과 같은 길로 반경 안의 적을 찾는다 — 안 맞는 상태(예고 중·죽는 중)의 적은 여기서 빠진다 */
 	FJY_HitShape SearchShape;
 	SearchShape.Type = EJY_HitShapeType::Sphere;
 	SearchShape.Radius = Radius;
@@ -525,6 +576,11 @@ void UJY_MassEnemySubsystem::ApplyEnemyState(FMassEntityHandle Entity, const FJY
 	}
 
 	FJY_EnemyVisualFragment& Visual = EntityManager.GetFragmentDataChecked<FJY_EnemyVisualFragment>(Entity);
+
+	/* 움찔하는 중에 또 맞았나 — 상태가 그대로라 모션 칸 번호가 안 바뀐다 */
+	const bool bStaysInHit = Visual.State == EJY_EnemyState::Hit && EnemyState.State == EJY_EnemyState::Hit;
+	const bool bHitAgain = bStaysInHit == true && EnemyState.HitSerial != Visual.HitSerial;
+	Visual.HitSerial = EnemyState.HitSerial;
 	Visual.State = EnemyState.State;
 	Visual.HealthPct = EnemyState.HealthPct;
 	Visual.ShieldPct = EnemyState.ShieldPct;
@@ -536,7 +592,49 @@ void UJY_MassEnemySubsystem::ApplyEnemyState(FMassEntityHandle Entity, const FJY
 	{
 		const EJY_EnemyAnimSlot AnimSlot = JY_MassEnemy::GetAnimSlot(EnemyState.State);
 		Animation->AnimData.SequenceIndex = static_cast<int32>(AnimSlot);
+		Animation->AnimData.LoopMode = JY_MassEnemy::GetAnimLoopMode(AnimSlot);
 		Animation->AnimData.BlendTime = 0.2f;
+
+		if (bHitAgain == true)
+		{
+			RestartEnemyAnimation(Entity, Animation->AnimData);
+		}
+	}
+}
+
+/*
+ * Mass는 모션 칸 번호가 바뀔 때만 모션을 튼다 (MassVisualizationComponent.cpp:766) — 같은 칸을 처음부터 다시 틀려면 모션 재생기를 직접 부른다.
+ * 화면에 아직 안 그려진 적은 트랙이 없어 아무 일도 없다
+ */
+// [OwnClient]
+void UJY_MassEnemySubsystem::RestartEnemyAnimation(FMassEntityHandle Entity, const FAnimSequenceTrackAutoPlayData& AnimData)
+{
+	const UWorld* World = GetWorld();
+	const UMassRepresentationSubsystem* RepresentationSubsystem = World->GetSubsystem<UMassRepresentationSubsystem>();
+	const UMassVisualizationComponent* VisualizationComponent = RepresentationSubsystem->GetVisualizationComponent();
+	if (VisualizationComponent == nullptr)
+		return;
+
+	/* Mass는 기본 레이어 하나만 쓴다 (MassVisualizationComponent.cpp:768) */
+	const int32 BaseLayerIndex = 0;
+
+	/* 메시 종류(LOD 포함)마다 묶음이 하나 — 이 적의 트랙이 있는 묶음을 전부 다시 튼다. 번호가 끝나면 nullptr (MassSkinnedMeshRepresentationTypes.h:534) */
+	for (int32 SharedDataIndex = 0; ; ++SharedDataIndex)
+	{
+		const FMassInstancedSkinnedMeshComponentSharedData* SharedData = VisualizationComponent->GetSharedDataForDescriptionIndex(SharedDataIndex);
+		if (SharedData == nullptr)
+			return;
+
+		const int32* TrackIndex = SharedData->GetEntityToTrackMap().Find(Entity);
+		const UInstancedSkinnedMeshComponent* MeshComponent = SharedData->GetInstancedSkinnedMeshComponent();
+		if (TrackIndex == nullptr || MeshComponent == nullptr)
+			continue;
+
+		UAnimSequenceTransformProviderDataInstance* MotionPlayer = Cast<UAnimSequenceTransformProviderDataInstance>(MeshComponent->GetTransformProvider());
+		if (MotionPlayer == nullptr)
+			continue;
+
+		MotionPlayer->SetAutoPlayData(*TrackIndex, BaseLayerIndex, AnimData);
 	}
 }
 

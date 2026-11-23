@@ -78,9 +78,9 @@ void UJY_MassPlayerPushProcessor::Execute(FMassEntityManager& EntityManager, FMa
 
 		for (FMassExecutionContext::FEntityIterator EntityIt = ChunkContext.CreateEntityIterator(); EntityIt; ++EntityIt)
 		{
-			/* 예고 중인 적은 아직 몸이 없고, 날아가는 적은 넉백 속도로만 움직인다 */
+			/* 예고 중·죽는 중인 적은 몸이 없고, 날아가는 적은 넉백 속도로만 움직인다 */
 			const EJY_EnemyState EnemyState = Behaviors[EntityIt].State;
-			if (EnemyState == EJY_EnemyState::Spawning || EnemyState == EJY_EnemyState::Knockback)
+			if (EnemyState == EJY_EnemyState::Spawning || EnemyState == EJY_EnemyState::Knockback || EnemyState == EJY_EnemyState::Dying)
 				continue;
 
 			/* Transform은 발 위치 — 플레이어가 머리 위를 뛰어넘는 동안은 겹친 것이 아니다 */
@@ -98,7 +98,8 @@ void UJY_MassPlayerPushProcessor::Execute(FMassEntityManager& EntityManager, FMa
 			if (bHeightOverlapping == false || Overlap <= 0.0f)
 			{
 				/* 밀려나던 속도가 남은 채 겹침이 풀리면 그 자리에 세운다 — 서 있는 적은 원래 속도가 0이고, 엔진 서기 조향의 브레이크는 최대 가속도에서 잘려 한참 미끄러진다 (MassSteeringProcessors.cpp:344) */
-				if (EnemyState == EJY_EnemyState::Wait && DesiredVelocity.IsNearlyZero() == false)
+				const bool bStanding = EnemyState == EJY_EnemyState::Wait || EnemyState == EJY_EnemyState::Hit;
+				if (bStanding == true && DesiredVelocity.IsNearlyZero() == false)
 				{
 					Forces[EntityIt].Value -= FVector(DesiredVelocity.X, DesiredVelocity.Y, 0.0f) * VelocityGain;
 				}

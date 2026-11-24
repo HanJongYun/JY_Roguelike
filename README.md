@@ -8,7 +8,7 @@
 
 ## 개발 환경
 
-<details open>
+<details>
 <summary>펼치기 / 접기</summary>
 
 ### 엔진 · 기술
@@ -37,7 +37,7 @@
 
 ## 클래스 구조도
 
-<details open>
+<details>
 <summary>펼치기 / 접기</summary>
 
 [클래스 구조도 보기](https://hanjongyun.github.io/JY_Roguelike/)

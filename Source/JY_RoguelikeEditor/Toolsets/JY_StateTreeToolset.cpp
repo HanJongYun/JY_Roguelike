@@ -198,6 +198,39 @@ FString UJY_StateTreeToolset::SetTransitionPriority(UStateTree* StateTree, const
 	return FString();
 }
 
+FString UJY_StateTreeToolset::RemoveTransition(UStateTree* StateTree, const FString& FromStateName, int32 TransitionIndex)
+{
+	UStateTreeState* FromState = JY_StateTreeToolset::FindState(StateTree, FromStateName);
+	if (FromState == nullptr)
+		return FString::Printf(TEXT("상태를 찾지 못함: %s"), *FromStateName);
+
+	if (FromState->Transitions.IsValidIndex(TransitionIndex) == false)
+		return FString::Printf(TEXT("전환 번호가 범위 밖: %d (전환 %d개)"), TransitionIndex, FromState->Transitions.Num());
+
+	FromState->Modify();
+	FromState->Transitions.RemoveAt(TransitionIndex);
+	UStateTreeEditingSubsystem::MarkAsModified(StateTree);
+	StateTree->MarkPackageDirty();
+	return FString();
+}
+
+FString UJY_StateTreeToolset::RemoveState(UStateTree* StateTree, const FString& StateName)
+{
+	UStateTreeState* State = JY_StateTreeToolset::FindState(StateTree, StateName);
+	if (State == nullptr)
+		return FString::Printf(TEXT("상태를 찾지 못함: %s"), *StateName);
+
+	UStateTreeState* ParentState = State->Parent;
+	if (ParentState == nullptr)
+		return FString::Printf(TEXT("맨 위 상태는 지울 수 없음: %s"), *StateName);
+
+	ParentState->Modify();
+	ParentState->Children.Remove(State);
+	UStateTreeEditingSubsystem::MarkAsModified(StateTree);
+	StateTree->MarkPackageDirty();
+	return FString();
+}
+
 FString UJY_StateTreeToolset::CompileStateTree(UStateTree* StateTree)
 {
 	if (StateTree == nullptr)

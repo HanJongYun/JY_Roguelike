@@ -67,7 +67,7 @@ void UJY_MassDamageProcessor::Execute(FMassEntityManager& EntityManager, FMassEx
 		const TArrayView<FJY_EnemyKnockbackFragment> Knockbacks = ChunkContext.GetMutableFragmentView<FJY_EnemyKnockbackFragment>();
 		const TArrayView<FJY_EnemyBehaviorFragment> Behaviors = ChunkContext.GetMutableFragmentView<FJY_EnemyBehaviorFragment>();
 
-		/* 날아가기·움찔하기·죽기 — 상태를 바꾸는 것은 적마다의 StateTree라 깨워 준다 */
+		/* 밀리기·움찔하기·죽기 — 상태를 바꾸는 것은 적마다의 StateTree라 깨워 준다 */
 		TArray<FMassEntityHandle> WokenEntities;
 
 		for (FMassExecutionContext::FEntityIterator EntityIt = ChunkContext.CreateEntityIterator(); EntityIt; ++EntityIt)
@@ -163,21 +163,16 @@ void UJY_MassDamageProcessor::Execute(FMassEntityManager& EntityManager, FMassEx
 			if (PendingHit == nullptr)
 				continue;
 
+			/* 힘이 실린 타격은 움찔하면서 밀린다 — 띄우는 힘이 없으면 바닥에 붙어 밀린다. 밀리는 중에 또 맞으면 높이는 그대로 두고 속도만 새로 정한다 */
 			if (PendingHit->KnockbackForce.IsNearlyZero() == false)
 			{
-				/* 띄우는 힘이 없으면 바닥에 붙어 밀린다. 날아가는 중에 또 맞으면 높이는 그대로 두고 속도만 새로 정한다 */
 				FJY_EnemyKnockbackFragment& Knockback = Knockbacks[EntityIt];
 				Knockback.Velocity = PendingHit->KnockbackForce / Knockback.Mass;
 				Knockback.bActive = true;
-
-				/* 날아가는 타격은 움찔하지 않는다 — 착지한 뒤 남은 움찔 시간으로 서 있지 않게 */
-				Behavior.HitEndSeconds = 0.0;
-				WokenEntities.Add(Entity);
-				continue;
 			}
 
-			/* 독구름처럼 피해 없는 것과 날아가는 중의 타격은 움찔하지 않는다. 움찔하는 중에 또 맞으면 끝나는 시각만 뒤로 밀린다 */
-			if (PendingHit->Damage > 0.0f && Behavior.State != EJY_EnemyState::Knockback)
+			/* 독구름처럼 피해 없이 상태만 거는 것은 움찔하지 않는다. 움찔하는 중에 또 맞으면 끝나는 시각만 뒤로 밀린다 */
+			if (PendingHit->Damage > 0.0f)
 			{
 				Behavior.HitEndSeconds = NowSeconds + Behavior.HitSeconds;
 				WokenEntities.Add(Entity);

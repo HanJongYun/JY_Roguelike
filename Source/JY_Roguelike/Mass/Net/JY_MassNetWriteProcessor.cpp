@@ -42,6 +42,7 @@ void UJY_MassNetWriteProcessor::ConfigureQueries(const TSharedRef<FMassEntityMan
 	EntityQuery.AddRequirement<FJY_EnemyHealthFragment>(EMassFragmentAccess::ReadOnly);
 	EntityQuery.AddRequirement<FJY_EnemyBehaviorFragment>(EMassFragmentAccess::ReadOnly);
 	EntityQuery.AddRequirement<FJY_EnemyStatusFragment>(EMassFragmentAccess::ReadOnly);
+	EntityQuery.AddRequirement<FJY_EnemyKnockbackFragment>(EMassFragmentAccess::ReadOnly);
 	EntityQuery.AddRequirement<FJY_EnemyLastSentToClientFragment>(EMassFragmentAccess::ReadWrite);
 }
 
@@ -70,13 +71,15 @@ void UJY_MassNetWriteProcessor::Execute(FMassEntityManager& EntityManager, FMass
 		const TConstArrayView<FJY_EnemyHealthFragment> Healths = ChunkContext.GetFragmentView<FJY_EnemyHealthFragment>();
 		const TConstArrayView<FJY_EnemyBehaviorFragment> Behaviors = ChunkContext.GetFragmentView<FJY_EnemyBehaviorFragment>();
 		const TConstArrayView<FJY_EnemyStatusFragment> Statuses = ChunkContext.GetFragmentView<FJY_EnemyStatusFragment>();
+		const TConstArrayView<FJY_EnemyKnockbackFragment> Knockbacks = ChunkContext.GetFragmentView<FJY_EnemyKnockbackFragment>();
 		const TArrayView<FJY_EnemyLastSentToClientFragment> LastSentToClients = ChunkContext.GetMutableFragmentView<FJY_EnemyLastSentToClientFragment>();
 
 		for (FMassExecutionContext::FEntityIterator EntityIt = ChunkContext.CreateEntityIterator(); EntityIt; ++EntityIt)
 		{
 			FJY_EnemyLastSentToClientFragment& LastSentToClient = LastSentToClients[EntityIt];
 			const FTransform& Transform = Transforms[EntityIt].GetTransform();
-			const FJY_EnemyState EnemyState = MakeEnemyState(Transform, Healths[EntityIt], Behaviors[EntityIt], Statuses[EntityIt].ActiveFlags, RoomOrigin);
+			const bool bAirborne = Knockbacks[EntityIt].IsAirborne();
+			const FJY_EnemyState EnemyState = MakeEnemyState(Transform, Healths[EntityIt], Behaviors[EntityIt], Statuses[EntityIt].ActiveFlags, bAirborne, RoomOrigin);
 			if (EnemyState == LastSentToClient.LastSentState)
 				continue;
 
@@ -95,7 +98,7 @@ void UJY_MassNetWriteProcessor::Execute(FMassEntityManager& EntityManager, FMass
 }
 
 /* FVector_NetQuantize는 받는 쪽에서 1cm로 반올림된다 (NetSerialization.h:430) — 서버도 미리 반올림해야 소수점만 바뀐 값을 안 보낸다 */
-FJY_EnemyState UJY_MassNetWriteProcessor::MakeEnemyState(const FTransform& Transform, const FJY_EnemyHealthFragment& Health, const FJY_EnemyBehaviorFragment& Behavior, uint8 StatusFlags, const FVector& RoomOrigin)
+FJY_EnemyState UJY_MassNetWriteProcessor::MakeEnemyState(const FTransform& Transform, const FJY_EnemyHealthFragment& Health, const FJY_EnemyBehaviorFragment& Behavior, uint8 StatusFlags, bool bAirborne, const FVector& RoomOrigin)
 {
 	const FVector RelativeLocation = Transform.GetLocation() - RoomOrigin;
 
@@ -120,5 +123,6 @@ FJY_EnemyState UJY_MassNetWriteProcessor::MakeEnemyState(const FTransform& Trans
 	}
 	EnemyState.StatusFlags = StatusFlags;
 	EnemyState.HitSerial = Health.HitSerial;
+	EnemyState.bAirborne = bAirborne;
 	return EnemyState;
 }

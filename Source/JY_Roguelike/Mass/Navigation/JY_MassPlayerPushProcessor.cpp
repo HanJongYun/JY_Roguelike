@@ -35,6 +35,7 @@ void UJY_MassPlayerPushProcessor::ConfigureQueries(const TSharedRef<FMassEntityM
 	EntityQuery.AddRequirement<FAgentRadiusFragment>(EMassFragmentAccess::ReadOnly);
 	EntityQuery.AddRequirement<FAgentHeightFragment>(EMassFragmentAccess::ReadOnly);
 	EntityQuery.AddRequirement<FJY_EnemyBehaviorFragment>(EMassFragmentAccess::ReadOnly);
+	EntityQuery.AddRequirement<FJY_EnemyKnockbackFragment>(EMassFragmentAccess::ReadOnly);
 	EntityQuery.AddRequirement<FMassDesiredMovementFragment>(EMassFragmentAccess::ReadOnly);
 	EntityQuery.AddRequirement<FMassForceFragment>(EMassFragmentAccess::ReadWrite);
 	EntityQuery.AddSubsystemRequirement<UJY_MassEnemySubsystem>(EMassFragmentAccess::ReadOnly);
@@ -73,14 +74,15 @@ void UJY_MassPlayerPushProcessor::Execute(FMassEntityManager& EntityManager, FMa
 		const TConstArrayView<FAgentRadiusFragment> Radii = ChunkContext.GetFragmentView<FAgentRadiusFragment>();
 		const TConstArrayView<FAgentHeightFragment> Heights = ChunkContext.GetFragmentView<FAgentHeightFragment>();
 		const TConstArrayView<FJY_EnemyBehaviorFragment> Behaviors = ChunkContext.GetFragmentView<FJY_EnemyBehaviorFragment>();
+		const TConstArrayView<FJY_EnemyKnockbackFragment> Knockbacks = ChunkContext.GetFragmentView<FJY_EnemyKnockbackFragment>();
 		const TConstArrayView<FMassDesiredMovementFragment> DesiredMovements = ChunkContext.GetFragmentView<FMassDesiredMovementFragment>();
 		const TArrayView<FMassForceFragment> Forces = ChunkContext.GetMutableFragmentView<FMassForceFragment>();
 
 		for (FMassExecutionContext::FEntityIterator EntityIt = ChunkContext.CreateEntityIterator(); EntityIt; ++EntityIt)
 		{
-			/* 예고 중·죽는 중인 적은 몸이 없고, 날아가는 적은 넉백 속도로만 움직인다 */
+			/* 예고 중·죽는 중인 적은 몸이 없고, 맞고 밀리는 적은 넉백 속도로만 움직인다 */
 			const EJY_EnemyState EnemyState = Behaviors[EntityIt].State;
-			if (EnemyState == EJY_EnemyState::Spawning || EnemyState == EJY_EnemyState::Knockback || EnemyState == EJY_EnemyState::Dying)
+			if (EnemyState == EJY_EnemyState::Spawning || EnemyState == EJY_EnemyState::Dying || Knockbacks[EntityIt].bActive == true)
 				continue;
 
 			/* Transform은 발 위치 — 플레이어가 머리 위를 뛰어넘는 동안은 겹친 것이 아니다 */

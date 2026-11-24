@@ -21,6 +21,7 @@ namespace JY_MassHitTask
 bool FJY_MassHitTask::Link(FStateTreeLinker& Linker) //override
 {
 	Linker.LinkExternalData(BehaviorHandle);
+	Linker.LinkExternalData(KnockbackHandle);
 	Linker.LinkExternalData(MoveTargetHandle);
 	Linker.LinkExternalData(TransformHandle);
 	Linker.LinkExternalData(DesiredMovementHandle);
@@ -31,13 +32,14 @@ bool FJY_MassHitTask::Link(FStateTreeLinker& Linker) //override
 void FJY_MassHitTask::GetDependencies(UE::MassBehavior::FStateTreeDependencyBuilder& Builder) const //override
 {
 	Builder.AddReadWrite(BehaviorHandle);
+	Builder.AddReadOnly(KnockbackHandle);
 	Builder.AddReadWrite(MoveTargetHandle);
 	Builder.AddReadOnly(TransformHandle);
 	Builder.AddReadWrite(DesiredMovementHandle);
 	Builder.AddReadWrite(SignalSubsystemHandle);
 }
 
-/* 서 있는 적과 같은 값으로 세운다 (FJY_MassWaitTask) — 플레이어와 겹치면 밀려나는 것은 그대로 */
+/* 서 있는 적과 같은 값으로 세운다 (FJY_MassWaitTask) — 밀리는 위치는 UJY_MassApplyMovementProcessor가 넉백 속도로 따로 옮긴다 */
 // [Server]
 EStateTreeRunStatus FJY_MassHitTask::EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const //override
 {
@@ -60,7 +62,7 @@ EStateTreeRunStatus FJY_MassHitTask::EnterState(FStateTreeExecutionContext& Cont
 	return WaitForHitEnd(Context);
 }
 
-/* Mass StateTree는 깨워졌을 때만 Tick이 불린다 — 예약한 신호나, 또 맞아 피해 Processor가 깨웠을 때 */
+/* Mass StateTree는 깨워졌을 때만 Tick이 불린다 — 예약한 신호나, 또 맞아 피해 Processor가 깨웠을 때나, 밀림이 멈춰 이동 Processor가 깨웠을 때 */
 // [Server]
 EStateTreeRunStatus FJY_MassHitTask::Tick(FStateTreeExecutionContext& Context, const float DeltaTime) const //override
 {
@@ -70,6 +72,11 @@ EStateTreeRunStatus FJY_MassHitTask::Tick(FStateTreeExecutionContext& Context, c
 // [Server]
 EStateTreeRunStatus FJY_MassHitTask::WaitForHitEnd(FStateTreeExecutionContext& Context) const
 {
+	/* 밀리는 중이면 멈춘 프레임에 이동 Processor가 깨운다 — 그때 남은 움찔 시간을 다시 본다 */
+	const FJY_EnemyKnockbackFragment& Knockback = Context.GetExternalData(KnockbackHandle);
+	if (Knockback.bActive == true)
+		return EStateTreeRunStatus::Running;
+
 	const FJY_EnemyBehaviorFragment& Behavior = Context.GetExternalData(BehaviorHandle);
 	const UWorld* World = Context.GetWorld();
 	const double RemainingSeconds = Behavior.HitEndSeconds - World->GetTimeSeconds();

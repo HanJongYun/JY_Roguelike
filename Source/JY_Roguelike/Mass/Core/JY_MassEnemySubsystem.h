@@ -86,6 +86,9 @@ public:
 	/* 적 1마리의 지금 상태 — 서버는 정한 값, 클라는 복제받은 값 */
 	EJY_EnemyState GetEnemyState(FMassEntityHandle Entity) const;
 
+	/* 적 1마리가 맞고 공중에 떠 있나 — 서버는 계산한 값, 클라는 복제받은 값 */
+	bool IsEnemyAirborne(FMassEntityHandle Entity) const;
+
 	/* 적 1마리가 받을 최종 피해·걸 상태이상(번호, 없으면 INDEX_NONE)·날리는 힘을 쌓는다 — 다음 Mass 처리 때 피해 Processor가 반영 */
 	void AddPendingHit(FMassEntityHandle Entity, float Damage, int32 StatusIndex, const FVector& KnockbackForce);
 

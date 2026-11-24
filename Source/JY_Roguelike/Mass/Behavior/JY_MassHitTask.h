@@ -6,6 +6,7 @@
 
 class UMassSignalSubsystem;
 struct FJY_EnemyBehaviorFragment;
+struct FJY_EnemyKnockbackFragment;
 struct FMassDesiredMovementFragment;
 struct FMassMoveTargetFragment;
 struct FTransformFragment;
@@ -17,7 +18,7 @@ struct FJY_MassHitTaskInstanceData
 	GENERATED_BODY()
 };
 
-/* 피격 움찔 — 들어올 때 그 자리에 서고, 움찔이 끝나는 시각(FJY_EnemyBehaviorFragment::HitEndSeconds)이 지나면 끝난다 */
+/* 피격 움찔 — 들어올 때 쫓기를 멈추고, 움찔이 끝나는 시각(FJY_EnemyBehaviorFragment::HitEndSeconds)이 지나고 밀림도 멈추면 끝난다 */
 USTRUCT(meta = (DisplayName = "JY Mass Hit"))
 struct FJY_MassHitTask : public FMassStateTreeTaskBase
 {
@@ -33,11 +34,12 @@ protected:
 	virtual EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, const float DeltaTime) const override;
 
 private:
-	/* 움찔이 끝났으면 Succeeded, 아니면 끝나는 시각에 깨우도록 예약하고 Running */
+	/* 움찔도 밀림도 끝났으면 Succeeded, 아니면 Running — 움찔만 남았으면 끝나는 시각에 깨우도록 예약한다 */
 	EStateTreeRunStatus WaitForHitEnd(FStateTreeExecutionContext& Context) const;
 
 private:
 	TStateTreeExternalDataHandle<FJY_EnemyBehaviorFragment> BehaviorHandle;
+	TStateTreeExternalDataHandle<FJY_EnemyKnockbackFragment> KnockbackHandle;
 	TStateTreeExternalDataHandle<FMassMoveTargetFragment> MoveTargetHandle;
 	TStateTreeExternalDataHandle<FTransformFragment> TransformHandle;
 	TStateTreeExternalDataHandle<FMassDesiredMovementFragment> DesiredMovementHandle;

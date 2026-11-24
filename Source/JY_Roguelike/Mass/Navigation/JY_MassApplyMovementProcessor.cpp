@@ -91,7 +91,6 @@ void UJY_MassApplyMovementProcessor::ConfigureQueries(const TSharedRef<FMassEnti
 	EntityQuery.AddRequirement<FJY_NavPolyFragment>(EMassFragmentAccess::ReadWrite);
 	EntityQuery.AddRequirement<FMassVelocityFragment>(EMassFragmentAccess::ReadWrite);
 	EntityQuery.AddRequirement<FMassDesiredMovementFragment>(EMassFragmentAccess::ReadOnly);
-	EntityQuery.AddRequirement<FJY_EnemyBehaviorFragment>(EMassFragmentAccess::ReadOnly);
 	EntityQuery.AddRequirement<FJY_EnemyKnockbackFragment>(EMassFragmentAccess::ReadWrite);
 	EntityQuery.AddSubsystemRequirement<UJY_MassEnemySubsystem>(EMassFragmentAccess::ReadOnly);
 	EntityQuery.AddSubsystemRequirement<UMassSignalSubsystem>(EMassFragmentAccess::ReadWrite);
@@ -120,11 +119,10 @@ void UJY_MassApplyMovementProcessor::Execute(FMassEntityManager& EntityManager, 
 		const TArrayView<FJY_NavPolyFragment> NavPolys = ChunkContext.GetMutableFragmentView<FJY_NavPolyFragment>();
 		const TArrayView<FMassVelocityFragment> Velocities = ChunkContext.GetMutableFragmentView<FMassVelocityFragment>();
 		const TConstArrayView<FMassDesiredMovementFragment> DesiredMovements = ChunkContext.GetFragmentView<FMassDesiredMovementFragment>();
-		const TConstArrayView<FJY_EnemyBehaviorFragment> Behaviors = ChunkContext.GetFragmentView<FJY_EnemyBehaviorFragment>();
 		const TArrayView<FJY_EnemyKnockbackFragment> Knockbacks = ChunkContext.GetMutableFragmentView<FJY_EnemyKnockbackFragment>();
 		const float GravityZ = MassEnemySubsystem.GetGravityZ();
 
-		/* 넉백이 끝나 멈춘 적 — 다음에 쫓을지 설지는 적마다의 StateTree가 정한다 */
+		/* 밀림이 끝나 멈춘 적 — 다음에 쫓을지 설지는 적마다의 StateTree가 정한다 */
 		TArray<FMassEntityHandle, TInlineAllocator<16>> StoppedEntities;
 
 		for (FMassExecutionContext::FEntityIterator EntityIt = ChunkContext.CreateEntityIterator(); EntityIt; ++EntityIt)
@@ -133,16 +131,9 @@ void UJY_MassApplyMovementProcessor::Execute(FMassEntityManager& EntityManager, 
 			if (NavPoly.PolyRef == INVALID_NAVNODEREF)
 				continue;
 
-			/* 넉백 중인 적은 원하는 속도 대신 넉백 속도로 따로 옮긴다 */
-			if (Behaviors[EntityIt].State == EJY_EnemyState::Knockback)
+			/* 맞고 밀리는 적은 원하는 속도 대신 넉백 속도로 따로 옮긴다 */
+			if (Knockbacks[EntityIt].bActive == true)
 			{
-				/* 멈춘 뒤 StateTree가 상태를 바꿀 때까지의 한 프레임 — 그 자리에 둔다 */
-				if (Knockbacks[EntityIt].bActive == false)
-				{
-					Velocities[EntityIt].Value = FVector::ZeroVector;
-					continue;
-				}
-
 				FTransform& KnockbackTransform = Transforms[EntityIt].GetMutableTransform();
 				const bool bStopped = JY_MassApplyMovement::MoveKnockback(*NavMesh, DeltaSeconds, GravityZ, KnockbackTransform, NavPoly, Knockbacks[EntityIt], Velocities[EntityIt]);
 				if (bStopped == true)

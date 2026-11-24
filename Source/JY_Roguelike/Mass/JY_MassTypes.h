@@ -19,10 +19,7 @@ enum class EJY_EnemyState : uint8
 	/* 플레이어 앞에 서서 공격 차례를 기다린다 */
 	Wait,
 
-	/* 맞고 날아가는 중 — 착지할 때까지 쫓지도 밀리지도 않는다 */
-	Knockback,
-
-	/* 맞고 움찔하는 중 — 피격 모션이 끝날 때까지 그 자리에 선다 */
+	/* 맞고 움찔하는 중 — 피격 모션이 끝나고 밀림도 멈출 때까지 쫓지 않는다 */
 	Hit,
 
 	/* 죽는 중 — 죽는 모션이 끝나면 지워진다. 맞지도 길을 막지도 않는다 */
@@ -36,9 +33,8 @@ enum class EJY_EnemyAnimSlot : uint8
 	Idle,
 	Run,
 
-	/* 한 번만 재생 */
+	/* 한 번만 재생 — 공중에 뜬 동안만 되풀이 */
 	Hit,
-	Knockback,
 
 	/* 한 번만 재생 */
 	Death,
@@ -80,6 +76,10 @@ struct FJY_EnemyState
 	/* 맞을 때마다 1 증가 */
 	UPROPERTY()
 	uint8 HitSerial = 0;
+
+	/* 맞고 공중에 떠 있나 */
+	UPROPERTY()
+	bool bAirborne = false;
 };
 
 /* ---------- 서버 전용 ---------- */
@@ -179,6 +179,9 @@ struct FJY_EnemyKnockbackFragment : public FMassFragment
 	/* 밀리는 중 — 바닥에서 멈추면 꺼진다 */
 	UPROPERTY()
 	bool bActive = false;
+
+	/* 공중에 떠 있나 — 막 띄워져 아직 높이가 0인 프레임도 포함 */
+	bool IsAirborne() const { return bActive == true && (Height > 0.0f || Velocity.Z > 0.0f); }
 };
 
 /* 적 종류마다 다른 거리 — 값은 Mass Config의 JY Enemy Navigation Trait에서 정한다 */
@@ -219,6 +222,10 @@ struct FJY_EnemyVisualFragment : public FMassFragment
 	/* 마지막으로 받은 타격 번호 — 움찔하는 중에 또 맞았는지 알아낸다 */
 	UPROPERTY()
 	uint8 HitSerial = 0;
+
+	/* 공중에 떠 있나 — 피격 모션을 되풀이하고 길막이를 놓지 않는다 */
+	UPROPERTY()
+	bool bAirborne = false;
 };
 
 /* 받은 위치 사이를 채우는 구간 하나 — 출발(받는 순간 그려져 있던 자리) → 도착(받은 서버 자리) */

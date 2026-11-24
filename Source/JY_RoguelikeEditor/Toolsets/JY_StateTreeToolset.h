@@ -69,6 +69,25 @@ public:
 	static FString SetTransitionPriority(UStateTree* StateTree, const FString& FromStateName, int32 TransitionIndex, const FString& Priority);
 
 	/**
+	 * 상태의 전환 하나를 지운다. 뒤 전환들의 번호가 하나씩 당겨진다.
+	 * @param StateTree 대상 에셋
+	 * @param FromStateName 전환이 달린 상태 이름
+	 * @param TransitionIndex 그 상태의 전환 번호 (0부터)
+	 * @return 성공이면 빈 문자열, 아니면 실패 이유
+	 */
+	UFUNCTION(meta = (AICallable), Category = "JY|StateTree")
+	static FString RemoveTransition(UStateTree* StateTree, const FString& FromStateName, int32 TransitionIndex);
+
+	/**
+	 * 상태를 그 아래 상태·Task·전환째로 지운다. 이 상태로 오는 다른 상태의 전환은 RemoveTransition으로 먼저 지운다.
+	 * @param StateTree 대상 에셋
+	 * @param StateName 지울 상태 이름 (Root는 못 지운다)
+	 * @return 성공이면 빈 문자열, 아니면 실패 이유
+	 */
+	UFUNCTION(meta = (AICallable), Category = "JY|StateTree")
+	static FString RemoveState(UStateTree* StateTree, const FString& StateName);
+
+	/**
 	 * StateTree를 컴파일한다(에디터 Compile 버튼과 같음). 저장은 하지 않는다.
 	 * @param StateTree 대상 에셋
 	 * @return 성공이면 "OK", 아니면 컴파일 메시지

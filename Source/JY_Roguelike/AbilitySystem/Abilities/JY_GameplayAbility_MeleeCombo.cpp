@@ -167,9 +167,9 @@ void UJY_GameplayAbility_MeleeCombo::OnHitEvent(FGameplayEventData Payload)
 	const UAnimInstance* AnimInstance = CurrentActorInfo->GetAnimInstance();
 	const USkeletalMeshComponent* MeshComponent = CurrentActorInfo->SkeletalMeshComponent.Get();
 	const FVector ObjectPushDirection = JY_MontageBoneMotion::GetMontageBoneMoveDirection(AnimInstance, MeshComponent, SwingBoneName, SwingSampleSeconds);
-	/* 연속 공격은 아직 Mass 적을 밀지 않는다 */
-	const float NoKnockbackForce = 0.0f;
-	ApplyHitInShape(Step.HitShape, HitOrigin, Step.ActionMultiplier, ActiveCombo->ActionTag, Step.KnockbackSpeed, NoKnockbackForce, NoKnockbackForce, ActiveCombo->HitCueTag, Step.HitCameraShake, ObjectPushDirection);
+	/* 연속 공격은 Mass 적을 띄우지 않고 바닥에서만 민다 */
+	const float NoKnockbackLiftForce = 0.0f;
+	ApplyHitInShape(Step.HitShape, HitOrigin, Step.ActionMultiplier, ActiveCombo->ActionTag, Step.KnockbackSpeed, Step.KnockbackForce, NoKnockbackLiftForce, ActiveCombo->HitCueTag, Step.HitCameraShake, ObjectPushDirection);
 }
 
 // [OwnClient]

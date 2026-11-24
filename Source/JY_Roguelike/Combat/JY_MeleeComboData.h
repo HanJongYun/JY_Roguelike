@@ -30,6 +30,10 @@ struct FJY_MeleeComboStep
 	UPROPERTY(EditDefaultsOnly)
 	float KnockbackSpeed = 0.0f;
 
+	/* Mass 적을 바깥으로 미는 힘 — 힘 ÷ 적 질량 = 속도 (cm/s). 0이면 움찔만 한다 */
+	UPROPERTY(EditDefaultsOnly, Meta = (ClampMin = "0.0"))
+	float KnockbackForce = 0.0f;
+
 	/* 맞혔을 때 내 화면 흔들림 (비우면 없음) */
 	UPROPERTY(EditDefaultsOnly)
 	TSubclassOf<UCameraShakeBase> HitCameraShake;

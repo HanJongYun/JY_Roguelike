@@ -89,8 +89,8 @@ void UJY_MassBlockerSubsystem::HandlePrePhysicsFinished(float DeltaSeconds)
 	BlockerActor->BeginPlacement();
 	for (const FJY_CombatTarget& NearbyEnemy : NearbyEnemies)
 	{
-		/* 날아가는 적은 길을 막지 않는다 */
-		if (MassEnemySubsystem->GetEnemyState(NearbyEnemy.Entity) == EJY_EnemyState::Knockback)
+		/* 공중에 뜬 적은 길을 막지 않는다 — 그 밑을 지나갈 수 있다 */
+		if (MassEnemySubsystem->IsEnemyAirborne(NearbyEnemy.Entity) == true)
 			continue;
 
 		const FAgentRadiusFragment& RadiusFragment = EntityManager.GetFragmentDataChecked<FAgentRadiusFragment>(NearbyEnemy.Entity);

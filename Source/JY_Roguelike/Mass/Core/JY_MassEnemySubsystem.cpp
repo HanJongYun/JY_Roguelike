@@ -58,8 +58,6 @@ namespace JY_MassEnemy
 			return EJY_EnemyAnimSlot::Idle;
 		case EJY_EnemyState::Chase:
 			return EJY_EnemyAnimSlot::Run;
-		case EJY_EnemyState::Knockback:
-			return EJY_EnemyAnimSlot::Knockback;
 		case EJY_EnemyState::Hit:
 			return EJY_EnemyAnimSlot::Hit;
 		case EJY_EnemyState::Dying:
@@ -70,10 +68,11 @@ namespace JY_MassEnemy
 		return EJY_EnemyAnimSlot::Idle;
 	}
 
-	/* 피격·죽음은 끝 자세에서 멈추고, 나머지는 되풀이한다 */
-	EAnimSequenceTrackLoopMode GetAnimLoopMode(EJY_EnemyAnimSlot AnimSlot)
+	/* 죽음은 끝 자세에서 멈춘다. 피격은 한 번만 — 공중에 뜬 채 맞으면 착지할 때까지 되풀이한다. 나머지는 되풀이 */
+	EAnimSequenceTrackLoopMode GetAnimLoopMode(EJY_EnemyAnimSlot AnimSlot, bool bAirborne)
 	{
-		const bool bPlaysOnce = AnimSlot == EJY_EnemyAnimSlot::Hit || AnimSlot == EJY_EnemyAnimSlot::Death;
+		const bool bGroundHit = AnimSlot == EJY_EnemyAnimSlot::Hit && bAirborne == false;
+		const bool bPlaysOnce = AnimSlot == EJY_EnemyAnimSlot::Death || bGroundHit == true;
 		return bPlaysOnce == true ? EAnimSequenceTrackLoopMode::Clamp : EAnimSequenceTrackLoopMode::Loop;
 	}
 
@@ -286,6 +285,19 @@ EJY_EnemyState UJY_MassEnemySubsystem::GetEnemyState(FMassEntityHandle Entity) c
 	return Visual.State;
 }
 
+/* 넉백 값은 서버에만 있다 — 클라는 복제받은 값을 쓴다 */
+// [Server] [OwnClient]
+bool UJY_MassEnemySubsystem::IsEnemyAirborne(FMassEntityHandle Entity) const
+{
+	const FMassEntityManager& EntityManager = GetEntityManager();
+	const FJY_EnemyKnockbackFragment* Knockback = EntityManager.GetFragmentDataPtr<FJY_EnemyKnockbackFragment>(Entity);
+	if (Knockback != nullptr)
+		return Knockback->IsAirborne();
+
+	const FJY_EnemyVisualFragment& Visual = EntityManager.GetFragmentDataChecked<FJY_EnemyVisualFragment>(Entity);
+	return Visual.bAirborne;
+}
+
 /* Processor 실행 중에는 부르면 안 된다 — 타이머·치트처럼 Mass 처리 바깥에서만 (MassEntityManager.cpp:846) */
 // [Server]
 TArray<FMassEntityHandle> UJY_MassEnemySubsystem::SpawnWave(const UJY_EnemyDefinition& EnemyDefinition, TConstArrayView<FVector> Locations, float SpawnWarningSeconds)
@@ -332,7 +344,8 @@ TArray<FMassEntityHandle> UJY_MassEnemySubsystem::SpawnWave(const UJY_EnemyDefin
 		const FTransform& Transform = TransformFragment.GetTransform();
 		const FJY_EnemyHealthFragment& Health = EntityManager.GetFragmentDataChecked<FJY_EnemyHealthFragment>(Entity);
 		const uint8 NoStatusFlags = 0;
-		const FJY_EnemyState EnemyState = UJY_MassNetWriteProcessor::MakeEnemyState(Transform, Health, Behavior, NoStatusFlags, RoomOrigin);
+		const bool bNotAirborne = false;
+		const FJY_EnemyState EnemyState = UJY_MassNetWriteProcessor::MakeEnemyState(Transform, Health, Behavior, NoStatusFlags, bNotAirborne, RoomOrigin);
 		const int32 ReplicationID = RoomEnemyNetActor->AddEnemy(static_cast<uint8>(DefinitionIndex), EnemyState);
 
 		/* 서버 엔티티 → 복제 데이터 연결. 클라는 반대 방향(EntityByReplicationID)으로 찾는다 */
@@ -581,6 +594,7 @@ void UJY_MassEnemySubsystem::ApplyEnemyState(FMassEntityHandle Entity, const FJY
 	const bool bStaysInHit = Visual.State == EJY_EnemyState::Hit && EnemyState.State == EJY_EnemyState::Hit;
 	const bool bHitAgain = bStaysInHit == true && EnemyState.HitSerial != Visual.HitSerial;
 	Visual.HitSerial = EnemyState.HitSerial;
+	Visual.bAirborne = EnemyState.bAirborne;
 	Visual.State = EnemyState.State;
 	Visual.HealthPct = EnemyState.HealthPct;
 	Visual.ShieldPct = EnemyState.ShieldPct;
@@ -592,7 +606,7 @@ void UJY_MassEnemySubsystem::ApplyEnemyState(FMassEntityHandle Entity, const FJY
 	{
 		const EJY_EnemyAnimSlot AnimSlot = JY_MassEnemy::GetAnimSlot(EnemyState.State);
 		Animation->AnimData.SequenceIndex = static_cast<int32>(AnimSlot);
-		Animation->AnimData.LoopMode = JY_MassEnemy::GetAnimLoopMode(AnimSlot);
+		Animation->AnimData.LoopMode = JY_MassEnemy::GetAnimLoopMode(AnimSlot, EnemyState.bAirborne);
 		Animation->AnimData.BlendTime = 0.2f;
 
 		if (bHitAgain == true)

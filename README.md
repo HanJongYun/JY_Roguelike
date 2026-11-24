@@ -11,6 +11,8 @@
 <details>
 <summary>펼치기 / 접기</summary>
 
+<br>
+
 | 구분 | 내용 |
 |:---:|---|
 | 엔진 | Unreal Engine 5.8 |
@@ -116,6 +118,8 @@
 <details>
 <summary>펼치기 / 접기</summary>
 
+<br>
+
 [클래스 구조도 보기](https://hanjongyun.github.io/JY_Roguelike/)
 
 </details>
@@ -126,6 +130,8 @@
 
 <details>
 <summary>펼치기 / 접기</summary>
+
+<br>
 
 | 단계 | 목표 | 작업일 | 세부 항목 |
 |:---:|:---:|:---:|---|
@@ -148,6 +154,8 @@
 
 <details>
 <summary>펼치기 / 접기</summary>
+
+<br>
 
 | 타이틀 | 로비 도착 배너 |
 |:---:|:---:|

@@ -57,6 +57,9 @@
 | 5 | $\color{orange}{\textbf{\textsf{확인}}}$<br>그 엔진 코드를 직접 보고 칸이 고정 규격(2.5m)인 것을 확인.<br><br>$\color{orange}{\textbf{\textsf{결정}}}$<br>공격 범위와 몬스터 크기에 적당하므로 이 그리드를 쓰기로 결정.<br><br>$\color{orange}{\textbf{\textsf{지시}}}$<br>공격할 때 범위를 정하고, 그&nbsp;범위에&nbsp;걸친&nbsp;칸에서만&nbsp;몬스터를&nbsp;찾아올&nbsp;것. | |
 | 6 | | $\color{orange}{\textbf{\textsf{구현}}}$<br>지시대로 구현하고 빌드. |
 | 7 | $\color{orange}{\textbf{\textsf{확인}}}$<br>구현된 코드를 호출 흐름대로 직접 따라가며 확인.<br><br>$\color{orange}{\textbf{\textsf{최종 결정}}}$<br>이 구조로 확정. | |
+| 8 | $\color{orange}{\textbf{\textsf{지시}}}$<br>몬스터 수(50 · 100 · 200)별로 전체 순회와 그리드의 처리 시간을 측정할 것.<br>몬스터가 서로 겹치지 않게 흩어진 상태에서 측정할 것. | |
+| 9 | | $\color{orange}{\textbf{\textsf{측정}}}$<br>측정용 임시 코드로 두 방식을 각 1000회 실행해 평균 시간을 측정.<br>※ 세부 수치와 스샷은 아래 3. 결과의 측정 참고. |
+| 10 | $\color{orange}{\textbf{\textsf{확인}}}$<br>측정 결과와 스샷으로 그리드의 처리 시간이 몬스터 수와 상관없이 일정한 것을 확인. | |
 
 **3. 결과**
 
@@ -75,7 +78,9 @@
 - 공격 판정 1회 기준이며, 피격 처리 · 캡슐 배치 · 함정 판정까지 합하면 효과가 더 큼.
 - 참고: 원활한 테스트를 위해 몬스터를 서로 겹치지 않게 2m 간격으로 배치하고, 움직이지 않게 멈춘 상태에서 측정.
 
-(화면 추가 예정)
+| 50마리 | 100마리 | 200마리 |
+|:---:|:---:|:---:|
+| ![측정 50마리](Docs/Screenshots/08_bench_50.png) | ![측정 100마리](Docs/Screenshots/09_bench_100.png) | ![측정 200마리](Docs/Screenshots/10_bench_200.png) |
 
 #### 그 밖의 사례
 

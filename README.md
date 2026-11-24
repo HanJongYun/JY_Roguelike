@@ -6,8 +6,10 @@
 
 <br>
 
+## 개발 환경
+
 <details open>
-<summary><h2>개발 환경</h2></summary>
+<summary>펼치기 / 접기</summary>
 
 ### 엔진 · 기술
 
@@ -33,8 +35,10 @@
 
 <br>
 
+## 클래스 구조도
+
 <details open>
-<summary><h2>클래스 구조도</h2></summary>
+<summary>펼치기 / 접기</summary>
 
 [클래스 구조도 보기](https://hanjongyun.github.io/JY_Roguelike/)
 
@@ -42,8 +46,10 @@
 
 <br>
 
+## Milestones
+
 <details>
-<summary><h2>Milestones</h2></summary>
+<summary>펼치기 / 접기</summary>
 
 | 단계 | 목표 | 작업일 | 세부 항목 |
 |:---:|:---:|:---:|---|
@@ -62,8 +68,10 @@
 
 <br>
 
+## 진행 상황 참고자료 (스크린샷)
+
 <details>
-<summary><h2>진행 상황 참고자료 (스크린샷)</h2></summary>
+<summary>펼치기 / 접기</summary>
 
 | 타이틀 | 로비 도착 배너 |
 |:---:|:---:|

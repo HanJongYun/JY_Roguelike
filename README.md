@@ -32,7 +32,7 @@
 | 구분 | 내용 |
 |:---:|---|
 | 도구 | Claude Code |
-| 공용 규칙 | - 작업의 큰 틀(방향 · 가이드라인)은 $\color{orange}{\textsf{사람이 먼저 정함}}$<br>- AI는 그 틀 안에서 레퍼런스(엔진 소스 · 공식 레퍼런스 프로젝트)를 확인해 설계안을 제시<br>- $\color{orange}{\textsf{사람이 첨삭해 확정}}$하고, AI는 확정된 것만 구현<br>- $\color{orange}{\textsf{추측 금지}}$ — 확인 못 한 것은 미확인으로 표시<br>- 커밋은 승인 후 |
+| 공용 규칙 | - 작업의 큰 틀(방향 · 가이드라인)은 $\color{orange}{\textsf{사람이 먼저 정함}}$<br>- AI는 그 틀 안에서 레퍼런스(엔진 소스 · 공식 레퍼런스 프로젝트)를 확인해 설계안을 제시<br>- $\color{orange}{\textsf{사람이 첨삭해 확정}}$하고, $\color{orange}{\textsf{AI는 확정된 것만 구현}}$<br>- $\color{orange}{\textsf{추측 금지}}$ — 확인 못 한 것은 미확인으로 표시<br>- 커밋은 승인 후 |
 | 스킬 | $\color{#2EC4B6}{\textbf{\textsf{설계 · 구현}}}$<br>- 구현 전 레퍼런스 확인 (엔진 소스 · 공식 레퍼런스 프로젝트)<br>- 클래스 · 컴포넌트 구조 설계 기준<br>- Gameplay Ability System 구현 전 레퍼런스 구조 확인<br>- C++ 코딩 컨벤션<br>- 빌드 · 프로젝트 파일 생성 · 빌드 오류 추출<br>- 디버그 로그 · 상태 추적<br><br>$\color{#2EC4B6}{\textbf{\textsf{설명 · 문서}}}$<br>- 코드 · 엔진 동작 설명 형식<br>- 함수 호출 · 데이터 흐름 추적<br>- 클래스 다이어그램 (PlantUML)<br>- 기능 흐름 HTML 페이지<br>- 전체 구조도 HTML 페이지<br>- 분석 문서 작성<br>- 문서 저장 위치 · 중복 방지<br><br>$\color{#2EC4B6}{\textbf{\textsf{에디터 · 에셋}}}$<br>- 에디터 MCP 호출 절차<br>- Fab 에셋 가져오기<br>- 프로젝트에 쓸 에셋 고르기<br>- 스크린샷 읽기<br>- 설명한 코드를 Visual Studio에 읽는 순서대로 열기 (헤더 · cpp 좌우 배치)<br><br>$\color{#2EC4B6}{\textbf{\textsf{작업 관리}}}$<br>- 진행 문서 기록 · 이어가기<br>- 두 세션 동시 작업 규칙 |
 | 훅 | - 세션 시작 — 진행 문서의 다음 할 일을 자동으로 불러옴<br>- 빌드 명령 직전 — 에디터가 켜져 있는지 확인해 알림<br>- 파일 수정 후 — 고친 C++ 소스를 기록<br>- 응답 종료 전 — C++ 소스를 고치고 빌드하지 않았으면 끝내지 못하게 알림<br>- 입력 대기 — 윈도우 알림 |
 | 에디터 연동 | - 언리얼 에디터 MCP<br>- 에디터 전용 C++ 툴셋 (StateTree · AnimGraph · Level 등) |
@@ -53,11 +53,11 @@
 | 순&#8288;서 | 사람 (방향 · 결정) | AI (제안 · 조사 · 구현) |
 |:---:|---|---|
 | 1 | $\color{orange}{\textbf{\textsf{설계 제시}}}$<br>공격 · 피격 · 캡슐 배치 때마다 몬스터 전체를 순회하는 것은 비효율적이므로, 같은 규격의 그리드를 새로 만들어 주변 몬스터만 검사하게 하려는데, 이 방식에 문제가 없는지 검토를 요청. | |
-| 2 | | **제안**<br>1. 길 찾기에 쓰는 NavMesh 플로우 필드를 쓰는 안.<br>2. 그리드를 새로 만드는 안. |
+| 2 | | $\color{orange}{\textbf{\textsf{제안}}}$<br>1. 길 찾기에 쓰는 NavMesh 플로우 필드를 쓰는 안.<br>2. 그리드를 새로 만드는 안. |
 | 3 | $\color{orange}{\textbf{\textsf{거절}}}$<br>NavMesh 플로우 필드는 칸이 너무 잘게 쪼개져 있고 범위가 일정하지 않아 쓰지 않음.<br><br>$\color{orange}{\textbf{\textsf{결정}}}$<br>같은 규격의 그리드로 나눠, 필요한 위치 주변의 칸만 보기로 결정.<br><br>$\color{orange}{\textbf{\textsf{지시}}}$<br>그리드를 구현하기 전에, Mass에 같은 최적화가 이미 있는지 먼저 찾아볼 것. | |
-| 4 | | **조사**<br>엔진 소스에서 회피 기능이 그리드를 쓰고 있다는 것을 찾아옴. |
+| 4 | | $\color{orange}{\textbf{\textsf{조사}}}$<br>엔진 소스에서 회피 기능이 그리드를 쓰고 있다는 것을 찾아옴. |
 | 5 | $\color{orange}{\textbf{\textsf{확인}}}$<br>그 엔진 코드를 직접 보고 칸이 고정 규격(2.5m)인 것을 확인.<br><br>$\color{orange}{\textbf{\textsf{결정}}}$<br>공격 범위와 몬스터 크기에 적당하므로 이 그리드를 쓰기로 결정.<br><br>$\color{orange}{\textbf{\textsf{지시}}}$<br>공격할 때 범위를 정하고, 그&nbsp;범위에&nbsp;걸친&nbsp;칸에서만&nbsp;몬스터를&nbsp;찾아올&nbsp;것. | |
-| 6 | | **구현**<br>지시대로 구현하고 빌드. |
+| 6 | | $\color{orange}{\textbf{\textsf{구현}}}$<br>지시대로 구현하고 빌드. |
 | 7 | $\color{orange}{\textbf{\textsf{확인}}}$<br>구현된 코드를 호출 흐름대로 직접 따라가며 확인.<br><br>$\color{orange}{\textbf{\textsf{최종 결정}}}$<br>이 구조로 확정. | |
 
 **3. 결과**

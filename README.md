@@ -11,8 +11,6 @@
 <details>
 <summary>펼치기 / 접기</summary>
 
-### 엔진 · 기술
-
 | 구분 | 내용 |
 |:---:|---|
 | 엔진 | Unreal Engine 5.8 |
@@ -20,7 +18,16 @@
 | 사용 기술 | Gameplay Ability System · Mass Entity · MVVM (UMG ViewModel) |
 | 네트워크 구조 | 서버·클라 분리 구조 (Play As Client) |
 
-### AI 환경
+</details>
+
+<br>
+
+## AI 환경 및 활용 사례
+
+<details>
+<summary>펼치기 / 접기</summary>
+
+### 환경
 
 | 구분 | 내용 |
 |:---:|---|
@@ -30,6 +37,10 @@
 | 훅 | - 세션 시작 — 진행 문서의 다음 할 일을 자동으로 불러옴<br>- 빌드 명령 직전 — 에디터가 켜져 있는지 확인해 알림<br>- 파일 수정 후 — 고친 C++ 소스를 기록<br>- 응답 종료 전 — C++ 소스를 고치고 빌드하지 않았으면 끝내지 못하게 알림<br>- 입력 대기 — 윈도우 알림 |
 | 에디터 연동 | - 언리얼 에디터 MCP<br>- 에디터 전용 C++ 툴셋 (StateTree · AnimGraph · Level 등) |
 | 진행 관리 | - 기능별 진행 문서에 기록<br>- 결정과 이유 · 지금까지 한 일 · 다음 할 일 · 막힌 문제 |
+
+### 활용 사례
+
+(작성 예정)
 
 </details>
 

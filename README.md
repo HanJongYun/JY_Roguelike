@@ -56,7 +56,7 @@
 ## 진행 상황 참고자료 (스크린샷)
 
 | 타이틀 | 로비 도착 배너 |
-|---|---|
+|:---:|:---:|
 | ![타이틀](Docs/Screenshots/01_title.png) | ![로비 도착 배너](Docs/Screenshots/02_lobby_banner.png) |
 | **영혼의 제단 (메타 강화)** | **정지 메뉴** |
 | ![영혼의 제단](Docs/Screenshots/03_soul_altar.png) | ![정지 메뉴](Docs/Screenshots/04_pause_menu.png) |

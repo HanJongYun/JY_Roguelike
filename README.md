@@ -29,6 +29,8 @@
 <details>
 <summary>펼치기 / 접기</summary>
 
+<br>
+
 | 구분 | 내용 |
 |:---:|---|
 | 도구 | Claude Code |
@@ -46,6 +48,8 @@
 
 <details>
 <summary>펼치기 / 접기</summary>
+
+<br>
 
 **1. 목표**
 

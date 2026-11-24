@@ -2,9 +2,14 @@
 
 ## 프로젝트 소개
 
-하데스의 방 단위 런 구조에 핵 앤 슬래시 전투를 넣은 3D 쿼터뷰 액션 로그라이크입니다. 축복 시스템은 하데스에서 착안했습니다.
+게임 「하데스(Hades)」의 방 단위 런 구조에 핵 앤 슬래시 전투를 넣은 3D 쿼터뷰 액션 로그라이크입니다. 축복 시스템은 하데스에서 착안했습니다.
 
-Unreal Engine 5.8 · C++ · Gameplay Ability System · Mass Entity · MVVM(UMG ViewModel) · 서버·클라 분리 구조(Play As Client)
+- Unreal Engine 5.8
+- C++
+- Gameplay Ability System
+- Mass Entity
+- MVVM (UMG ViewModel)
+- 서버·클라 분리 구조 (Play As Client)
 
 <br>
 

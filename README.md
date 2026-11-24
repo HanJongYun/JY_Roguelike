@@ -6,7 +6,8 @@
 
 <br>
 
-## 개발 환경
+<details open>
+<summary><h2>개발 환경</h2></summary>
 
 ### 엔진 · 기술
 
@@ -28,15 +29,21 @@
 | 에디터 연동 | - 언리얼 에디터 MCP<br>- 에디터 전용 C++ 툴셋 (StateTree · AnimGraph · Level 등) |
 | 진행 관리 | - 기능별 진행 문서에 기록<br>- 결정과 이유 · 지금까지 한 일 · 다음 할 일 · 막힌 문제 |
 
+</details>
+
 <br>
 
-## 클래스 구조도
+<details open>
+<summary><h2>클래스 구조도</h2></summary>
 
 [클래스 구조도 보기](https://hanjongyun.github.io/JY_Roguelike/)
 
+</details>
+
 <br>
 
-## Milestones
+<details>
+<summary><h2>Milestones</h2></summary>
 
 | 단계 | 목표 | 작업일 | 세부 항목 |
 |:---:|:---:|:---:|---|
@@ -51,9 +58,12 @@
 | **M8** | 보스 | — | ⬜ 3페이즈 보스 패턴<br>⬜ 보스 HP바 |
 | **M9** | 런 루프 | — | ⬜ 문에 다음 방 보상 미리 표시<br>⬜ 사망 · 클리어 처리 → 로비 복귀<br>⬜ 골드 · 상점<br>⬜ 소모품 인벤토리 · 스탯창<br>⬜ 설정 화면<br>⬜ 피해 숫자 |
 
+</details>
+
 <br>
 
-## 진행 상황 참고자료 (스크린샷)
+<details>
+<summary><h2>진행 상황 참고자료 (스크린샷)</h2></summary>
 
 | 타이틀 | 로비 도착 배너 |
 |:---:|:---:|
@@ -64,3 +74,5 @@
 | ![포털 확인 팝업](Docs/Screenshots/06_portal_confirm.png) | ![종료 확인 팝업](Docs/Screenshots/05_quit_confirm.png) |
 | **던전 인게임 (HP 바)** | |
 | ![던전 인게임](Docs/Screenshots/07_dungeon_skill.png) | |
+
+</details>

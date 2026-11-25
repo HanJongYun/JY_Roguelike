@@ -209,7 +209,7 @@ $\color{#A371F7}{\textbf{\textsf{측정}}}$ (기본 공격 1타 범위 판정 1�
 |:---:|:---:|:---:|
 | ![측정 50마리](Docs/Screenshots/08_bench_50.png) | ![측정 100마리](Docs/Screenshots/09_bench_100.png) | ![측정 200마리](Docs/Screenshots/10_bench_200.png) |
 
-- 스크린샷의 빨간 네모 안이 그 마리 수의 측정 결과. full scan = 전체 순회, grid = 회피 그리드, us = 마이크로초(1000us = 1ms), checked = 검사한 몬스터 수.
+- full scan = 전체 순회, grid = 회피 그리드, us = 마이크로초(1000us = 1ms), checked = 검사한 몬스터 수.
 
 <br>
 

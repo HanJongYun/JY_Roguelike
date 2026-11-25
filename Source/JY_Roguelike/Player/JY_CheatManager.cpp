@@ -327,8 +327,14 @@ void UJY_CheatManager::JYMassKnockback(float Radius, float HorizontalImpulse, fl
 
 namespace JY_FlowFieldDebug
 {
-	/* 보내는 간격 = 선이 남는 시간 — 다음 묶음이 올 때 앞 묶음이 사라져 옛 화살표가 겹치지 않는다 */
-	constexpr float SendIntervalSeconds = 0.5f;
+	/* 선을 보내는 간격 */
+	constexpr float SendIntervalSeconds = 0.25f;
+
+	/* 선이 남는 시간 — 보내는 간격의 2배. 같으면 다음 묶음이 조금만 늦어도 사이에 선이 사라져 깜빡인다 */
+	constexpr float LineLifetimeSeconds = SendIntervalSeconds * 2.0f;
+
+	/* 플레이어에서 이 거리(cm) 안의 다각형만 그린다 */
+	constexpr float DrawRadius = 2500.0f;
 }
 
 /* [임시코드] (2장 B 끝나면 삭제) 플로우 필드는 서버에만 있어 선 목록을 클라로 보내 그린다 */
@@ -363,8 +369,15 @@ void UJY_CheatManager::SendFlowFieldDebugLines()
 	const FVector LineLift(0.0f, 0.0f, 30.0f);
 	const FJY_NavFlowField& FlowField = MassEnemySubsystem->GetFlowField();
 	TArray<FVector> PolyVerts;
+	/* 방 전체를 보내면 선이 수천 개라 전송이 밀려 몇 초씩 끊긴다 — 플레이어 주변만 */
+	const FVector PlayerNavLocation = MassEnemySubsystem->GetPlayerNavLocation();
 	for (const TPair<NavNodeRef, FJY_NavFlowStep>& Pair : FlowField.GetSteps())
 	{
+		FVector NearCheckCenter;
+		NavMesh->GetPolyCenter(Pair.Key, OUT NearCheckCenter);
+		if (FVector::DistSquared2D(NearCheckCenter, PlayerNavLocation) > FMath::Square(JY_FlowFieldDebug::DrawRadius))
+			continue;
+
 		PolyVerts.Reset();
 		NavMesh->GetPolyVerts(Pair.Key, OUT PolyVerts);
 		for (int32 VertIndex = 0; VertIndex < PolyVerts.Num(); ++VertIndex)
@@ -410,7 +423,7 @@ void UJY_CheatManager::SendFlowFieldDebugLines()
 	EnemyQuery.ForEachEntityChunk(ExecutionContext, CollectMoveTargets);
 
 	AJY_PlayerController* PlayerController = CastChecked<AJY_PlayerController>(GetOuterAPlayerController());
-	PlayerController->Client_DrawFlowFieldDebug(LineStarts, LineEnds, LineColors, OutlineStarts, OutlineEnds, JY_FlowFieldDebug::SendIntervalSeconds);
+	PlayerController->Client_DrawFlowFieldDebug(LineStarts, LineEnds, LineColors, OutlineStarts, OutlineEnds, JY_FlowFieldDebug::LineLifetimeSeconds);
 }
 
 /* 접속 직후엔 PlayerState가 아직 없을 수 있다 */

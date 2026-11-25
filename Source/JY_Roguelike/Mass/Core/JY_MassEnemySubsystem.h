@@ -135,6 +135,9 @@ private:
 
 	FJY_NavFlowField FlowField;
 
+	/* 길 표를 마지막으로 만든 때의 플레이어 바닥 위치 — 표의 남은 거리(DistanceToGoal)가 이 점 기준이다 */
+	FVector FlowFieldBuiltLocation = FVector::ZeroVector;
+
 	/* 적별로 이번 프레임에 받은 피해 합과 걸 상태이상 — 공격(CombatQuery::ApplyHit)이 쌓고 UJY_MassDamageProcessor가 비운다 */
 	TMap<FMassEntityHandle, FJY_PendingMassHit> PendingHitsBuffer;
 

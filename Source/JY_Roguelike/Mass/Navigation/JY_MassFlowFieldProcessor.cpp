@@ -15,8 +15,12 @@
 
 namespace JY_MassFlowField
 {
-	/* 문 위의 갈 곳에 이만큼 붙으면 문에 도착한 것으로 본다 — 0이면 방향이 0이 돼 멈춤(GetSafeNormal2D, Vector.h:656) */
-	constexpr float PortalReachedTolerance = 0.1f;
+	/*
+	 * 문 위의 갈 곳에 이만큼 붙으면 문에 도착한 것으로 보고 다음 다각형을 기준으로 바꾼다.
+	 * 여러 마리가 같은 문으로 몰리면 서로 밀려 갈 곳에 딱 닿지 못한다 — 너무 작으면(예전 0.1cm) 문 앞에서 맴돌며 못 넘어간다.
+	 * 문 끝 여유(PortalEdgeInset)와 같게 둬, 일찍 바꿔도 다음 갈 곳까지 직선이 기둥 모서리를 넘지 않게
+	 */
+	constexpr float PortalReachedTolerance = 30.0f;
 
 	/* 문 끝에서 이만큼 안쪽 — NavMesh는 이미 몸 반경만큼 벽에서 떨어져 있어, 가장자리에 비비지 않을 여유만 */
 	constexpr float PortalEdgeInset = 30.0f;
@@ -85,7 +89,7 @@ void UJY_MassFlowFieldProcessor::Execute(FMassEntityManager& EntityManager, FMas
 			const FJY_NavFlowStep* GuideStep = FlowStep;
 			FVector TargetLocation = JY_MassFlowField::GetTargetLocation(FlowField, GuidePoly, *GuideStep, EnemyLocation, PlayerNavLocation);
 
-			/* 문 위 갈 곳에 이미 서 있으면 아직 이 다각형이라 갈 곳이 발밑이 된다 — 다음 다각형을 기준으로 바꾼다. 일찍 바꾸면 다음 갈 곳까지 직선이 모서리를 스친다 */
+			/* 문 위 갈 곳에 거의 닿았으면(PortalReachedTolerance) 아직 이 다각형이어도 다음 다각형을 기준으로 바꾼다 — 안 바꾸면 갈 곳이 발밑이 돼 문 앞에서 맴돈다 */
 			if (GuidePoly != FlowField.GetGoalPoly() && FVector::Dist2D(EnemyLocation, TargetLocation) < JY_MassFlowField::PortalReachedTolerance)
 			{
 				/* NextPoly는 Rebuild가 표에 먼저 넣은 다각형이라 항상 있다 (JY_NavFlowField.cpp:69) */

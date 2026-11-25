@@ -153,11 +153,15 @@ void UJY_MassEnemySubsystem::HandlePrePhysicsStarted(float DeltaSeconds)
 
 	PlayerNavLocation = PlayerNavPoint.Location;
 
-	/* 같은 다각형 안에서 움직이는 동안은 표가 그대로 맞다 — 다각형을 옮겼을 때만 다시 만든다 */
-	if (PlayerNavPoint.NodeRef == FlowField.GetGoalPoly())
+	/*
+	 * 같은 다각형 안이어도 플레이어가 움직이면 다시 만든다 — 남은 거리(DistanceToGoal)와 고를 문이 만들 때의 플레이어 위치 기준이라,
+	 * 안 만들면 큰 다각형 안에서 멀어진 플레이어를 적이 "가깝다"고 보고 멈춘다. 다시 만드는 비용은 적 수와 상관없다
+	 */
+	if (PlayerNavPoint.NodeRef == FlowField.GetGoalPoly() && PlayerNavLocation.Equals(FlowFieldBuiltLocation) == true)
 		return;
 
 	FlowField.Rebuild(*NavMesh, PlayerNavPoint.NodeRef, PlayerNavLocation);
+	FlowFieldBuiltLocation = PlayerNavLocation;
 }
 
 // [Server]

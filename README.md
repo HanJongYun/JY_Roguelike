@@ -78,7 +78,7 @@ $\color{#A371F7}{\textbf{\textsf{측정}}}$ (한 프레임에 걸린 시간, 3�
 
 <br>
 
-$\color{#A371F7}{\textbf{\textsf{계기}}}$
+$\color{#A371F7}{\textbf{\textsf{개요}}}$
 
 - 몬스터마다 플레이어까지 길찾기를 따로 돌리면, 몬스터 수만큼 같은 계산이 반복되므로 비효율적.
 

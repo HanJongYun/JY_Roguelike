@@ -112,11 +112,8 @@ $\color{#A371F7}{\textbf{\textsf{측정}}}$ (길 갱신 1회 시간, 20회 평�
 
 ![길찾기 측정](Docs/Screenshots/11_path_bench.png)
 
-- 스크린샷 읽는 법 (측정용 임시 코드가 화면에 찍은 결과, `[Bench]` = 측정 로그 표시)
-  - `enemies N` = 몬스터 N마리
-  - `per-enemy path` = 몬스터 N마리가 각자 플레이어까지 네비메쉬 길찾기를 1번씩, 총 N번 했을 때 걸린 시간
-  - `flow field` = 플로우 필드 표를 1번 만들고, N마리가 각자 자기 다각형 칸을 읽었을 때 걸린 시간
-  - `found` = 길(방향)을 얻은 몬스터 수, `x` = 몇 배 빠른지
+- `per-enemy path` = 몬스터 N마리가 각각 길찾기 하는 데 걸린 시간
+- `flow field` = 플로우 필드로 N마리의 방향을 구하는 데 걸린 시간
 
 </details>
 

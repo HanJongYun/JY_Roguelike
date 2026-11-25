@@ -1,0 +1,1272 @@
+<title>Mass 1장 흐름</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: 헤더 → 목차 → 기능 구획(화면 컷 · 서버|네트워크|클라 스윔레인 + 고정 상태 패널 · 핵심 포인트)이 굵은 선으로 이어짐 */
+:root {
+  --bg: #f3f5f8;
+  --panel: #ffffff;
+  --fg: #1b2230;
+  --muted: #5f6b7d;
+  --line: #d6dce5;
+  --client: #2563c9;
+  --client-soft: #e6eefb;
+  --server: #b8611a;
+  --server-soft: #fbefe3;
+  --rpc: #7a4fc4;
+  --rep: #23855a;
+  --engine: #8a94a3;
+  --cls: #1f6aa5;
+  --fn: #8a5a00;
+  --key: #d0461b;
+  --changed: #fff3c4;
+  --changed-fg: #6b4e00;
+  --on: #c0392b;
+  --off: #23855a;
+  --divider: #d0312d;
+  --font-body: "IBM Plex Sans KR", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+  --font-code: "JetBrains Mono", "Cascadia Code", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #12161d; --panel: #1a2029; --fg: #e3e8ef; --muted: #96a1b2; --line: #2c3542;
+    --client: #6ea2f5; --client-soft: #1b2a42; --server: #f0a35c; --server-soft: #3a2a1b;
+    --rpc: #b08cf0; --rep: #5cc995; --engine: #7d8796; --cls: #6cb8f0; --fn: #e5c46b; --key: #ff8a5c;
+    --changed: #4a3d10; --changed-fg: #ffe08a; --on: #ff7a6b; --off: #5cc995; --divider: #ff6b6b;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #12161d; --panel: #1a2029; --fg: #e3e8ef; --muted: #96a1b2; --line: #2c3542;
+  --client: #6ea2f5; --client-soft: #1b2a42; --server: #f0a35c; --server-soft: #3a2a1b;
+  --rpc: #b08cf0; --rep: #5cc995; --engine: #7d8796; --cls: #6cb8f0; --fn: #e5c46b; --key: #ff8a5c;
+  --changed: #4a3d10; --changed-fg: #ffe08a; --on: #ff7a6b; --off: #5cc995; --divider: #ff6b6b;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.55; }
+.wrap { max-width: 1240px; margin: 0 auto; padding-block: 28px 64px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 28px; }
+code, .mono { font-family: var(--font-code); font-size: 0.86em; }
+h1 { font-size: 1.75rem; margin: 0; text-wrap: balance; letter-spacing: -0.01em; }
+h2 { font-size: 1.05rem; margin: 0; }
+.eyebrow { font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+.lede { color: var(--muted); max-width: 70ch; margin: 6px 0 0; }
+
+/* 헤더 · 범례 */
+header { display: grid; gap: 14px; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 0.82rem; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.sw { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+.sw.client { background: var(--client); }
+.sw.server { background: var(--server); }
+.sw.engine { border: 1.5px dashed var(--engine); }
+.sw.rpc { height: 3px; width: 18px; background: var(--rpc); }
+.sw.rep { height: 0; width: 18px; border-top: 3px dashed var(--rep); }
+
+/* 플레이어 화면 3컷 */
+/* 화면 컷은 개수와 상관없이 고정 폭 — 1컷이어도 늘어나지 않게 */
+.screens { display: flex; flex-wrap: wrap; gap: 12px; }
+.shot { width: 280px; max-width: 100%; }
+.shot { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px; display: grid; gap: 8px; cursor: pointer; text-align: left; font: inherit; color: inherit; }
+.shot:focus-visible, .step summary:focus-visible, .nav button:focus-visible { outline: 2px solid var(--client); outline-offset: 2px; }
+.shot.active { border-color: var(--client); box-shadow: 0 0 0 1px var(--client); }
+.frame { aspect-ratio: 16 / 9; max-width: 100%; border-radius: 6px; position: relative; overflow: hidden; display: grid; place-items: center; font-size: 0.8rem; }
+.shot .cap { display: flex; justify-content: space-between; gap: 8px; font-size: 0.82rem; }
+.shot .cap b { font-weight: 500; }
+.shot .cap span { color: var(--muted); font-family: var(--font-code); font-size: 0.75rem; white-space: nowrap; }
+
+/* 본문: 스윔레인 + 상태 패널 */
+.main { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 20px; align-items: start; }
+.lanes { display: grid; grid-template-columns: minmax(0, 1fr) 120px minmax(0, 1fr); background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.lane-head { padding: 12px 14px; font-weight: 700; font-size: 0.9rem; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--line); }
+.lane-head.client { color: var(--client); background: var(--client-soft); }
+.lane-head.server { color: var(--server); background: var(--server-soft); }
+.lane-head.wire { justify-content: center; color: var(--muted); font-weight: 500; font-size: 0.78rem; background: var(--panel); }
+.lane-head small { font-weight: 400; color: var(--muted); font-size: 0.75rem; }
+
+.phase { grid-column: 1 / -1; display: flex; align-items: baseline; gap: 10px; padding: 14px 14px 6px; border-top: 1px solid var(--line); }
+.phase:first-of-type { border-top: 0; }
+.phase .num { font-family: var(--font-code); font-weight: 600; color: var(--muted); font-size: 0.8rem; }
+.phase h2 { font-size: 0.95rem; }
+.phase p { margin: 0; color: var(--muted); font-size: 0.8rem; }
+
+.cell { padding: 6px 12px; min-width: 0; }
+.cell.s { grid-column: 1; }
+.cell.w { grid-column: 2; position: relative; }
+.cell.c { grid-column: 3; }
+/* 펼친 카드는 세 칸을 다 써서 코드가 가로 스크롤 없이 보이게 */
+.cell.wide { grid-column: 1 / -1; }
+
+.step { border: 1px solid var(--line); border-radius: 9px; background: var(--panel); min-width: 0; }
+.step.client { border-left: 4px solid var(--client); }
+.step.server { border-left: 4px solid var(--server); }
+.step.selected { box-shadow: 0 0 0 2px var(--client); }
+.step.server.selected { box-shadow: 0 0 0 2px var(--server); }
+.step summary { list-style: none; cursor: pointer; padding: 10px 12px; display: grid; gap: 4px; }
+.step summary::-webkit-details-marker { display: none; }
+.step .top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.step .n { font-family: var(--font-code); font-size: 0.75rem; font-weight: 600; border-radius: 4px; padding: 0 6px; color: #fff; }
+.step.client .n { background: var(--client); }
+.step.server .n { background: var(--server); }
+.step .tt { font-weight: 700; font-size: 0.93rem; }
+.step .lane-tag { display: none; font-size: 0.72rem; color: var(--muted); }
+.step .say { color: var(--muted); font-size: 0.84rem; }
+.step .keyfn { font-family: var(--font-code); font-size: 0.78rem; color: var(--key); overflow-wrap: anywhere; }
+.step .chev { margin-left: auto; color: var(--muted); font-size: 0.75rem; transition: transform 0.15s; }
+.step[open] .chev { transform: rotate(90deg); }
+
+.tree { border-top: 1px dashed var(--line); padding: 8px 12px 12px; display: grid; gap: 3px; }
+.call { font-family: var(--font-code); font-size: 0.8rem; line-height: 1.5; padding-left: calc(var(--d) * 16px); position: relative; overflow-wrap: anywhere; }
+.call::before { content: ""; position: absolute; left: calc(var(--d) * 16px - 10px); top: 0.75em; width: 6px; border-top: 1px solid var(--line); }
+.call[style*="--d:0"]::before { display: none; }
+.call .sig { display: inline; }
+.call .cl { color: var(--cls); }
+.call .fn { color: var(--fn); }
+.call.key .fn { color: var(--key); font-weight: 600; }
+.call.eng .sig { border: 1px dashed var(--engine); border-radius: 4px; padding: 0 4px; }
+.call .tag { color: var(--engine); font-size: 0.7rem; margin-left: 4px; }
+.call .ref { color: var(--muted); font-size: 0.72rem; margin-left: 6px; }
+.call .cmt { color: var(--rep); font-family: var(--font-body); font-size: 0.78rem; margin-left: 10px; }
+.who { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 3px 10px; margin-top: 4px; padding: 7px 9px; border-radius: 6px; background: var(--bg); font-size: 0.8rem; }
+.who dt { color: var(--muted); font-weight: 500; }
+.who dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.who code { color: var(--cls); }
+.who dd + dt { border-top: 1px solid var(--line); padding-top: 4px; }
+.who dt + dd { padding-bottom: 2px; }
+.who dd + dt + dd { border-top: 1px solid var(--line); padding-top: 4px; }
+/* 이 값이 어디서 지정되는지 — 바로 아래 화살표 */
+.via { display: flex; gap: 6px; margin-top: 2px; padding-left: 4px; color: var(--muted); font-size: 0.76rem; }
+.via .arr { color: var(--rpc); font-weight: 700; flex: none; }
+.via code { color: var(--fn); }
+.src { font-family: var(--font-code); font-size: 0.7rem; color: var(--muted); margin-left: 4px; white-space: nowrap; }
+.callout { margin-top: 6px; font-size: 0.8rem; padding: 6px 9px; border-radius: 6px; background: var(--bg); }
+.callout.star b { color: var(--key); }
+.callout.warn { border: 1px dashed var(--line); }
+
+/* 네트워크 화살표 행 */
+.wire-row { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1fr) 120px minmax(0, 1fr); align-items: center; padding: 4px 0; }
+.arrow { grid-column: 1 / -1; margin: 0 12px; display: flex; align-items: center; gap: 10px; }
+.arrow .bar { flex: 1; height: 0; border-top: 2.5px solid var(--rpc); position: relative; }
+.arrow.rep .bar { border-top-style: dashed; border-top-color: var(--rep); }
+.arrow.s2c .bar.right::after, .arrow.c2s .bar.left::before { content: ""; position: absolute; top: -7px; border: 6px solid transparent; }
+.arrow.s2c .bar.right::after { right: -2px; border-left: 9px solid var(--rpc); border-right: 0; }
+.arrow.c2s .bar.left::before { left: -2px; border-right: 9px solid var(--rpc); border-left: 0; }
+.arrow.rep.s2c .bar.right::after { border-left-color: var(--rep); }
+.arrow .lbl { flex: none; max-width: 60%; text-align: center; background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 3px 12px; font-size: 0.78rem; }
+.arrow .lbl b { font-family: var(--font-code); font-weight: 600; color: var(--rpc); }
+.arrow.rep .lbl b { color: var(--rep); }
+.arrow .lbl span { display: block; color: var(--muted); font-size: 0.72rem; }
+
+/* 상태 패널 */
+.state { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: grid; gap: 12px; }
+.state .now { font-size: 0.85rem; }
+.state .now b { display: block; font-size: 0.95rem; }
+.nav { display: flex; gap: 6px; }
+.nav button { flex: 1; font: inherit; font-size: 0.82rem; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); cursor: pointer; }
+.nav button:disabled { opacity: 0.4; cursor: default; }
+.group { display: grid; gap: 4px; }
+.group h3 { margin: 0 0 2px; font-size: 0.75rem; letter-spacing: 0.06em; font-weight: 700; }
+.group.client h3 { color: var(--client); }
+.group.server h3 { color: var(--server); }
+.kv { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; padding: 5px 7px; border-radius: 6px; transition: background 0.2s; }
+.kv .k { font-size: 0.72rem; color: var(--muted); font-family: var(--font-code); overflow-wrap: anywhere; }
+.kv .v { font-size: 0.84rem; font-weight: 500; overflow-wrap: anywhere; }
+.kv.changed { background: var(--changed); }
+.kv.changed .v { color: var(--changed-fg); }
+.pill { display: inline-block; padding: 0 8px; border-radius: 999px; font-size: 0.75rem; font-weight: 700; color: #fff; }
+.pill.on { background: var(--on); }
+.pill.off { background: var(--off); }
+.state .hint { font-size: 0.75rem; color: var(--muted); margin: 0; }
+
+/* 핵심 포인트 */
+.points { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.point { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; font-size: 0.86rem; min-width: 0; }
+.point b { display: block; margin-bottom: 4px; }
+.point .star { color: var(--key); }
+footer { color: var(--muted); font-size: 0.78rem; }
+/* 목차 = 왼쪽 고정 사이드바 (기능 큰 제목 + PHASE 소제목). 좁은 화면은 상단 고정 접이식 */
+.page { display: grid; grid-template-columns: 270px minmax(0, 1fr); align-items: start; }
+.toc { position: sticky; top: 0; z-index: 5; height: 100vh; overflow-y: auto; background: var(--bg); border-right: 1px solid var(--line); padding: 28px 12px 28px max(16px, env(safe-area-inset-left, 0px)); }
+.toc summary { display: none; }
+.toc ol { list-style: none; margin: 0; padding: 0; }
+.toc .doc { display: block; padding: 0 8px 10px; font-size: 0.8rem; font-weight: 700; color: var(--muted); text-decoration: none; }
+.toc .f > a { display: flex; gap: 8px; padding: 6px 8px; border-radius: 6px; text-decoration: none; color: var(--fg); font-weight: 700; font-size: 0.92rem; line-height: 1.35; }
+.toc .f > a b { font-family: var(--font-code); color: var(--muted); font-weight: 600; }
+.toc .f > a small { display: block; font-weight: 400; font-size: 0.74rem; color: var(--muted); }
+.toc .ph a { display: block; padding: 2px 8px 2px 30px; border-radius: 6px; font-size: 0.78rem; color: var(--muted); text-decoration: none; }
+.toc a:hover { background: var(--panel); }
+.toc a.here { color: var(--client); background: var(--client-soft); }
+.toc a.here small { color: var(--client); }
+.toc .link { padding: 2px 0 2px 16px; min-height: 8px; color: var(--muted); font-size: 0.72rem; }
+.phase { scroll-margin-top: 16px; }
+@media (max-width: 1100px) {
+  .page { display: block; }
+  .toc { height: auto; max-height: 70vh; border-right: 0; border-bottom: 1px solid var(--line); padding: 8px max(16px, env(safe-area-inset-right, 0px)) 8px max(16px, env(safe-area-inset-left, 0px)); }
+  .toc summary { display: list-item; cursor: pointer; font-weight: 700; font-size: 0.85rem; }
+  .toc details[open] summary { margin-bottom: 8px; }
+  .phase { scroll-margin-top: 56px; }
+}
+/* 기능 구획 */
+/* 기능 사이 = 빨간 두 줄 */
+.feature { display: grid; gap: 18px; padding-top: 26px; border-top: 7px double var(--divider); scroll-margin-top: 56px; }
+.feature:first-of-type { border-top: 0; padding-top: 0; }
+.fhead { display: grid; gap: 4px; }
+.fhead .fnum { font-family: var(--font-code); font-size: 0.8rem; font-weight: 600; color: var(--muted); }
+.fhead h2 { font-size: 1.35rem; }
+.fhead .lede { margin: 0; }
+.flowlink { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 0.8rem; color: var(--muted); }
+.flowlink a { color: var(--rpc); text-decoration: none; font-weight: 500; }
+.flowlink a:hover { text-decoration: underline; }
+/* 클라이언트에서만 도는 기능: 레인 하나 */
+.lanes.solo { grid-template-columns: minmax(0, 1fr); }
+.lanes.solo .cell.c { grid-column: 1; }
+
+
+/* 화면 컷 목업 — 페이지마다 바꾸는 구역 */
+.frame.dungeon { background: linear-gradient(180deg, #4a3d33 0%, #2c2622 60%, #1d1a17 100%); color: #f4f1e6; }
+.frame .cube { position: absolute; width: 24px; height: 18px; background: #9aa0a8; border-radius: 2px; }
+.frame .cube em { position: absolute; top: -17px; left: 50%; transform: translateX(-50%); font-style: normal; font-family: var(--font-code); font-size: 0.68rem; color: #5dff7a; }
+/* 위에서 본 NavMesh 개념도 (2장 길) */
+.frame.geo { background: var(--bg); border: 1px solid var(--line); }
+.frame.geo svg { width: 100%; height: 100%; display: block; }
+.frame.geo .poly { fill: var(--rep); fill-opacity: 0.12; stroke: var(--rep); stroke-opacity: 0.5; stroke-width: 1; }
+.frame.geo .poly.dim { fill-opacity: 0.05; stroke-dasharray: 3 3; }
+.frame.geo .edge.dim { stroke: var(--muted); stroke-width: 2; stroke-dasharray: 3 3; }
+.frame.geo .wall { fill: var(--muted); fill-opacity: 0.55; }
+.frame.geo .portal { stroke: var(--server); stroke-width: 4; stroke-linecap: round; }
+.frame.geo .rope { stroke: var(--client); stroke-width: 1.5; stroke-dasharray: 5 4; }
+.frame.geo .rope.miss { stroke: var(--on); stroke-opacity: 0.7; }
+.frame.geo .path { fill: none; stroke: var(--client); stroke-width: 2.5; }
+.frame.geo .inset { stroke: var(--key); stroke-width: 2; }
+.frame.geo .hit { fill: var(--key); stroke: var(--panel); stroke-width: 2; }
+.frame.geo .enemy { fill: var(--on); }
+.frame.geo .player { fill: var(--client); }
+.frame.geo text { fill: var(--fg); font-family: var(--font-code); }
+.frame.geo .lbl { font-size: 13px; font-weight: 600; }
+.frame.geo .tiny { font-size: 10px; fill: var(--muted); }
+.frame.geo .dim { fill: var(--muted); opacity: 0.8; }
+.frame.geo text.miss { fill: var(--on); }
+#class-map { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px; margin-top: 22px; display: grid; gap: 12px; }
+#class-map h2 { margin: 0; font-size: 1.15rem; }
+.cs-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+#cs-open, .cs-tools button { font: inherit; font-size: 0.85rem; color: var(--fg); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 5px 12px; cursor: pointer; }
+#cs-open { background: var(--key); border-color: var(--key); color: #10161f; font-weight: 700; }
+#cs-view { position: relative; height: 620px; overflow: hidden; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; cursor: zoom-in; }
+#cs-board { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+#cs-board > svg { position: absolute; left: 0; top: 0; pointer-events: none; }
+#cs-board .cs-class { position: absolute; width: 390px; margin: 0; }
+.cs-tools { display: none; position: absolute; right: 14px; top: 12px; z-index: 2; gap: 8px; }
+#cs-view.full { position: fixed; inset: 0; z-index: 1000; height: auto; border: 0; border-radius: 0; cursor: grab; user-select: none; }
+#cs-view.full.drag { cursor: grabbing; }
+#cs-view.full .cs-tools { display: flex; }
+#cs-em .cs-var { align-content: start; }
+.cs-class.asset { border-color: #9be15d; }
+.cs-class.asset .cs-head { background: color-mix(in srgb, #9be15d 16%, var(--panel)); }
+.cs-tag.asset { background: #9be15d; }
+.cs-tag.temp { background: #c7ced8; margin: 0 4px 0 0; }
+.cs-var.asset { border-left: 4px solid #9be15d; background: color-mix(in srgb, #9be15d 8%, var(--bg)); }
+.cs-var.asset > b { color: #9be15d; }
+#class-map a.cs-asset-link { color: #9be15d; font-weight: 700; }
+.cs-note { margin: 0; color: var(--muted); font-size: 0.82rem; }
+.cs-class { border: 2px solid var(--rpc); border-radius: 10px; background: var(--bg); overflow: hidden; }
+.cs-head { display: grid; gap: 2px; padding: 11px 14px; background: color-mix(in srgb, var(--rpc) 18%, var(--panel)); }
+.cs-head b { font-family: var(--font-code); font-size: 1rem; }
+.cs-head small { color: var(--muted); font-size: 0.74rem; }
+.cs-head span { font-size: 0.88rem; margin-top: 3px; }
+.cs-feature { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 10px; align-items: baseline; padding: 8px 14px; border-top: 1px solid var(--line); background: var(--panel); font-size: 0.84rem; }
+.cs-feature b { font-size: 0.76rem; color: var(--key); }
+.cs-var { display: grid; gap: 2px; padding: 10px 14px; border-top: 1px solid var(--line); }
+.cs-var b { font-family: var(--font-code); font-size: 0.9rem; color: var(--cls); }
+.cs-var > code { font-family: var(--font-code); font-size: 0.76rem; color: var(--muted); }
+.cs-var p { margin: 3px 0 0; font-size: 0.85rem; line-height: 1.5; }
+.cs-var p code { font-family: var(--font-code); font-size: 0.82em; }
+.cs-feature code { font-family: var(--font-code); font-size: 0.82em; }
+.cs-tag { font-style: normal; font-family: var(--font-body); font-size: 0.72rem; font-weight: 700; padding: 1px 6px; border-radius: 4px; margin-left: 4px; color: #10161f; }
+.cs-tag.server { background: #f39a3e; }
+.cs-tag.client { background: #6fd0f5; }
+.cs-var.server { border-left: 4px solid #f39a3e; background: color-mix(in srgb, #f39a3e 10%, var(--bg)); }
+.cs-var.server > b { color: #f39a3e; }
+.cs-tag.split { padding: 0; display: inline-flex; overflow: hidden; vertical-align: 1px; }
+.cs-tag.split u { text-decoration: none; padding: 1px 4px; }
+.cs-tag.split .s { background: #f39a3e; padding-left: 6px; }
+.cs-tag.split .c { background: #6fd0f5; padding-right: 6px; }
+.cs-var.both { border-left: 4px solid #f58bc0; background: color-mix(in srgb, #f58bc0 10%, var(--bg)); }
+.cs-var.both > b { color: #f58bc0; }
+.cs-var.client { border-left: 4px solid #6fd0f5; background: color-mix(in srgb, #6fd0f5 10%, var(--bg)); }
+.cs-var.client > b { color: #6fd0f5; }
+@media (max-width: 900px) {
+  .main { grid-template-columns: minmax(0, 1fr); }
+  .state { position: static; order: -1; }
+  .points { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 640px) {
+  .lanes, .wire-row { grid-template-columns: minmax(0, 1fr); }
+  .lane-head { display: none; }
+  .cell.c, .cell.s { grid-column: 1; }
+  .cell.w { display: none; }
+  .step .lane-tag { display: inline; }
+  .arrow .lbl { max-width: 85%; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+
+<div class="page">
+  <nav class="toc" id="toc" aria-label="목차"></nav>
+  <div class="wrap">
+    <header id="doc-head"></header>
+        <section id="class-map" aria-label="클래스 구조">
+      <div class="cs-title"><h2>클래스 구조</h2><button type="button" id="cs-open">전체 보기</button></div>
+      <p class="cs-note">주황 화살표 = 포함, 연두 화살표 = 에셋. 전체 보기에서 휠로 확대하고 드래그로 이동합니다.</p>
+      <div id="cs-view">
+        <div class="cs-tools"><button type="button" id="cs-fit">화면에 맞추기</button><button type="button" id="cs-close">닫기 (Esc)</button></div>
+        <div id="cs-board">
+          <svg id="cs-lines" aria-hidden="true"></svg>
+        <div class="cs-class" id="cs-sub">
+          <div class="cs-head"><b>UJY_MassEnemySubsystem</b><small>&lt; UWorldSubsystem 상속 &gt;</small><span>Mass Enemy 엔티티를 만들고 찾는 클래스</span></div>
+          <div class="cs-feature"><b>특징</b><span>서버 월드·클라 월드에 각각 1개</span></div>
+          <div class="cs-var server" id="cs-var-actor">
+            <b>RoomEnemyNetActor <i class="cs-tag server">[서버]</i></b><code>TObjectPtr&lt;AJY_RoomEnemyNetActor&gt;</code>
+            <p>Mass Enemy 목록을 클라로 보내는 복제 Actor를 가리키는 변수.</p>
+          </div>
+          <div class="cs-var both">
+            <b>EntityByReplicationID <i class="cs-tag split"><u class="s">[서버</u><u class="c">·클라]</u></i></b><code>TMap&lt;int32, FMassEntityHandle&gt;</code>
+            <p>복제 번호 <code>ReplicationID</code>로 내 엔티티를 찾는 표. 서버·클라가 각자 자기 엔티티를 담습니다. 값인 핸들은 <code>FMassEntityManager</code>에서 씁니다.</p>
+          </div>
+        </div>
+        <div class="cs-class" id="cs-actor">
+          <div class="cs-head" id="cs-actor-head"><b>AJY_RoomEnemyNetActor</b><small>&lt; AInfo 상속 &gt;</small><span>Mass Enemy 목록을 클라로 복제하는 Actor 클래스</span></div>
+          <div class="cs-feature"><b>특징</b><span>서버가 1개 생성, 모든 클라에 복제, 런 동안 유지</span></div>
+          <div class="cs-var both">
+            <b>RoomOrigin <i class="cs-tag split"><u class="s">[서버</u><u class="c">·클라]</u></i></b><code>FVector_NetQuantize</code>
+            <p>복제 변수. 서버가 쓰고 클라가 읽습니다. 현재 방 기준점(<code>APlayerStart</code> 위치). 클라가 상대 위치를 월드 위치로 되돌릴 때 씁니다.</p>
+          </div>
+          <div class="cs-var both" id="cs-var-container">
+            <b>EnemyContainer <i class="cs-tag split"><u class="s">[서버</u><u class="c">·클라]</u></i></b><code>FJY_FastArrayEnemyContainer</code>
+            <p>복제 변수. Mass Enemy 목록. Mass Enemy 1마리가 <code>Items</code> 배열 1줄이고, 바뀐 줄만 전송됩니다.</p>
+          </div>
+          <div class="cs-var server">
+            <b>ItemIndexByReplicationID <i class="cs-tag server">[서버]</i></b><code>TMap&lt;int32, int32&gt;</code>
+            <p>복제 번호로 <code>Items</code> 배열 위치를 찾는 표.</p>
+          </div>
+        </div>
+        <div class="cs-class" id="cs-cont">
+          <div class="cs-head" id="cs-cont-head"><b>FJY_FastArrayEnemyContainer</b><small>&lt; FFastArraySerializer 상속 &gt;</small><span>Mass Enemy 복제 줄 목록을 담는 구조체</span></div>
+          <div class="cs-feature"><b>특징</b><span>바뀐 줄만 전송, 클라에 도착하면 콜백 호출</span></div>
+          <div class="cs-var both" id="cs-var-items">
+            <b>Items <i class="cs-tag split"><u class="s">[서버</u><u class="c">·클라]</u></i></b><code>TArray&lt;FJY_FastArrayEnemyItem&gt;</code>
+            <p>Mass Enemy 1마리가 1줄. 서버가 쓰고 클라가 받습니다.</p>
+          </div>
+          <div class="cs-var client">
+            <b>OwnerActor <i class="cs-tag client">[클라]</i></b><code>TObjectPtr&lt;AJY_RoomEnemyNetActor&gt;</code>
+            <p>복제 안 함. 콜백에서 월드와 <code>RoomOrigin</code>을 얻습니다.</p>
+          </div>
+          <div class="cs-var client">
+            <b>PostReplicatedAdd() <i class="cs-tag client">[클라]</i></b><code>함수</code>
+            <p>새 줄 도착 → 클라 엔티티 생성.</p>
+          </div>
+          <div class="cs-var client">
+            <b>PostReplicatedChange() <i class="cs-tag client">[클라]</i></b><code>함수</code>
+            <p>바뀐 줄 도착 → 클라 엔티티에 값 반영.</p>
+          </div>
+        </div>
+        <div class="cs-class" id="cs-item">
+          <div class="cs-head" id="cs-item-head"><b>FJY_FastArrayEnemyItem</b><small>&lt; FFastArraySerializerItem 상속 &gt;</small><span>Mass Enemy 1마리의 복제 데이터 구조체</span></div>
+          <div class="cs-feature"><b>특징</b><span>서버·클라가 같은 <code>ReplicationID</code>로 같은 Mass Enemy를 가리킴</span></div>
+          <div class="cs-var both">
+            <b>ReplicationID <i class="cs-tag split"><u class="s">[서버</u><u class="c">·클라]</u></i></b><code>int32</code>
+            <p>부모 변수. 서버가 처음 <code>MarkItemDirty</code>할 때 엔진이 붙입니다.</p>
+          </div>
+          <div class="cs-var both" id="cs-var-state">
+            <b>EnemyState <i class="cs-tag split"><u class="s">[서버</u><u class="c">·클라]</u></i></b><code>FJY_EnemyState</code>
+            <p>서버가 보내는 위치·체력 등 상태.</p>
+          </div>
+          <div class="cs-var both">
+            <b>DefinitionIndex <i class="cs-tag split"><u class="s">[서버</u><u class="c">·클라]</u></i></b><code>uint8</code>
+            <p>Mass Enemy 종류 번호. <code>UJY_GameData::EnemyDefinitions</code> 배열 번호입니다.</p>
+          </div>
+        </div>
+        <div class="cs-class" id="cs-state">
+          <div class="cs-head" id="cs-state-head"><b>FJY_EnemyState</b><small>&lt; 상속 없음 &gt;</small><span>서버가 클라로 보내는 Mass Enemy 1마리 상태 구조체</span></div>
+          <div class="cs-feature"><b>특징</b><span>필드별로 바뀐 것만 전송</span></div>
+          <div class="cs-var both">
+            <b>RelativeLocation <i class="cs-tag split"><u class="s">[서버</u><u class="c">·클라]</u></i></b><code>FVector_NetQuantize</code>
+            <p><code>RoomOrigin</code> 기준 위치. 1cm 단위.</p>
+          </div>
+          <div class="cs-var both">
+            <b>Yaw <i class="cs-tag split"><u class="s">[서버</u><u class="c">·클라]</u></i></b><code>uint8</code>
+            <p>방향. 256단계.</p>
+          </div>
+          <div class="cs-var both">
+            <b>State <i class="cs-tag split"><u class="s">[서버</u><u class="c">·클라]</u></i></b><code>uint8</code>
+            <p>행동 상태. 지금은 항상 0.</p>
+          </div>
+          <div class="cs-var both">
+            <b>HealthPct <i class="cs-tag split"><u class="s">[서버</u><u class="c">·클라]</u></i></b><code>uint8</code>
+            <p>체력 비율 0~255.</p>
+          </div>
+          <div class="cs-var both">
+            <b>ShieldPct <i class="cs-tag split"><u class="s">[서버</u><u class="c">·클라]</u></i></b><code>uint8</code>
+            <p>보호막 비율 0~255. 지금은 항상 0.</p>
+          </div>
+          <div class="cs-var both">
+            <b>StatusFlags <i class="cs-tag split"><u class="s">[서버</u><u class="c">·클라]</u></i></b><code>uint8</code>
+            <p>상태이상 비트. 지금은 항상 0.</p>
+          </div>
+          <div class="cs-var both">
+            <b>HitSerial <i class="cs-tag split"><u class="s">[서버</u><u class="c">·클라]</u></i></b><code>uint8</code>
+            <p>맞을 때마다 1 증가.</p>
+          </div>
+        </div>
+        <div class="cs-class" id="cs-em">
+          <div class="cs-head" id="cs-em-head"><b>FMassEntityManager</b><small>&lt; 엔진 구조체 &gt;</small><span>엔티티와 Fragment를 실제로 소유하는 엔진 구조체</span></div>
+          <div class="cs-feature"><b>특징</b><span>월드마다 1개. 우리 코드는 <code>FMassEntityHandle</code>만 들고 있음</span></div>
+          <div class="cs-var server" id="cs-rep-row"><b>서버 엔티티가 가짐 <i class="cs-tag server">[서버]</i></b><code>FJY_EnemyLastSentToClientFragment</code><p>서버 엔티티와 복제 줄을 잇습니다.</p></div>
+          <div class="cs-var server" id="cs-hp-row"><b>서버 엔티티가 가짐 <i class="cs-tag server">[서버]</i></b><code>FJY_EnemyHealthFragment</code><p>체력 원본입니다.</p></div>
+          <div class="cs-var client" id="cs-vis-row"><b>클라 엔티티가 가짐 <i class="cs-tag client">[클라]</i></b><code>FJY_EnemyVisualFragment</code><p>복제받은 표시 값입니다.</p></div>
+        </div>
+        <div class="cs-class" id="cs-rep">
+          <div class="cs-head" id="cs-rep-head"><b>FJY_EnemyLastSentToClientFragment</b><small>&lt; FMassFragment 상속 &gt;</small><span>서버 엔티티를 복제 줄과 잇는 Fragment</span></div>
+          <div class="cs-feature"><b>특징</b><span>비교 기준값을 엔티티가 직접 가짐</span></div>
+          <div class="cs-var server">
+            <b>ReplicationID <i class="cs-tag server">[서버]</i></b><code>int32</code>
+            <p>내 복제 줄 번호.</p>
+          </div>
+          <div class="cs-var server" id="cs-var-lastsent">
+            <b>LastSentState <i class="cs-tag server">[서버]</i></b><code>FJY_EnemyState</code>
+            <p>마지막으로 보낸 값. 복제 줄과 같은 타입입니다.</p>
+          </div>
+        </div>
+        <div class="cs-class" id="cs-hp">
+          <div class="cs-head" id="cs-hp-head"><b>FJY_EnemyHealthFragment</b><small>&lt; FMassFragment 상속 &gt;</small><span>체력 원본 Fragment</span></div>
+          <div class="cs-feature"><b>특징</b><span>클라에는 없고, 비율만 복제됨</span></div>
+          <div class="cs-var server">
+            <b>Current, Max <i class="cs-tag server">[서버]</i></b><code>float</code>
+            <p>현재·최대 체력.</p>
+          </div>
+          <div class="cs-var server">
+            <b>Shield, ShieldMax <i class="cs-tag server">[서버]</i></b><code>float</code>
+            <p>현재·최대 보호막.</p>
+          </div>
+          <div class="cs-var server">
+            <b>HitSerial <i class="cs-tag server">[서버]</i></b><code>uint8</code>
+            <p>맞을 때마다 1 증가.</p>
+          </div>
+        </div>
+        <div class="cs-class" id="cs-vis">
+          <div class="cs-head" id="cs-vis-head"><b>FJY_EnemyVisualFragment</b><small>&lt; FMassFragment 상속 &gt;</small><span>복제받은 표시 값을 담는 Fragment</span></div>
+          <div class="cs-feature"><b>특징</b><span><code>ApplyEnemyState</code>가 값을 넣음</span></div>
+          <div class="cs-var client">
+            <b>HealthPct <i class="cs-tag client">[클라]</i></b><code>uint8</code>
+            <p>체력 비율 0~255.</p>
+          </div>
+          <div class="cs-var client">
+            <b>ShieldPct <i class="cs-tag client">[클라]</i></b><code>uint8</code>
+            <p>보호막 비율 0~255. 지금은 항상 0.</p>
+          </div>
+          <div class="cs-var client">
+            <b>StatusFlags <i class="cs-tag client">[클라]</i></b><code>uint8</code>
+            <p>상태이상 비트. 지금은 항상 0.</p>
+          </div>
+        </div>
+        <div class="cs-class asset" id="cs-data">
+          <div class="cs-head" id="cs-data-head"><b>UJY_GameData</b><small>&lt; UPrimaryDataAsset 상속 &gt;</small><span>게임 공용 데이터 에셋 클래스</span></div>
+          <div class="cs-feature"><b>특징</b><span>에셋 <code>DA_JY_GameData</code>. 서버·클라가 같은 에셋을 읽음</span></div>
+          <div class="cs-var asset" id="cs-var-defs">
+            <b>EnemyDefinitions <i class="cs-tag asset">[에셋]</i></b><code>TArray&lt;UJY_EnemyDefinition&gt;</code>
+            <p>Mass Enemy 종류 목록. 배열 번호가 <code>DefinitionIndex</code>입니다.</p>
+          </div>
+        </div>
+        <div class="cs-class asset" id="cs-def">
+          <div class="cs-head" id="cs-def-head"><b>UJY_EnemyDefinition</b><small>&lt; UDataAsset 상속 &gt;</small><span>Mass Enemy 1종을 정의하는 에셋 클래스</span></div>
+          <div class="cs-feature"><b>특징</b><span>에셋 <code>DA_Enemy_Orc</code></span></div>
+          <div class="cs-var asset" id="cs-var-config">
+            <b>EntityConfig <i class="cs-tag asset">[에셋]</i></b><code>TObjectPtr&lt;const UMassEntityConfigAsset&gt;</code>
+            <p>이 종류가 쓸 엔티티 설계도.</p>
+          </div>
+        </div>
+        <div class="cs-class asset" id="cs-config">
+          <div class="cs-head" id="cs-config-head"><b>UMassEntityConfigAsset</b><small>&lt; 엔진 클래스 &gt;</small><span>엔티티 설계도 에셋 클래스</span></div>
+          <div class="cs-feature"><b>특징</b><span>에셋 <code>DA_MassEnemy_Orc</code>. 서버·클라가 다른 Trait를 골라 씀</span></div>
+          <div class="cs-var asset">
+            <b>Traits <i class="cs-tag asset">[에셋]</i></b><code>Trait 5개</code>
+            <p>내용은 에셋 표현 방식을 정한 뒤 적습니다.</p>
+          </div>
+        </div>
+        <div class="cs-class" id="cs-write">
+          <div class="cs-head" id="cs-write-head"><b>UJY_EnemyNetWriteProcessor</b><small>&lt; UMassProcessor 상속 &gt;</small><span>바뀐 Mass Enemy만 복제 줄에 쓰는 클래스</span></div>
+          <div class="cs-feature"><b>특징</b><span>서버, PostPhysics, 게임 스레드, 매 프레임</span></div>
+          <div class="cs-var server">
+            <b>EntityQuery <i class="cs-tag server">[서버]</i></b><code>FMassEntityQuery</code>
+            <p>Transform, <code>FJY_EnemyHealthFragment</code> 읽기, <code>FJY_EnemyLastSentToClientFragment</code> 읽기·쓰기.</p>
+          </div>
+          <div class="cs-var server">
+            <b>Execute() <i class="cs-tag server">[서버]</i></b><code>함수</code>
+            <p>값을 만들어 <code>LastSentState</code>와 비교하고, 다르면 <code>UpdateEnemy</code> 호출.</p>
+          </div>
+          <div class="cs-var server">
+            <b>MakeEnemyState() <i class="cs-tag server">[서버]</i></b><code>static 함수</code>
+            <p>엔티티 값을 <code>FJY_EnemyState</code>로 변환. <code>SpawnWave</code>도 호출.</p>
+          </div>
+        </div>
+        <div class="cs-class" id="cs-debug">
+          <div class="cs-head" id="cs-debug-head"><b>UJY_EnemyDebugTextProcessor</b><small>&lt; UMassProcessor 상속 &gt;</small><span>머리 위에 체력 숫자를 그리는 클래스</span></div>
+          <div class="cs-feature"><b>특징</b><span><i class="cs-tag temp">[임시]</i> 체력바가 생기면 삭제. 클라, PostPhysics, 게임 스레드</span></div>
+          <div class="cs-var client">
+            <b>EntityQuery <i class="cs-tag client">[클라]</i></b><code>FMassEntityQuery</code>
+            <p>Transform, <code>FJY_EnemyVisualFragment</code> 읽기.</p>
+          </div>
+          <div class="cs-var client">
+            <b>Execute() <i class="cs-tag client">[클라]</i></b><code>함수</code>
+            <p><code>HealthPct</code>를 <code>DrawDebugString</code>으로 표시.</p>
+          </div>
+        </div>
+        <div class="cs-class" id="cs-room">
+          <div class="cs-head" id="cs-room-head"><b>UJY_RoomFlowSubsystem</b><small>&lt; UWorldSubsystem 상속 &gt;</small><span>방 진행을 맡는 클래스</span></div>
+          <div class="cs-feature"><b>특징</b><span>1장에서는 방 기준점만 사용</span></div>
+          <div class="cs-var server">
+            <b>GetCurrentRoomStartLocation() <i class="cs-tag server">[서버]</i></b><code>함수</code>
+            <p>현재 방 첫 <code>APlayerStart</code> 위치. <code>SpawnWave</code>가 호출.</p>
+          </div>
+        </div>
+        <div class="cs-class" id="cs-cheat">
+          <div class="cs-head" id="cs-cheat-head"><b>UJY_CheatManager</b><small>&lt; UCheatManager 상속 &gt;</small><span>시험용 치트 클래스</span></div>
+          <div class="cs-feature"><b>특징</b><span><i class="cs-tag temp">[임시]</i> 1장 치트는 2장 이후 실제 코드로 대체</span></div>
+          <div class="cs-var server">
+            <b>JYMassSpawn() <i class="cs-tag server">[서버]</i></b><code>치트</code>
+            <p>현재 방 스폰 지점마다 Mass Enemy 생성.</p>
+          </div>
+          <div class="cs-var server">
+            <b>JYMassMove() <i class="cs-tag server">[서버]</i></b><code>치트</code>
+            <p>전부 X로 이동.</p>
+          </div>
+          <div class="cs-var server">
+            <b>JYMassDamageAll() <i class="cs-tag server">[서버]</i></b><code>치트</code>
+            <p>전부 피해.</p>
+          </div>
+        </div>
+        </div>
+      </div>
+      <script>
+      (function () {
+        const view = document.getElementById("cs-view");
+        const board = document.getElementById("cs-board");
+        const svg = document.getElementById("cs-lines");
+        const $ = (id) => document.getElementById(id);
+        const BOX_W = 390, GAP = 72, COL = BOX_W + GAP;
+        const ORANGE = "#ff8a4c", GREEN = "#9be15d";
+        const box = (id) => $(id);
+        const place = (id, col, y) => { const el = box(id); el.style.left = col * COL + "px"; el.style.top = y + "px"; };
+        const top = (id) => box(id).offsetTop;
+        const bottom = (id) => top(id) + box(id).offsetHeight;
+        /* 박스 안 요소의 세로 가운데 (보드 기준) */
+        const midY = (el) => el.parentElement.offsetTop + el.offsetTop + el.offsetHeight / 2;
+
+        /* 다음 박스를 내려 머리를 변수 줄 높이에 맞춘다 — 화살표가 일자가 된다 */
+        function stairNext(fromId, boxId, headId, col) {
+          const head = $(headId);
+          place(boxId, col, midY($(fromId)) - (head.offsetTop + head.offsetHeight / 2));
+        }
+
+        function layout() {
+          ["cs-rep-row", "cs-hp-row", "cs-vis-row"].forEach((id) => { $(id).style.minHeight = ""; });
+          place("cs-sub", 0, 0);
+          stairNext("cs-var-actor", "cs-actor", "cs-actor-head", 1);
+          stairNext("cs-var-container", "cs-cont", "cs-cont-head", 2);
+          stairNext("cs-var-items", "cs-item", "cs-item-head", 3);
+          stairNext("cs-var-state", "cs-state", "cs-state-head", 4);
+
+          /* 엔티티 칸 높이를 Fragment 박스 높이에 맞춰 줄과 박스를 나란히 둔다 */
+          const FAN = [["cs-rep-row", "cs-rep"], ["cs-hp-row", "cs-hp"], ["cs-vis-row", "cs-vis"]];
+          FAN.forEach(([row, fragment]) => { $(row).style.minHeight = box(fragment).offsetHeight + 18 + "px"; });
+          const firstRowTop = $("cs-rep-row").offsetTop;
+          const lastSent = $("cs-var-lastsent");
+          const lastSentMid = lastSent.offsetTop + lastSent.offsetHeight / 2;
+          const clearTop = Math.max(bottom("cs-item"), bottom("cs-cont")) + 30;
+          const fanTop = Math.max(bottom("cs-sub") + 60, bottom("cs-actor") + 30 - firstRowTop, clearTop - firstRowTop - lastSentMid);
+          place("cs-em", 0, fanTop);
+          FAN.forEach(([row, fragment]) => { place(fragment, 1, fanTop + $(row).offsetTop); });
+
+          /* 두 화살표가 일자로 옆면에 닿는 데까지만 올린다 */
+          const lastSentY = midY(lastSent);
+          place("cs-state", 4, Math.min(top("cs-state"), Math.max(0, lastSentY + 40 - box("cs-state").offsetHeight)));
+
+          const dataTop = bottom("cs-state") + 40;
+          place("cs-data", 3, dataTop);
+          stairNext("cs-var-defs", "cs-def", "cs-def-head", 4);
+          stairNext("cs-var-config", "cs-config", "cs-config-head", 5);
+
+          const logicTop = Math.max(bottom("cs-em"), bottom("cs-vis"), bottom("cs-config"), bottom("cs-data")) + 60;
+          ["cs-write", "cs-debug", "cs-room", "cs-cheat"].forEach((id, i) => place(id, i, logicTop));
+
+          const width = 6 * COL - GAP;
+          const height = Math.max(bottom("cs-write"), bottom("cs-debug"), bottom("cs-cheat"));
+          board.style.width = width + "px";
+          board.style.height = height + "px";
+          svg.setAttribute("width", width);
+          svg.setAttribute("height", height);
+          drawLines();
+        }
+
+        function line(x1, y1, x2, y2, color) {
+          const marker = color === GREEN ? "cs-green" : "cs-orange";
+          return `<path d="M${x1} ${y1} L${x2} ${y2}" fill="none" stroke="${color}" stroke-width="3" marker-end="url(#${marker})"></path>`;
+        }
+
+        function drawLines() {
+          const rowToHead = (rowId, boxId, color) => {
+            const y = midY($(rowId));
+            return line(box($(rowId).parentElement.id).offsetLeft + BOX_W, y, box(boxId).offsetLeft, y, color);
+          };
+          const fanLine = (rowId, boxId) => {
+            const head = box(boxId).querySelector(".cs-head");
+            const y = top(boxId) + head.offsetHeight / 2;
+            return line(BOX_W, y, COL, y, ORANGE);
+          };
+          const downLine = (fromId, toId, color) => {
+            const x = box(fromId).offsetLeft + BOX_W / 2;
+            return line(x, bottom(fromId), x, top(toId), color);
+          };
+          let body = `<defs><marker id="cs-orange" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="${ORANGE}"></path></marker><marker id="cs-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="${GREEN}"></path></marker></defs>`;
+          body += rowToHead("cs-var-actor", "cs-actor", ORANGE);
+          body += rowToHead("cs-var-container", "cs-cont", ORANGE);
+          body += rowToHead("cs-var-items", "cs-item", ORANGE);
+          body += rowToHead("cs-var-state", "cs-state", ORANGE);
+          body += downLine("cs-sub", "cs-em", ORANGE);
+          body += fanLine("cs-rep-row", "cs-rep") + fanLine("cs-hp-row", "cs-hp") + fanLine("cs-vis-row", "cs-vis");
+          body += rowToHead("cs-var-lastsent", "cs-state", ORANGE);
+          body += downLine("cs-item", "cs-data", GREEN);
+          body += rowToHead("cs-var-defs", "cs-def", GREEN);
+          body += rowToHead("cs-var-config", "cs-config", GREEN);
+          svg.innerHTML = body;
+        }
+
+        /* 보드는 transform으로만 움직인다 — offset 값은 배율과 무관해서 선을 다시 그릴 필요가 없다 */
+        let touched = false;
+        const cam = { scale: 1, x: 0, y: 0 };
+        const apply = () => { board.style.transform = `translate(${cam.x}px, ${cam.y}px) scale(${cam.scale})`; };
+        function fit() {
+          touched = false;
+          const pad = 16, w = view.clientWidth - pad * 2, h = view.clientHeight - pad * 2;
+          const bw = board.offsetWidth || 1, bh = board.offsetHeight || 1;
+          cam.scale = Math.min(w / bw, h / bh, 1);
+          cam.x = (view.clientWidth - bw * cam.scale) / 2;
+          cam.y = (view.clientHeight - bh * cam.scale) / 2;
+          apply();
+        }
+        const isFull = () => view.classList.contains("full");
+        function setFull(on) {
+          view.classList.toggle("full", on);
+          document.body.style.overflow = on ? "hidden" : "";
+          fit();
+        }
+        $("cs-open").addEventListener("click", () => setFull(true));
+        $("cs-close").addEventListener("click", (e) => { e.stopPropagation(); setFull(false); });
+        $("cs-fit").addEventListener("click", (e) => { e.stopPropagation(); fit(); });
+        view.addEventListener("click", () => { if (isFull() === false) setFull(true); });
+        window.addEventListener("keydown", (e) => { if (e.key === "Escape" && isFull()) setFull(false); });
+        view.addEventListener("wheel", (e) => {
+          if (isFull() === false) return;
+          e.preventDefault();
+          touched = true;
+          const r = view.getBoundingClientRect();
+          const px = e.clientX - r.left, py = e.clientY - r.top;
+          const next = Math.min(2.5, Math.max(0.1, cam.scale * (e.deltaY < 0 ? 1.15 : 1 / 1.15)));
+          cam.x = px - (px - cam.x) * (next / cam.scale);
+          cam.y = py - (py - cam.y) * (next / cam.scale);
+          cam.scale = next;
+          apply();
+        }, { passive: false });
+        let drag = null;
+        view.addEventListener("pointerdown", (e) => {
+          if (isFull() === false || e.target.closest("button")) return;
+          touched = true;
+          drag = { x: e.clientX - cam.x, y: e.clientY - cam.y };
+          view.classList.add("drag");
+        });
+        window.addEventListener("pointermove", (e) => {
+          if (drag === null) return;
+          cam.x = e.clientX - drag.x; cam.y = e.clientY - drag.y;
+          apply();
+        });
+        window.addEventListener("pointerup", () => { drag = null; view.classList.remove("drag"); });
+        const refresh = () => { layout(); if (touched === false) fit(); };
+        refresh();
+        window.addEventListener("resize", fit);
+        if (document.fonts && document.fonts.ready) document.fonts.ready.then(refresh);
+      })();
+      </script>
+    </section>
+    <div id="features"></div>
+    <footer id="doc-foot"></footer>
+  </div>
+</div>
+
+<script>
+// ===== 데이터 — 새 페이지는 이 구역(DOC · FEATURES)과 화면 컷 CSS(.frame.*)만 바꾼다 =====
+// who: [라벨, 값(HTML), [↳ 어디서 지정되는지(HTML)...]] — 이 단계를 실행하는 클래스·위젯·에셋
+// calls: [depth, 클래스, 함수, 근거, 플래그('eng'|'key'|''), 주석]
+const SRC = (s) => `<span class="src">${s}</span>`;
+const WARN = '<span class="src">⚠️ 미확인 (에셋 값)</span>';
+
+const DOC = {
+  eyebrow: "JY_Roguelike · Mass 1~2장",
+  title: "Mass 1~2장 — 서버가 만든 적을 클라에 보여 주고, 플레이어에게 걸어오게 하기",
+  lede: "Mass 적이 <b>설계도</b>에서 시작해 서버에 생기고, 클라에 복제되고, 피해·이동이 반영되어 화면에 보이기까지를 한 장에 담았다. 서버 엔티티와 클라 엔티티는 <b>서로 다른 엔티티</b>이고, 둘을 잇는 것은 복제 Actor 하나(<code>AJY_RoomEnemyNetActor</code>)의 FastArray 줄이다. 엔진 MassReplication은 쓰지 않는다.",
+  footer: "근거: 현재 소스(브랜치 <code>mass-reference</code>, 미커밋 작업 포함)와 <code>Progress/Mass.md</code>, <code>Progress/Mass_Curriculum.md</code> 1장. 경로는 <code>Source/JY_Roguelike/</code> 기준. 우리 코드 줄 번호는 스크립트로 현재 소스와 대조했다(62곳 확인, 불일치 0). 엔진 줄 번호는 이번 작업에서 소스를 읽은 값과 코드 주석·진행 문서의 값이며, 전부를 다시 대조하지는 않았다. 에셋 값은 에디터 MCP로 읽은 값이다. ⚠️ 미확인: <code>Yaw</code> 복원(적 회전이 아직 없음), 서 있는 적 0바이트 직접 측정, 패킷 유실 후 재전송 때 <code>RoomOrigin</code> 순서. 1마리 약 13바이트는 위치 구조 변경 전 측정값이다. 체력 30 → 20, 255 → 170은 시험에 쓴 실제 값이다. <br>6번(2장 길·교차점, 2026-11-12 추가): 브랜치 <code>mass-reference</code> 미커밋 작업 기준, 우리 코드 32곳·엔진 6곳을 현재 소스와 대조(불일치 0, 대조 중 Mass 세션 편집으로 밀린 5곳은 고침). 그림은 비율만 맞춘 개념도이고 좌표 숫자는 예시 값이다.",
+};
+
+const FEATURES = [
+  // ───────────────────────────── 1. 설계도
+  { id: "blueprint", title: "적 설계도 — 에셋 하나에서 서버·클라가 다른 엔티티를 만든다", lanes: "both", to: ["spawn"],
+    lede: "적 1종은 <code>UJY_EnemyDefinition</code> 에셋(<code>DA_Enemy_Orc</code>) 하나이고, 이 에셋의 <code>EntityConfig</code>가 Mass 설계도(<code>DA_MassEnemy_Orc</code>)를 가리킨다. 설계도의 Trait마다 <code>ValidTargetConfig</code>로 서버용·클라용을 지정해서, 같은 에셋으로 서버는 이동·체력·복제 엔티티를, 클라는 그리기 엔티티를 만든다.",
+    start: "에디터에서 에셋을 준비한 상태",
+    phases: { 1: ["기능 켜기", "플러그인·모듈"], 2: ["적 정의 찾기", "복제 번호로 같은 UJY_EnemyDefinition"], 3: ["넷모드별 조립", "Trait 거르기"] },
+    steps: [
+      { n: 1, phase: 1, lane: "server", title: "플러그인·모듈 켜기", say: "서버·클라 공통. Mass 기능과 링크할 모듈을 켠다.", keyfn: "JY_Roguelike.Build.cs",
+        who: [["플러그인", "<code>MassGameplay</code>, <code>MassAI</code>", ["<code>JY_Roguelike.uproject</code> › Plugins " + SRC("JY_Roguelike.uproject")]],
+              ["모듈", "<code>MassEntity</code>, <code>MassCore</code>, <code>MassSpawner</code>, <code>MassRepresentation</code> 등", ["<code>MassReplication</code>은 넣지 않음 " + SRC("JY_Roguelike.Build.cs")]]],
+        calls: [
+          [0, "", "MassGameplay · MassAI 활성화", "JY_Roguelike.uproject", "", "엔티티·Processor·표현 기능을 쓰기 위해 켠다"],
+          [0, "", "MassCore 추가", "JY_Roguelike.Build.cs", "key", "5.8에서 FMassFragment 등 기본 타입이 있는 모듈"],
+          [0, "", "MassReplication 제외", "JY_Roguelike.Build.cs", "", "복제는 직접 만든 Actor로 한다"],
+        ],
+        notes: [] },
+      { n: 2, phase: 2, lane: "server", title: "UJY_EnemyDefinition → Mass 설계도 연결", say: "배열 번호가 곧 복제되는 적 종류 번호다.", keyfn: "UJY_GameData::EnemyDefinitions",
+        who: [["목록", "<code>DA_JY_GameData</code> › <code>EnemyDefinitions[0]</code> = <code>DA_Enemy_Orc</code>", ["선언 " + SRC("System/JY_GameData.h:103")]],
+              ["적 정의", "<code>UJY_EnemyDefinition</code> <code>DA_Enemy_Orc</code>", ["<code>EntityConfig</code> = <code>DA_MassEnemy_Orc</code> " + SRC("Mass/Core/JY_EnemyDefinition.h:20")]]],
+        calls: [
+          [0, "UJY_GameData", "EnemyDefinitions", "System/JY_GameData.h:103", "key", "배열 번호 = DefinitionIndex, 서버·클라가 같은 순서로 읽음"],
+          [1, "UJY_EnemyDefinition", "EntityConfig", "Mass/Core/JY_EnemyDefinition.h:20", "", "적 1종이 쓸 Mass 설계도"],
+        ],
+        notes: [["key", "★ <code>UJY_EnemyDefinition</code>을 따로 둔 이유: 나중에 드롭 확률이나 Actor 보스처럼 Mass 설계도 밖의 값을 같은 자리에 담기 위해서다."]] },
+      { n: 3, phase: 3, lane: "server", title: "서버용 Trait만 골라 템플릿 생성", say: "서버 넷모드에 맞는 Trait만 BuildTemplate이 불린다.", keyfn: "UMassEntityConfigAsset::GetOrCreateEntityTemplate()",
+        who: [["설계도", "<code>DA_MassEnemy_Orc</code>", ["[0] 이동 <code>Server</code>", "[1] Assorted <code>Server</code>: Transform, AgentRadius 40, <code>FJY_EnemyLastSentToClientFragment</code>, <code>FJY_EnemyHealthFragment</code> 30/30"]]],
+        calls: [
+          [0, "UJY_MassEnemySubsystem", "SpawnEntitiesAt()", "Mass/Core/JY_MassEnemySubsystem.cpp:156", "", "서버·클라 공통 생성 함수"],
+          [1, "UMassEntityConfigAsset", "GetOrCreateEntityTemplate(World)", "Mass/Core/JY_MassEnemySubsystem.cpp:165", "key", "처음 한 번 만들고 이후 캐시"],
+          [2, "", "ValidTargetConfig 필터", "MassEntityTemplateRegistry.cpp:124", "eng", "지금 넷모드 대상이 아니면 Trait를 건너뜀"],
+        ],
+        notes: [["warn", "⚠️ 같은 클래스 Trait는 대상이 겹치면 덮어쓴다(MassEntityConfigAsset.cpp:182~194). 그래서 Assorted Trait를 Server·Client로 정확히 나눴다."]] },
+      { n: 4, phase: 3, lane: "client", title: "클라용 Trait만 골라 템플릿 생성", say: "같은 에셋이지만 클라는 그리기용 Trait만 받는다.", keyfn: "UMassEntityConfigAsset::GetOrCreateEntityTemplate()",
+        who: [["설계도", "<code>DA_MassEnemy_Orc</code>", ["[2] Movable Visualization <code>Client</code>: Cube 메시", "[3] LOD Collector <code>Client</code>", "[4] Assorted <code>Client</code>: Transform, <code>FMassActorFragment</code>, <code>FJY_EnemyVisualFragment</code>"]],
+              ["엔진 Processor", "클라에서도 돌도록 설정", ["<code>ExecutionFlags=5</code> " + SRC("Config/DefaultMass.ini")]]],
+        calls: [
+          [0, "UMassEntityConfigAsset", "GetOrCreateEntityTemplate(World)", "MassEntityConfigAsset.cpp:89", "eng key", "넷모드가 달라서 다른 템플릿 내용이 만들어짐"],
+          [0, "", "MassVisualizationLODProcessor · MassRepresentationProcessor", "Config/DefaultMass.ini", "", "기본 Server|Standalone이라 클라에서 안 돌아 ini로 켬"],
+        ],
+        notes: [] },
+    ],
+    wires: {},
+    fields: { server: [["strait", "서버 Trait"], ["sfrag", "서버 전용 값"]], client: [["ctrait", "클라 Trait"], ["cfrag", "클라 전용 값"]] },
+    s0: { strait: "—", sfrag: "—", ctrait: "—", cfrag: "—" },
+    delta: { 3: { strait: "이동, Assorted", sfrag: "체력, 복제 번호" }, 4: { ctrait: "그리기, LOD, Assorted", cfrag: "HealthPct 표시값" } },
+    points: [
+      ["설계도는 한 벌", "서버 Config·클라 Config를 나누지 않고 한 에셋에서 Trait마다 대상을 지정한다. 적을 늘릴 때 에셋 하나만 만들면 된다."],
+      ["순서 규칙", "특성 목록은 서버 Trait를 위, 클라 Trait를 아래에 둔다."],
+    ] },
+
+  // ───────────────────────────── 2. 스폰
+  { id: "spawn", title: "스폰 — 서버가 만들면 클라가 따라 만든다", lanes: "both", from: ["blueprint"], to: ["change"],
+    lede: "서버는 치트나 웨이브에서 <code>SpawnWave</code>를 불러 엔티티를 만들고 FastArray 줄을 추가한다. 줄이 복제되면 클라는 콜백에서 <b>자기 엔티티</b>를 만든다. 양쪽을 잇는 번호는 엔진이 붙이는 <code>ReplicationID</code>다.",
+    start: "방에 들어온 상태, 적 0마리",
+    phases: { 1: ["복제 Actor 준비", "월드 시작 때 1회"], 2: ["서버 스폰", "기준점 → 엔티티 → 줄"], 3: ["클라 스폰", "줄을 받아 엔티티 생성"] },
+    steps: [
+      { n: 1, phase: 1, lane: "server", title: "복제 Actor 생성", say: "방이 바뀌어도 남도록 퍼시스턴트 레벨에 하나 둔다.", keyfn: "UJY_MassEnemySubsystem::OnWorldBeginPlay()",
+        who: [["소유", "<code>UJY_MassEnemySubsystem</code>", ["멤버 <code>RoomEnemyNetActor</code>"]],
+              ["Actor", "<code>AJY_RoomEnemyNetActor</code> : <code>AInfo</code>", ["<code>bAlwaysRelevant = true</code> " + SRC("Mass/Net/JY_RoomEnemyNetActor.cpp:32")]]],
+        calls: [
+          [0, "UJY_MassEnemySubsystem", "OnWorldBeginPlay()", "Mass/Core/JY_MassEnemySubsystem.cpp:22", "", "월드가 시작될 때 엔진이 부름"],
+          [1, "", "if (GetNetMode() == NM_Client) return", ":26", "", "클라 → 참이라 끝 / 서버 → 거짓이라 Actor 생성"],
+          [1, "UWorld", "SpawnActor<AJY_RoomEnemyNetActor>()", ":29", "key", "런 동안 이 Actor 1개가 적 목록을 복제"],
+        ],
+        notes: [] },
+      { n: 2, phase: 2, lane: "server", title: "방 기준점 저장", say: "방의 PlayerStart 위치를 RoomOrigin으로 복제한다.", keyfn: "UJY_RoomFlowSubsystem::GetCurrentRoomStartLocation()",
+        who: [["시작", "<code>UJY_CheatManager::JYMassSpawn</code> (치트, 2장에서 웨이브 Director로 대체)", []],
+              ["기준점", "현재 방 <code>APlayerStart</code> 위치", ["방 레벨 6개에 1개씩 배치됨 (에디터에서 확인)"]]],
+        calls: [
+          [0, "UJY_CheatManager", "JYMassSpawn(CountPerPoint)", "Player/JY_CheatManager.cpp:241", "", "방의 스폰 지점마다 둘레 위치를 계산"],
+          [1, "UJY_MassEnemySubsystem", "SpawnWave(EnemyDefinition, Locations)", "Mass/Core/JY_MassEnemySubsystem.cpp:34", "key", "서버 스폰 입구"],
+          [2, "", "check(DefinitionIndex != INDEX_NONE)", ":39", "", "EnemyDefinitions에 없는 정의면 클라가 못 만드니 여기서 멈춤"],
+          [2, "UJY_RoomFlowSubsystem", "GetCurrentRoomStartLocation()", ":43", "", "방 레벨에서 첫 PlayerStart 위치를 찾음"],
+          [2, "AJY_RoomEnemyNetActor", "SetRoomOrigin(RoomOrigin)", ":44", "", "일반 복제 속성에 저장"],
+        ],
+        notes: [] },
+      { n: 3, phase: 2, lane: "server", title: "엔티티 생성", say: "한 번의 호출로 위치 수만큼 만든다.", keyfn: "UMassSpawnerSubsystem::SpawnEntities()",
+        who: [["생성", "<code>UMassSpawnerSubsystem</code> [엔진]", ["위치 데이터 <code>FMassTransformsSpawnData</code> + <code>UMassSpawnLocationProcessor</code>"]]],
+        calls: [
+          [0, "UJY_MassEnemySubsystem", "SpawnEntitiesAt(Config, Locations)", "Mass/Core/JY_MassEnemySubsystem.cpp:46", "", "서버·클라 공통"],
+          [1, "", "bRandomize = false", ":171", "", "기본값은 위치를 섞어서 끔"],
+          [1, "UMassSpawnerSubsystem", "SpawnEntities(TemplateID, Num, SpawnData, ...)", ":180", "eng key", "엔티티 생성 후 위치를 Transform에 넣음"],
+        ],
+        notes: [["warn", "⚠️ Processor 실행 중에는 부르면 안 된다. 치트·타이머처럼 Mass 처리 바깥에서만 부른다(MassEntityManager.cpp:846)."]] },
+      { n: 4, phase: 2, lane: "server", title: "복제 줄 추가 · 서로 연결", say: "엔티티마다 상태를 만들어 줄을 추가하고 번호를 돌려받는다.", keyfn: "AJY_RoomEnemyNetActor::AddEnemy()",
+        who: [["연결", "<code>FJY_EnemyLastSentToClientFragment</code>", ["<code>ReplicationID</code>, <code>LastSentState</code> " + SRC("Mass/JY_MassFragments.h:49")]],
+              ["줄", "<code>FJY_FastArrayEnemyItem</code>", ["<code>EnemyState</code>, <code>DefinitionIndex</code> " + SRC("Mass/Net/JY_RoomEnemyNetActor.h:14")]]],
+        calls: [
+          [0, "UJY_EnemyNetWriteProcessor", "MakeEnemyState(Transform, Health, RoomOrigin)", "Mass/Core/JY_MassEnemySubsystem.cpp:54", "", "엔티티 값 → 보낼 형태"],
+          [0, "AJY_RoomEnemyNetActor", "AddEnemy(DefinitionIndex, EnemyState)", ":55", "key", "줄 추가 후 ReplicationID를 돌려줌"],
+          [1, "FJY_FastArrayEnemyContainer", "MarkItemDirty(EnemyItem)", "Mass/Net/JY_RoomEnemyNetActor.cpp:50", "eng", "처음 호출 때 엔진이 ReplicationID를 붙임"],
+          [1, "", "ItemIndexByReplicationID.Add(...)", "Mass/Net/JY_RoomEnemyNetActor.cpp:51", "", "번호 → 배열 위치 표"],
+          [0, "", "LastSentToClient.LastSentState = EnemyState", "Mass/Core/JY_MassEnemySubsystem.cpp:60", "", "다음 프레임 비교의 기준"],
+          [0, "", "EntityByReplicationID.Add(ReplicationID, Entity)", "Mass/Core/JY_MassEnemySubsystem.cpp:62", "", "번호 → 엔티티 표"],
+        ],
+        notes: [] },
+      { n: 5, phase: 3, lane: "client", title: "줄을 받아 콜백 호출", say: "RoomOrigin이 먼저 적용되고, 그다음 FastArray 콜백이 온다.", keyfn: "FJY_FastArrayEnemyContainer::PostReplicatedAdd()",
+        who: [["수신", "<code>FJY_FastArrayEnemyContainer</code>", ["콜백은 이름으로 불려서 <code>static_assert</code>로 시그니처 확인 " + SRC("Mass/Net/JY_RoomEnemyNetActor.h:55")]]],
+        calls: [
+          [0, "FObjectReplicator", "ReceivedBunch()", "DataReplication.cpp:984", "eng", "같은 묶음을 읽음"],
+          [1, "FRepLayout", "ReceiveProperties()", "DataReplication.cpp:1052", "eng key", "일반 속성 RoomOrigin 먼저 적용"],
+          [1, "FJY_FastArrayEnemyContainer", "PostReplicatedAdd(AddedIndices, FinalSize)", "Mass/Net/JY_RoomEnemyNetActor.cpp:10", "key", "이번 수신에 새로 생긴 줄을 한꺼번에 받음"],
+          [2, "UJY_MassEnemySubsystem", "SpawnReplicatedEnemies(*this, AddedIndices)", "Mass/Net/JY_RoomEnemyNetActor.cpp:15", "", "목록과 번호를 그대로 넘김, 원소 복사는 ReplicationID를 지움"],
+        ],
+        notes: [] },
+      { n: 6, phase: 3, lane: "client", title: "클라 엔티티 생성", say: "DefinitionIndex로 같은 UJY_EnemyDefinition을 찾아 클라 Trait로 만든다.", keyfn: "UJY_MassEnemySubsystem::SpawnReplicatedEnemies()",
+        who: [["적 정의", "<code>GameData->EnemyDefinitions[DefinitionIndex]</code>", ["서버와 같은 에셋이라 같은 순서 " + SRC("System/JY_GameData.h:103")]]],
+        calls: [
+          [0, "UJY_MassEnemySubsystem", "SpawnReplicatedEnemies()", "Mass/Core/JY_MassEnemySubsystem.cpp:94", "key", "종류별로 묶어 한 번씩 생성"],
+          [1, "", "RoomOrigin + EnemyState.RelativeLocation", ":115", "", "상대 위치 → 월드 위치"],
+          [1, "", "SpawnEntitiesAt(*EnemyDefinition->EntityConfig, Locations)", ":118", "", "서버와 같은 함수, 클라 Trait로 생성"],
+          [1, "", "EntityByReplicationID.Add(...)", ":122", "", "클라도 번호 → 엔티티 표를 가짐"],
+          [1, "", "ApplyEnemyState(...)", ":123", "", "방향·표시 값까지 넣음"],
+        ],
+        notes: [] },
+    ],
+    wires: { 4: { dir: "s2c", kind: "rep", label: "RoomOrigin + FastArray 줄", sub: "복제 · 일반 속성이 먼저 적용 (DataReplication.cpp:1052)" } },
+    screens: [ { cls: "dungeon", html: '<span class="cube" style="left:30%;top:50%"><em>255</em></span><span class="cube" style="left:50%;top:38%"><em>255</em></span><span class="cube" style="left:68%;top:56%"><em>255</em></span>', cap: "클라에 큐브와 체력 값 표시", steps: "⑥", first: 6, range: [6, 6] } ],
+    fields: { server: [["sent", "서버 엔티티"], ["sorigin", "RoomOrigin"], ["sitem", "FastArray 줄"]], client: [["cent", "클라 엔티티"], ["corigin", "RoomOrigin"], ["citem", "받은 줄"]] },
+    s0: { sent: "0", sorigin: "(0,0,0)", sitem: "0", cent: "0", corigin: "(0,0,0)", citem: "0" },
+    delta: { 1: { sent: "0" }, 2: { sorigin: "방 PlayerStart" }, 3: { sent: "33" }, 4: { sitem: "33" }, 5: { corigin: "방 PlayerStart", citem: "33" }, 6: { cent: "33" } },
+    points: [
+      ["엔티티는 복제되지 않는다", "복제되는 것은 줄이고, 클라는 줄을 보고 자기 엔티티를 만든다. 서버 33·클라 33은 서로 다른 엔티티다. (33 = 스폰 지점 11개 × 3마리, 시험 값)"],
+      ["번호는 엔진 것", "우리 NetId를 만들지 않고 엔진 <code>ReplicationID</code>를 쓴다. 서버와 클라에 같은 값으로 간다."],
+      ["기준점은 방 PlayerStart", "새 Actor나 배치 없이 방마다 이미 있는 점을 쓴다."],
+    ] },
+
+  // ───────────────────────────── 3. 변화 전송
+  { id: "change", title: "피해·이동 — 바뀐 적만 찾아 보낸다", lanes: "both", from: ["spawn"], to: ["debugtext"],
+    lede: "치트는 서버 엔티티 값만 바꾼다. <b>전송 여부는 <code>UJY_EnemyNetWriteProcessor</code> 한 곳에서</b> 결정한다. 매 프레임 보낼 값을 만들어 마지막으로 보낸 값과 비교하고, 다르면 줄을 고친다. 그래서 피해와 이동이 같은 경로를 쓴다.",
+    start: "스폰 완료, 체력 30/30",
+    phases: { 1: ["값 바꾸기", "서버 엔티티만"], 2: ["변화 감지", "매 프레임"], 3: ["전송", "바뀐 필드만"], 4: ["클라 반영", "엔티티에 넣기"] },
+    steps: [
+      { n: 1, phase: 1, lane: "server", title: "피해: 체력 깎기", say: "JYMassDamageAll 10 → 체력 30이 20이 된다.", keyfn: "UJY_MassEnemySubsystem::DamageAllEnemies()",
+        who: [["체력", "<code>FJY_EnemyHealthFragment</code>", ["<code>DA_MassEnemy_Orc</code> [1] Assorted에서 30/30 " + SRC("Mass/JY_MassFragments.h:62")]]],
+        calls: [
+          [0, "UJY_CheatManager", "JYMassDamageAll(Damage)", "Player/JY_CheatManager.cpp:286", "", "치트 입구, 나중에 피해 Processor로 대체"],
+          [1, "UJY_MassEnemySubsystem", "DamageAllEnemies(Damage)", "Mass/Core/JY_MassEnemySubsystem.cpp:82", "key", "모든 서버 엔티티를 순회"],
+          [2, "", "Health.Current = FMath::Max(Current - Damage, 0)", ":88", "", "0 아래로 내려가지 않게"],
+          [2, "", "++Health.HitSerial", ":89", "", "맞은 횟수 증가, 클라 번쩍임 신호로 쓸 값"],
+        ],
+        notes: [] },
+      { n: 2, phase: 1, lane: "server", title: "이동: 위치 옮기기", say: "JYMassMove 300 → Transform만 바뀐다.", keyfn: "UJY_MassEnemySubsystem::MoveAllEnemies()",
+        who: [["위치", "<code>FTransformFragment</code> [엔진]", []]],
+        calls: [
+          [0, "UJY_CheatManager", "JYMassMove(Distance)", "Player/JY_CheatManager.cpp:279", "", "치트 입구, 2장 이동 Processor로 대체"],
+          [1, "UJY_MassEnemySubsystem", "MoveAllEnemies(Offset)", "Mass/Core/JY_MassEnemySubsystem.cpp:70", "key", "엔티티 Transform에 더함, 전송 코드는 없음"],
+        ],
+        notes: [] },
+      { n: 3, phase: 2, lane: "server", title: "보낼 값 만들기", say: "서버 값을 상대 위치와 0~255 비율로 바꾼다.", keyfn: "UJY_EnemyNetWriteProcessor::MakeEnemyState()",
+        who: [["Processor", "<code>UJY_EnemyNetWriteProcessor</code>", ["Server, PostPhysics, 게임 스레드 " + SRC("Mass/Net/JY_EnemyNetWriteProcessor.cpp:20")]],
+              ["묶음", "<code>FJY_EnemyState</code>", ["서버 → 클라 구역 " + SRC("Mass/JY_MassFragments.h:12")]]],
+        calls: [
+          [0, "UJY_EnemyNetWriteProcessor", "Execute()", "Mass/Net/JY_EnemyNetWriteProcessor.cpp:38", "", "이동이 끝난 뒤 매 프레임"],
+          [1, "", "RoomOrigin = GetRoomOrigin()", ":46", "", "이번 프레임 기준점"],
+          [1, "UJY_EnemyNetWriteProcessor", "MakeEnemyState(Transform, Health, RoomOrigin)", ":60", "key", "보낼 형태로 변환"],
+          [2, "", "RelativeLocation = 위치 - RoomOrigin, 1cm로 반올림", ":77", "", "수신 쪽 양자화와 같은 단위, 소수점만 바뀐 값은 안 보냄"],
+          [2, "", "HealthPct = 255 × 20 / 30 = 170", ":79", "", "float 대신 1바이트"],
+        ],
+        notes: [] },
+      { n: 4, phase: 2, lane: "server", title: "비교 → 다르면 줄 수정", say: "같으면 건너뛰고, 다를 때만 표에서 줄을 찾는다.", keyfn: "AJY_RoomEnemyNetActor::UpdateEnemy()",
+        who: [["기준값", "<code>FJY_EnemyLastSentToClientFragment::LastSentState</code>", []]],
+        calls: [
+          [0, "", "if (EnemyState == LastSentToClient.LastSentState) continue", "Mass/Net/JY_EnemyNetWriteProcessor.cpp:61", "key", "같음 → 건너뜀, 서 있는 적 / 다름 → 다음 줄"],
+          [0, "AJY_RoomEnemyNetActor", "UpdateEnemy(ReplicationID, EnemyState)", "Mass/Net/JY_EnemyNetWriteProcessor.cpp:64", "", "바뀐 적만 TMap 조회"],
+          [1, "", "ItemIndexByReplicationID.FindChecked(ReplicationID)", "Mass/Net/JY_RoomEnemyNetActor.cpp:59", "", "번호 → 배열 위치"],
+          [1, "FJY_FastArrayEnemyContainer", "MarkItemDirty(EnemyItem)", "Mass/Net/JY_RoomEnemyNetActor.cpp:62", "eng", "이 줄이 바뀌었다고 표시"],
+          [0, "", "LastSentToClient.LastSentState = EnemyState", "Mass/Net/JY_EnemyNetWriteProcessor.cpp:65", "", "다음 비교의 기준을 갱신"],
+        ],
+        notes: [] },
+      { n: 5, phase: 4, lane: "client", title: "바뀐 줄을 엔티티에 넣기", say: "번호로 엔티티를 찾아 위치·방향·표시 값을 넣는다.", keyfn: "UJY_MassEnemySubsystem::ApplyEnemyState()",
+        who: [["표시 값", "<code>FJY_EnemyVisualFragment</code>", ["클라 전용 " + SRC("Mass/JY_MassFragments.h:87")]]],
+        calls: [
+          [0, "FJY_FastArrayEnemyContainer", "PostReplicatedChange(ChangedIndices, FinalSize)", "Mass/Net/JY_RoomEnemyNetActor.cpp:19", "", "이번 수신에서 바뀐 줄 목록"],
+          [1, "UJY_MassEnemySubsystem", "UpdateReplicatedEnemies(*this, ChangedIndices)", "Mass/Core/JY_MassEnemySubsystem.cpp:129", "", "번호로 엔티티 찾기"],
+          [2, "UJY_MassEnemySubsystem", "ApplyEnemyState(Entity, EnemyState, RoomOrigin)", ":136", "key", "서버 값을 클라 엔티티에 반영"],
+          [3, "", "Transform.SetLocation(RoomOrigin + RelativeLocation)", ":147", "", "월드 위치 복원"],
+          [3, "", "Transform.SetRotation(Rotation.Quaternion())", ":148", "", "⚠️ 적 회전이 아직 없어 미시험"],
+          [3, "", "Visual.HealthPct = EnemyState.HealthPct", ":151", "", "화면 표시에 쓸 값 저장"],
+        ],
+        notes: [] },
+    ],
+    wires: { 4: { dir: "s2c", kind: "rep", label: "FJY_FastArrayEnemyItem::EnemyState", sub: "복제 · 바뀐 필드만 (FastArraySerializer.h:218)" } },
+    screens: [ { cls: "dungeon", html: '<span class="cube" style="left:40%;top:46%"><em>170</em></span><span class="cube" style="left:60%;top:34%"><em>170</em></span><span class="cube" style="left:78%;top:52%"><em>170</em></span>', cap: "피해 후 170, 이동 후 위치 변경", steps: "⑤", first: 5, range: [5, 5] } ],
+    fields: { server: [["hp", "서버 체력"], ["sloc", "서버 위치 변화"], ["last", "LastSentState"]], client: [["cloc", "클라 위치 변화"], ["pct", "HealthPct"]] },
+    s0: { hp: "30 / 30", sloc: "없음", last: "HealthPct 255", cloc: "없음", pct: "255" },
+    delta: { 1: { hp: "20 / 30" }, 2: { sloc: "X + 300" }, 4: { last: "HealthPct 170, 새 위치" }, 5: { cloc: "X + 300", pct: "170" } },
+    points: [
+      ["값 변경과 전송을 분리", "치트와 2장 이동 Processor는 값만 바꾼다. 전송 판단은 Processor 하나에 있어서 값을 바꾸는 쪽이 늘어도 전송 코드는 안 늘어난다."],
+      ["값이 작을수록 비트 절약", "<code>FVector_NetQuantize</code>는 큰 값에 비트를 더 쓴다. 방 기준 2500cm면 46비트, 월드 X 106600이면 61비트다(QuantizedVectorSerialization.cpp:90)."],
+      ["1마리 크기", "줄 ID 4바이트가 고정이라(RepLayout.cpp:8036) 위치만 바뀐 갱신은 약 13바이트였다. 구조 변경 전 33마리 측정값이다."],
+    ] },
+
+  // ───────────────────────────── 4. 머리 위 숫자
+  { id: "debugtext", title: "머리 위 숫자 — 복제된 체력 확인용", lanes: "client", from: ["change"],
+    lede: "클라 Processor가 <code>FJY_EnemyVisualFragment</code>를 읽어 글자로 그린다. <b>복제가 됐는지 눈으로 보는 임시 도구</b>이고, 체력바가 생기면 지운다.",
+    start: "클라 엔티티에 HealthPct가 들어온 상태",
+    phases: { 1: ["매 프레임 표시", "클라 전용"] },
+    steps: [
+      { n: 1, phase: 1, lane: "client", title: "표시할 엔티티 고르기", say: "Transform과 표시 값을 모두 가진 엔티티만 처리한다.", keyfn: "UJY_EnemyDebugTextProcessor::ConfigureQueries()",
+        who: [["Processor", "<code>UJY_EnemyDebugTextProcessor</code>", ["Client, PostPhysics, 게임 스레드 " + SRC("Mass/Net/JY_EnemyDebugTextProcessor.cpp:18")]]],
+        calls: [
+          [0, "UJY_EnemyDebugTextProcessor", "ConfigureQueries()", "Mass/Net/JY_EnemyDebugTextProcessor.cpp:25", "key", "Transform, VisualFragment를 읽기 전용으로 요구"],
+        ],
+        notes: [] },
+      { n: 2, phase: 1, lane: "client", title: "글자 그리기", say: "이번 프레임만 머리 위에 숫자를 그린다.", keyfn: "DrawDebugString()",
+        who: [["표시", "조종 클라의 <code>AHUD</code> 디버그 글자 [엔진]", []]],
+        calls: [
+          [0, "UJY_EnemyDebugTextProcessor", "Execute()", "Mass/Net/JY_EnemyDebugTextProcessor.cpp:32", "", "매 프레임"],
+          [1, "", "DrawDebugString(World, TextLocation, HealthText, nullptr, Green, 0)", "Mass/Net/JY_EnemyDebugTextProcessor.cpp:47", "eng key", "시간 0 = 한 번 그리고 HUD가 지움 (HUD.cpp:764)"],
+        ],
+        notes: [["warn", "⚠️ <code>HighResShot</code>, <code>shot showui</code>에는 안 찍힌다. 화면 캡처로 봐야 한다."]] },
+    ],
+    wires: {},
+    fields: { client: [["text", "머리 위 글자"]] },
+    s0: { text: "없음" },
+    delta: { 2: { text: "HealthPct (255 또는 170)" } },
+    points: [ ["임시 코드", "새 파일 <code>JY_EnemyDebugTextProcessor.h/.cpp</code>는 체력바가 생기면 삭제한다."] ] },
+
+  // ───────────────────────────── 5. 서버 틱
+  { id: "tickrate", title: "서버 틱 60Hz — 서버가 1초에 몇 번 계산하나", lanes: "both",
+    lede: "<code>NetServerMaxTickRate</code>는 데디 서버의 계산 횟수 상한이다. 클라 FPS와 게임 속도는 그대로이고, 서버 계산 간격만 33ms에서 16.7ms로 줄어든다.",
+    start: "엔진 기본 30",
+    phases: { 1: ["설정", "ini"], 2: ["적용 범위", "독립 서버와 PIE가 다름"] },
+    steps: [
+      { n: 1, phase: 1, lane: "server", title: "값 설정", say: "프로젝트 ini가 엔진 기본 30을 덮어쓴다.", keyfn: "NetServerMaxTickRate=60",
+        who: [["값", "<code>[/Script/OnlineSubsystemUtils.IpNetDriver]</code>", ["엔진 기본 30 " + SRC("BaseEngine.ini:1867"), "프로젝트 60 " + SRC("Config/DefaultEngine.ini")]]],
+        calls: [
+          [0, "", "NetServerMaxTickRate=60", "Config/DefaultEngine.ini", "key", "서버 틱 상한을 60으로"],
+        ],
+        notes: [] },
+      { n: 2, phase: 2, lane: "server", title: "독립 데디 서버에서 적용", say: "측정: 설정 60은 약 59FPS, 설정 30은 약 31FPS.", keyfn: "UGameEngine::GetMaxTickRate()",
+        who: [["실행", "<code>UGameEngine</code> [엔진]", []]],
+        calls: [
+          [0, "UGameEngine", "GetMaxTickRate()", "GameEngine.cpp:1745", "eng key", "NM_DedicatedServer면 NetDriver의 값을 상한으로 씀"],
+        ],
+        notes: [["warn", "⚠️ 빈 방에서 잰 값이고 측정 구간이 0.2초로 짧다. 적이 많을 때의 서버 프레임은 6장에서 확인한다."]] },
+      { n: 3, phase: 2, lane: "client", title: "한 프로세스 PIE는 따르지 않음", say: "PIE는 UEditorEngine으로 돌아서 이 상한을 쓰지 않는다.", keyfn: "UEditorEngine::GetMaxTickRate()",
+        who: [["PIE", "<code>RunUnderOneProcess=True</code>", ["사용자 에디터 설정 " + SRC("EditorPerProjectUserSettings.ini:168")]]],
+        calls: [
+          [0, "UEditorEngine", "GetMaxTickRate()", "EditorEngine.cpp:2523", "eng key", "서버 상한 코드가 없음"],
+        ],
+        notes: [] },
+    ],
+    wires: {},
+    fields: { server: [["cap", "서버 틱 상한"], ["ms", "독립 서버 프레임"]], client: [["pie", "PIE 서버 틱"]] },
+    s0: { cap: "30", ms: "32.4ms", pie: "에디터 프레임" },
+    delta: { 1: { cap: "60" }, 2: { ms: "16.9ms" } },
+    points: [
+      ["얻는 것", "12m/s 적의 한 틱 이동이 40cm에서 20cm로 줄어 판정이 정확해지고, 전송 간격도 고르게 된다. (12m/s는 예시 값)"],
+      ["대가", "서버 CPU를 더 쓴다. 실제 비용은 6장에서 측정한다."],
+    ] },
+
+  // ───────────────────────────── 6. 2장 길 — 경계선 교차점
+  { id: "flowmove", title: "적이 갈 점 정하기 — 플로우 필드 표와 경계선 교차점",
+    lanes: "both",
+    lede: "고르는 일은 <b>두 번</b> 일어난다. ① <b>어느 경계선</b>으로 나갈지는 <code>FJY_NavFlowField::Rebuild</code>가 플레이어가 다각형을 옮길 때 <b>거리를 비교해 미리 1개</b>만 표에 남긴다. ② 그 <b>경계선 위 어느 점</b>을 지날지는 <code>GetPortalCrossing</code>이 매 프레임 계산하는데, 직선(적→플레이어)과 경계선은 <b>한 점에서만</b> 만나므로 비교할 후보가 없다. 그 한 점의 위치가 비율 <code>t</code>(<code>PortalRatio</code>)다. 서버 전용, 클라는 복제된 위치만 받는다.",
+    start: "적은 20번 다각형, 플레이어는 7번 다각형으로 막 옮긴 프레임",
+    phases: {
+      1: ["표 만들기", "플레이어가 다각형을 옮긴 프레임만"],
+      2: ["적마다 갈 점", "매 프레임 · 적마다"],
+      3: ["엔진이 움직임", "갈 점 → 힘 → 위치"],
+    },
+    steps: [
+      { n: 1, phase: 1, lane: "server", title: "플레이어 다각형 찾기", say: "Processor가 돌기 직전 게임 스레드에서 플레이어 위치를 복사하고, 다각형이 바뀌었을 때만 표를 다시 만든다.", keyfn: "UJY_MassEnemySubsystem::HandlePrePhysicsStarted()",
+        who: [["실행", "<code>UJY_MassEnemySubsystem</code> (게임 스레드)", ["PrePhysics 시작 알림에 등록 " + SRC("Mass/Core/JY_MassEnemySubsystem.cpp:49")]],
+              ["NavMesh", "<code>ARecastNavMesh</code> (기본 에이전트용 1개)", ["<code>GetDefaultNavDataInstance()</code> " + SRC("NavigationSystem.h:759")]]],
+        calls: [
+          [0, "FMassProcessingPhase", "ExecuteTick()", "MassProcessingPhaseManager.cpp:65", "eng", "PrePhysics 단계 틱"],
+          [1, "", "OnPhaseStart.Broadcast(DeltaTime)", "MassProcessingPhaseManager.cpp:82", "eng", "Processor 실행(:85 이후)보다 먼저 알림"],
+          [2, "UJY_MassEnemySubsystem", "HandlePrePhysicsStarted(DeltaSeconds)", "Mass/Core/JY_MassEnemySubsystem.cpp:54", "", "Processor가 작업 스레드에서 Pawn을 읽지 않게 여기서 복사"],
+          [3, "", "PlayerLocation = PlayerPawn->GetActorLocation()", ":65", "", "Processor들이 읽을 복사본"],
+          [3, "ARecastNavMesh", "FindNearestPoly(PlayerLocation, Extent)", ":72", "eng key", "플레이어가 선 다각형 ID(NavNodeRef)"],
+          [3, "", "if (PlayerPoly == FlowField.GetGoalPoly()) return", ":73", "", "같은 다각형 → 참이라 표 그대로 / 옮김 → 거짓이라 Rebuild"],
+        ],
+        notes: [] },
+      { n: 2, phase: 1, lane: "server", title: "다각형마다 '다음 경계선' 1개 저장", say: "목표 다각형에서 거꾸로 퍼지는 Dijkstra. 이웃마다 거리를 비교해 가장 짧은 쪽 경계선 하나만 남긴다 — 고르기 ①.", keyfn: "FJY_NavFlowField::Rebuild()",
+        who: [["결과 표", "<code>StepByPoly</code> : <code>TMap&lt;NavNodeRef, FJY_NavFlowStep&gt;</code>", ["값 = <code>NextPoly</code>, <code>PortalLeft</code>, <code>PortalRight</code>, <code>DistanceToGoal</code> " + SRC("Mass/Navigation/JY_NavFlowField.h:9")]],
+              ["작업용", "<code>OpenPolys</code>(거리 짧은 순 힙), <code>ClosedPolys</code>(확정), <code>EntryLocationByPoly</code>(들어오는 지점)", []]],
+        calls: [
+          [0, "FJY_NavFlowField", "Rebuild(NavMesh, PlayerPoly, PlayerLocation)", "Mass/Navigation/JY_NavFlowField.cpp:22", "key", "표를 비우고 목표 다각형부터 다시"],
+          [1, "", "OpenPolys.HeapPop(Current)", ":42", "", "아직 확정 안 된 것 중 목표에 가장 가까운 다각형"],
+          [1, "", "if (bAlreadyClosed == true) continue", ":47", "", "더 짧은 거리로 이미 확정 → 참이라 버림 / 처음 → 거짓이라 확정"],
+          [1, "ARecastNavMesh", "GetPolyNeighbors(Current, PortalEdges)", ":54", "eng", "이웃 다각형 + 맞닿은 경계선 양 끝(Left, Right)"],
+          [2, "", "NeighborDistance = 현재 거리 + Dist(들어오는 지점, 경계선 가운데)", ":62", "", "이 이웃이 목표까지 가는 거리"],
+          [2, "", "if (기존 거리 <= NeighborDistance) continue", ":65", "key", "이미 더 짧은 길 있음 → 참이라 무시 / 더 짧음 → 거짓이라 덮어씀 = 고르기 ①"],
+          [2, "", "NeighborStep.NextPoly = Current", ":69", "", "이웃에서 다음에 넘어갈 다각형"],
+          [2, "", "NeighborStep.PortalLeft/Right = PortalEdge.Left/Right", ":70", "", "그 경계선의 양 끝점 — 교차점 계산 재료"],
+        ],
+        notes: [["key", "★ 여기서 적의 다각형마다 <b>경계선이 딱 1개</b>로 정해진다. 다각형의 다른 변은 이후 아무도 보지 않는다."]] },
+      { n: 3, phase: 2, lane: "server", title: "내 다각형의 칸 꺼내기", say: "적은 자기 다각형 ID로 표에서 경계선 1개를 받는다. 표에 없으면 갈 곳을 바꾸지 않는다.", keyfn: "FJY_NavFlowField::FindStep()",
+        who: [["Processor", "<code>UJY_EnemyFlowFieldProcessor</code>", ["Server, PrePhysics, Spawning 뒤 · Steering 앞 " + SRC("Mass/Navigation/JY_EnemyFlowFieldProcessor.cpp:27")]],
+              ["적 다각형", "<code>FJY_NavPolyFragment::PolyRef</code>", ["스폰 때 <code>InitializeNavPolys</code>, 이후 <code>UJY_EnemyNavMeshSnapProcessor</code>가 갱신"]]],
+        calls: [
+          [0, "UJY_EnemyFlowFieldProcessor", "Execute()", "Mass/Navigation/JY_EnemyFlowFieldProcessor.cpp:47", "", "적 덩어리(Chunk)마다"],
+          [1, "", "if (State != Chase) continue", ":65", "", "추격 중이 아님 → 참이라 건너뜀"],
+          [1, "FJY_NavFlowField", "FindStep(PolyRef)", ":70", "key", "TMap 조회 1번 — 20번 칸: 다음 15번, 경계선 Left·Right"],
+          [1, "", "bInGoalPoly = PolyRef == GetGoalPoly()", ":76", "", "플레이어와 같은 다각형 → 참이면 갈 점 = 플레이어 위치, 계산 생략"],
+        ],
+        notes: [] },
+      { n: 4, phase: 2, lane: "server", title: "실이 경계선의 몇 % 지점을 지나나 (t)", say: "적→플레이어 직선과 경계선 직선의 교차를 위에서 본 2D로 푼다. 교차점은 하나뿐이고, 그 위치를 비율 t 하나로 나타낸다 — 고르기 없음.", keyfn: "FJY_NavFlowStep::GetPortalCrossing()",
+        who: [["입력", "<code>From</code> = 적 위치, <code>To</code> = 플레이어 위치, <code>EdgeInset</code> = 30", ["<code>PortalEdgeInset</code> " + SRC("Mass/Navigation/JY_EnemyFlowFieldProcessor.cpp:20")]],
+              ["t 뜻", "경계선 위 점 = Left + t × (Right − Left)", ["t=0 → Left, 0.5 → 가운데, 1 → Right, 0 미만·1 초과 → 경계선 밖"]]],
+        calls: [
+          [0, "FJY_NavFlowStep", "GetPortalCrossing(EnemyLocation, PlayerLocation, 30)", "Mass/Navigation/JY_EnemyFlowFieldProcessor.cpp:78", "key", "적마다 매 프레임 호출"],
+          [1, "", "PortalStart = Left, PortalDelta = Right − Left", "Mass/Navigation/JY_NavFlowField.cpp:83", "", "경계선을 Z 버린 2D 선분으로"],
+          [1, "", "LineStart = From, LineDelta = To − From", ":89", "", "적→플레이어 직선"],
+          [1, "", "Denominator = Cross(LineDelta, PortalDelta)", ":91", "", "0이면 두 선이 나란함"],
+          [1, "", "if (|Denominator| ≈ 0) t = 수선의 발 비율", ":97", "", "나란함 → 참이라 적에서 경계선에 수직으로 내린 점 / 보통 → 거짓이라 아래 공식"],
+          [1, "", "t = Cross(PortalStart − LineStart, LineDelta) / Denominator", ":101", "key", "교차점이 경계선의 몇 % 위치인지. 예시 값 1.375 = Right 바깥"],
+        ],
+        notes: [["key", "★ Left·Right 이름은 엔진이 붙인 것이라 뒤바뀌어도 t만 1−t로 뒤집히고 가리키는 자리는 같다."]] },
+      { n: 5, phase: 2, lane: "server", title: "경계선 안으로 자르고 좌표로 바꾸기", say: "t가 경계선 밖이면 빗나간 쪽 끝에서 30uu 안쪽으로 끌어온다 = 모서리를 끼고 도는 점.", keyfn: "FMath::Clamp → FMath::Lerp",
+        who: [["자르는 폭", "<code>InsetRatio = min(30, 길이/2) / 길이</code>", ["길이 200 → 0.15, t 범위 [0.15, 0.85]"]]],
+        calls: [
+          [0, "", "InsetRatio = Min(EdgeInset, PortalLength × 0.5) / PortalLength", "Mass/Navigation/JY_NavFlowField.cpp:104", "", "경계선이 60uu보다 짧으면 결국 가운데"],
+          [0, "FMath", "Clamp(t, InsetRatio, 1 − InsetRatio)", ":105", "key", "1.375 → 0.85 (Right 쪽 끝 30uu 안쪽)"],
+          [0, "FMath", "Lerp(PortalLeft, PortalRight, t)", ":107", "", "비율 → 3D 좌표. Z도 두 끝점 사이로 나와 경사면 대응"],
+        ],
+        notes: [] },
+      { n: 6, phase: 2, lane: "server", title: "갈 점을 MoveTarget에 넣기", say: "교차점이 저장되는 유일한 자리. 이미 그 점에 서 있으면 다음 경계선의 교차점으로 한 칸 넘긴다.", keyfn: "FMassMoveTargetFragment::Center",
+        who: [["대상", "<code>FMassMoveTargetFragment</code> [엔진]", ["엔진 Steering이 읽음"]]],
+        calls: [
+          [0, "", "if (Dist2D(적, 갈 점) < 0.1) 다음 경계선 교차점", "Mass/Navigation/JY_MassFlowFieldProcessor.cpp:79", "", "경계선 위 → 참이라 다음 칸(목표 다각형이면 플레이어) / 아니면 그대로"],
+          [0, "", "MoveTarget.Center = TargetLocation", ":99", "key", "이번 프레임의 갈 점"],
+          [0, "", "MoveTarget.Forward = (갈 점 − 적).GetSafeNormal2D()", ":100", "", "방향"],
+          [0, "", "MoveTarget.DistanceToGoal = 갈 점까지 + FlowStep->DistanceToGoal", ":101", "", "끝까지 남은 경로 — 경계선 앞에서 감속하지 않게"],
+          [0, "", "MoveTarget.DesiredSpeed.Set(DefaultDesiredSpeed)", ":104", "", "[임시코드] 0이면 안 움직임, 2.5에서 StateTree가 채움"],
+        ],
+        notes: [] },
+      { n: 7, phase: 3, lane: "server", title: "엔진 Steering이 힘으로 바꿈", say: "갈 점 쪽 목표 속도와 지금 속도의 차이를 힘으로 만든다. 위치는 이 뒤 이동 Processor가 옮긴다.", keyfn: "UMassSteerToMoveTargetProcessor::Execute()",
+        who: [["실행", "<code>UMassSteerToMoveTargetProcessor</code> [엔진]", ["Tasks 뒤 · Avoidance 앞 " + SRC("MassSteeringProcessors.cpp:62")]]],
+        calls: [
+          [0, "UMassSteerToMoveTargetProcessor", "Execute()", "MassSteeringProcessors.cpp", "eng", "우리 Processor 다음"],
+          [1, "", "Steering.DesiredVelocity = SteerDirection × DesiredSpeed", "MassSteeringProcessors.cpp:232", "eng", "갈 점 방향 × 희망 속도 (도착 감속 포함)"],
+          [1, "", "Force = SteerK × (목표 속도 − 지금 속도)", "MassSteeringProcessors.cpp:237", "eng key", "차이만큼 미는 힘 → 몇 프레임에 걸쳐 둥글게 꺾음"],
+          [0, "UJY_EnemyNavMeshSnapProcessor", "Execute()", "Mass/Navigation/JY_EnemyNavMeshSnapProcessor.cpp", "", "엔진 이동 뒤 NavMesh 바닥에 붙이고 PolyRef 갱신 → 다음 프레임 ③의 입력"],
+        ],
+        notes: [] },
+    ],
+    wires: {},
+    screens: [
+      { cls: "geo", cap: "① 어느 경계선? — 표가 미리 1개", steps: "①②", first: 2, range: [1, 3],
+        html: '<svg viewBox="0 0 320 180" role="img" aria-label="다각형 20, 15, 12, 7이 이어져 있고 각 다각형에 다음 경계선 하나만 표시">'
+          + '<rect class="poly dim" x="90" y="14" width="70" height="46"/><text class="lbl dim" x="125" y="42">9</text>'
+          + '<rect class="poly" x="12" y="60" width="78" height="80"/><rect class="poly" x="90" y="60" width="70" height="80"/><rect class="poly" x="160" y="60" width="70" height="80"/><rect class="poly" x="230" y="60" width="78" height="80"/>'
+          + '<text class="lbl" x="30" y="78">20</text><text class="lbl" x="104" y="78">15</text><text class="lbl" x="174" y="78">12</text><text class="lbl" x="246" y="78">7</text>'
+          + '<line class="edge dim" x1="90" y1="60" x2="160" y2="60"/>'
+          + '<line class="portal" x1="90" y1="60" x2="90" y2="140"/><line class="portal" x1="160" y1="60" x2="160" y2="140"/><line class="portal" x1="230" y1="60" x2="230" y2="140"/>'
+          + '<circle class="enemy" cx="48" cy="112" r="7"/><circle class="player" cx="272" cy="112" r="7"/>'
+          + '<text class="tiny" x="40" y="160">20→15</text><text class="tiny" x="112" y="160">15→12</text><text class="tiny" x="182" y="160">12→7</text><text class="tiny" x="252" y="160">목표</text>'
+          + '<text class="tiny dim" x="166" y="40">15의 위쪽 변은 안 씀</text>'
+          + '</svg>' },
+      { cls: "geo", cap: "② 실이 경계선 위 — t=0.5", steps: "④", first: 4, range: [4, 4],
+        html: '<svg viewBox="0 0 320 180" role="img" aria-label="적과 플레이어를 잇는 직선이 경계선 가운데를 지남">'
+          + '<rect class="wall" x="0" y="84" width="100" height="12"/><rect class="wall" x="220" y="84" width="100" height="12"/>'
+          + '<line class="portal" x1="100" y1="90" x2="220" y2="90"/><text class="tiny" x="88" y="112">Left</text><text class="tiny" x="208" y="112">Right</text>'
+          + '<line class="rope" x1="130" y1="160" x2="190" y2="20"/>'
+          + '<circle class="hit" cx="160" cy="90" r="6"/><text class="lbl" x="168" y="80">t = 0.5</text>'
+          + '<circle class="enemy" cx="130" cy="160" r="7"/><circle class="player" cx="190" cy="20" r="7"/>'
+          + '<text class="tiny" x="142" y="166">적 From</text><text class="tiny" x="202" y="24">플레이어 To</text>'
+          + '</svg>' },
+      { cls: "geo", cap: "③ 실이 경계선 밖 — 1.375 → 0.85", steps: "④⑤⑥", first: 5, range: [5, 7],
+        html: '<svg viewBox="0 0 320 180" role="img" aria-label="직선이 경계선 오른쪽 벽을 지나서 t를 0.85로 잘라 모서리 안쪽 점으로 감">'
+          + '<rect class="wall" x="0" y="84" width="100" height="12"/><rect class="wall" x="220" y="84" width="100" height="12"/>'
+          + '<line class="portal" x1="100" y1="90" x2="220" y2="90"/><text class="tiny" x="88" y="112">Left</text><text class="tiny" x="208" y="112">Right</text>'
+          + '<line class="rope miss" x1="110" y1="160" x2="310" y2="50"/><text class="tiny miss" x="244" y="78">빗나감 (벽)</text>'
+          + '<line class="inset" x1="202" y1="98" x2="220" y2="98"/><text class="tiny" x="196" y="128">30 안쪽</text>'
+          + '<polyline class="path" points="110,160 202,90 310,50"/>'
+          + '<circle class="hit" cx="202" cy="90" r="6"/><text class="lbl" x="150" y="80">t = 0.85</text>'
+          + '<circle class="enemy" cx="110" cy="160" r="7"/><circle class="player" cx="310" cy="50" r="7"/>'
+          + '</svg>' },
+    ],
+    fields: { server: [["goal", "플레이어 다각형"], ["table", "표 StepByPoly"], ["portal", "적이 쓸 경계선"], ["t", "t (PortalRatio)"], ["pt", "교차점 좌표"], ["target", "MoveTarget.Center"], ["force", "Steering 힘"]] },
+    s0: { goal: "12 (이전)", table: "목표 12 기준", portal: "—", t: "—", pt: "—", target: "—", force: "—" },
+    delta: {
+      1: { goal: "7" },
+      2: { table: "목표 7 기준 · 다각형마다 1칸" },
+      3: { portal: "20→15, Left (0,0) · Right (200,0)" },
+      4: { t: "1.375 (경계선 밖)" },
+      5: { t: "0.85", pt: "(170, 0)" },
+      6: { target: "(170, 0)" },
+      7: { force: "(170, 0) 쪽으로" },
+    },
+    points: [
+      ["고르기는 ①에서 끝", "\"짧은 것 고르기\"는 Rebuild가 경계선을 정할 때 한 번뿐이다. 경계선 위 점은 직선과 만나는 한 점이라 비교가 없다."],
+      ["교차점은 저장하지 않는다", "적·플레이어 위치에 따라 바뀌므로 표에는 양 끝점만 두고, 매 프레임 t를 다시 구해 <code>MoveTarget.Center</code>에만 넣는다."],
+      ["예시 값", "적 (50,−300) · 플레이어 (500,300) · 경계선 (0,0)~(200,0)은 흐름을 보이려고 넣은 값이다. 그림은 비율만 맞춘 개념도다."],
+    ] },
+];
+
+// ===== 렌더링 — 고정 (기능마다 바꾸지 않는다) =====
+const circled = (n) => "①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳"[n - 1] ?? `(${n})`;
+const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const SIDE = { server: "서버", client: "조종 클라이언트" };
+
+function renderCall([d, cl, fn, ref, flag, note]) {
+  const flags = flag.split(" ");
+  const cls = ["call", flags.includes("eng") ? "eng" : "", flags.includes("key") ? "key" : ""].join(" ");
+  const sig = (cl ? `<span class="cl">${esc(cl)}</span>::` : "") + `<span class="fn">${esc(fn)}</span>`;
+  const tag = flags.includes("eng") ? '<span class="tag">[엔진]</span>' : "";
+  const r = ref ? `<span class="ref">${esc(ref)}</span>` : "";
+  const nt = note ? `<span class="cmt">// ${esc(note)}</span>` : "";
+  return `<div class="${cls}" style="--d:${d}"><span class="sig">${sig}</span>${tag}${r}${nt}</div>`;
+}
+
+function renderStep(F, s) {
+  const notes = (s.notes || []).map(([k, h]) => `<div class="callout ${k}">${h}</div>`).join("");
+  return `<details class="step ${s.lane}" id="${F.id}-step-${s.n}" data-n="${s.n}">
+    <summary>
+      <div class="top"><span class="n">${circled(s.n)}</span><span class="tt">${esc(s.title)}</span><span class="lane-tag">· ${SIDE[s.lane]}</span><span class="chev" aria-hidden="true">▶</span></div>
+      <div class="say">${esc(s.say)}</div>
+      <div class="keyfn">${esc(s.keyfn)}</div>
+      <dl class="who">${s.who.map(([k, v, refs = []]) => `<dt>${esc(k)}</dt><dd>${v}${refs.map((r) => `<div class="via"><span class="arr" aria-hidden="true">↳</span><span>${r}</span></div>`).join("")}</dd>`).join("")}</dl>
+    </summary>
+    <div class="tree">${s.calls.map(renderCall).join("")}${notes}</div>
+  </details>`;
+}
+
+function renderWire(w) {
+  // 서버가 왼쪽: 클라→서버는 왼쪽 화살촉, 서버→클라는 오른쪽 화살촉
+  const left = w.dir === "c2s" ? "left" : "";
+  const right = w.dir === "s2c" ? "right" : "";
+  return `<div class="wire-row"><div class="arrow ${w.kind} ${w.dir}">
+    <div class="bar ${left}"></div>
+    <div class="lbl"><b>${esc(w.label)}</b><span>${esc(w.sub)}</span></div>
+    <div class="bar ${right}"></div>
+  </div></div>`;
+}
+
+function flowLinks(F) {
+  const a = (id, pre) => { const T = FEATURES.find((x) => x.id === id); return T ? `<a href="#${id}">${pre} ${T.num} ${esc(T.title)}</a>` : ""; };
+  const parts = [...(F.from || []).map((id) => a(id, "◀ 이어받음:")), ...(F.to || []).map((id) => a(id, "이어짐 ▶"))];
+  return parts.length ? `<div class="flowlink">${parts.join("")}</div>` : "";
+}
+
+function renderFeature(F) {
+  const solo = F.lanes === "client";
+  let lanes = solo
+    ? `<div class="lane-head client">🖥 조종 클라이언트 <small>이 기능은 클라이언트에서만 돈다</small></div>`
+    : `<div class="lane-head server">🗄 서버 <small>Authority</small></div><div class="lane-head wire">네트워크</div><div class="lane-head client">🖥 조종 클라이언트 <small>로컬 플레이어</small></div>`;
+  let lastPhase = 0;
+  for (const s of F.steps) {
+    if (s.phase !== lastPhase) {
+      const [t, d] = F.phases[s.phase];
+      lanes += `<div class="phase" id="${F.id}-p${s.phase}"><span class="num">PHASE ${s.phase}</span><h2>${t}</h2><p>${d}</p></div>`;
+      lastPhase = s.phase;
+    }
+    lanes += `<div class="cell ${s.lane === "client" ? "c" : "s"}">${renderStep(F, s)}</div>`;
+    if (F.wires && F.wires[s.n]) lanes += renderWire(F.wires[s.n]);
+  }
+  const shots = (F.screens || []).map((sc, i) =>
+    `<button type="button" class="shot" data-first="${sc.first}" id="${F.id}-shot-${i}">
+      <div class="frame ${sc.cls}">${sc.html}</div>
+      <div class="cap"><b>${sc.cap}</b><span>단계 ${sc.steps}</span></div>
+    </button>`).join("");
+  const groups = Object.keys(F.fields).map((side) => `<div class="group ${side}"><h3>${SIDE[side]}</h3><div data-side="${side}"></div></div>`).join("");
+  const points = (F.points || []).map(([t, h]) => `<div class="point"><b><span class="star">★</span> ${t}</b>${h}</div>`).join("");
+  return `<section class="feature" id="${F.id}" aria-labelledby="${F.id}-h">
+    <div class="fhead"><span class="fnum">${F.num}</span><h2 id="${F.id}-h">${esc(F.title)}</h2><p class="lede">${F.lede}</p>${flowLinks(F)}</div>
+    ${shots ? `<div class="screens" aria-label="플레이어가 보는 화면">${shots}</div>` : ""}
+    <div class="main">
+      <div class="lanes ${solo ? "solo" : ""}" aria-label="실행 흐름">${lanes}</div>
+      <aside class="state" aria-live="polite">
+        <div class="now"></div>
+        <div class="nav"><button type="button" class="prev">◀ 이전</button><button type="button" class="next">다음 ▶</button></div>
+        ${groups}
+        <p class="hint">노란 칸 = 이 단계에서 바뀐 값</p>
+      </aside>
+    </div>
+    ${points ? `<div class="points" aria-label="핵심 포인트">${points}</div>` : ""}
+  </section>`;
+}
+
+function valueHtml(v) {
+  if (v === "ON" || v === "OFF") return `<span class="pill ${v === "ON" ? "on" : "off"}">${v}</span>`;
+  return esc(v);
+}
+
+// 기능마다 단계 상태 · 상태 패널 · ◀ ▶ 가 따로 돈다
+function wireFeature(F) {
+  const root = document.getElementById(F.id);
+  const states = [F.s0];
+  for (const s of F.steps) states.push({ ...states[states.length - 1], ...(F.delta[s.n] || {}) });
+  let current = 0;
+  const render = () => {
+    const st = states[current], prev = states[Math.max(0, current - 1)];
+    for (const side of Object.keys(F.fields)) {
+      root.querySelector(`[data-side="${side}"]`).innerHTML = F.fields[side].map(([k, label]) => {
+        const changed = current > 0 && st[k] !== prev[k];
+        return `<div class="kv ${changed ? "changed" : ""}"><span class="k">${esc(label)}</span><span class="v">${valueHtml(st[k])}</span></div>`;
+      }).join("");
+    }
+    const s = F.steps[current - 1];
+    root.querySelector(".now").innerHTML = current === 0
+      ? `<span class="eyebrow">시작 전</span><b>${esc(F.start)}</b>`
+      : `<span class="eyebrow">${circled(s.n)} 직후 · ${SIDE[s.lane]}</span><b>${esc(s.title)}</b>`;
+    root.querySelector(".prev").disabled = current === 0;
+    root.querySelector(".next").disabled = current === F.steps.length;
+    root.querySelectorAll(".step").forEach((el) => el.classList.toggle("selected", +el.dataset.n === current));
+    (F.screens || []).forEach((sc, i) => document.getElementById(`${F.id}-shot-${i}`).classList.toggle("active", current >= sc.range[0] && current <= sc.range[1]));
+  };
+  const select = (n, { open = false, scroll = false } = {}) => {
+    current = n;
+    if (n > 0) {
+      const el = document.getElementById(`${F.id}-step-${n}`);
+      if (open) el.open = true;
+      if (scroll) el.scrollIntoView({ block: "nearest", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+    }
+    render();
+  };
+  root.querySelectorAll(".step").forEach((el) => {
+    el.addEventListener("toggle", () => {
+      el.closest(".cell").classList.toggle("wide", el.open);
+      if (el.open) select(+el.dataset.n);
+    });
+    el.querySelector("summary").addEventListener("click", () => select(+el.dataset.n));
+  });
+  root.querySelectorAll(".shot").forEach((el) => el.addEventListener("click", () => select(+el.dataset.first, { open: true, scroll: true })));
+  root.querySelector(".prev").addEventListener("click", () => select(current - 1, { open: true, scroll: true }));
+  root.querySelector(".next").addEventListener("click", () => select(current + 1, { open: true, scroll: true }));
+  render();
+}
+
+document.getElementById("doc-head").innerHTML = `<div><div class="eyebrow">${DOC.eyebrow}</div><h1>${esc(DOC.title)}</h1><p class="lede">${DOC.lede}</p></div>
+  <div class="legend" aria-label="범례"><span><i class="sw client"></i>조종 클라이언트</span><span><i class="sw server"></i>데디케이티드 서버</span><span><i class="sw engine"></i>엔진 코드</span><span><i class="sw rpc"></i>RPC</span><span><i class="sw rep"></i>복제</span></div>`;
+document.getElementById("doc-foot").innerHTML = DOC.footer;
+// 기능 번호는 페이지 안에서 1부터 차례로 매긴다 (원본 문서 장 번호를 쓰지 않음)
+FEATURES.forEach((F, i) => { F.num = String(i + 1); });
+// 목차: 기능 큰 제목 아래 PHASE 소제목. 흐름으로 이어진 기능 사이는 ↓ 이어짐
+document.getElementById("toc").innerHTML = `<details id="toc-box"><summary>목차</summary><a class="doc" href="#doc-head">${esc(DOC.title)}</a><ol>${FEATURES.map((F, i) => {
+  const linked = i > 0 && (FEATURES[i - 1].to || []).includes(F.id);
+  const [main, ...rest] = F.title.split(" — ");
+  const used = [...new Set(F.steps.map((s) => s.phase))].filter((n) => F.phases && F.phases[n]);
+  const phases = used.map((n) => `<li class="ph"><a href="#${F.id}-p${n}">${n}. ${esc(F.phases[n][0])}</a></li>`).join("");
+  return `${i > 0 ? `<li class="link" aria-hidden="true">${linked ? "↓ 이어짐" : ""}</li>` : ""}<li class="f"><a href="#${F.id}"><b>${F.num}</b><span>${esc(main)}${rest.length ? `<small>${esc(rest.join(" — "))}</small>` : ""}</span></a>${phases ? `<ol>${phases}</ol>` : ""}</li>`;
+}).join("")}</ol></details>`;
+document.getElementById("features").innerHTML = FEATURES.map(renderFeature).join("");
+FEATURES.forEach(wireFeature);
+// 넓은 화면은 늘 펼침, 좁은 화면은 접어 두고 항목을 누르면 다시 접음
+const tocBox = document.getElementById("toc-box");
+const tocWide = matchMedia("(min-width: 1101px)");
+tocBox.open = tocWide.matches;
+if (tocWide.addEventListener) tocWide.addEventListener("change", (e) => { tocBox.open = e.matches; });
+tocBox.addEventListener("click", (e) => { if (e.target.closest("a") && !tocWide.matches) tocBox.open = false; });
+// 지금 보고 있는 기능·PHASE를 목차에 표시 (기능 줄과 PHASE 줄을 따로 갱신해 서로 지우지 않게)
+const io = new IntersectionObserver((es) => es.forEach((e) => {
+  if (!e.isIntersecting) return;
+  const isPhase = e.target.classList.contains("phase");
+  document.querySelectorAll(isPhase ? ".toc .ph a" : ".toc .f > a").forEach((a) => a.classList.toggle("here", a.getAttribute("href") === "#" + e.target.id));
+}), { rootMargin: "-40% 0px -55% 0px" });
+document.querySelectorAll(".feature, .phase").forEach((el) => io.observe(el));
+</script>

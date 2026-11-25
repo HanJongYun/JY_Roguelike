@@ -247,24 +247,3 @@ $\color{#A371F7}{\textbf{\textsf{측정}}}$ (기본 공격 1타 범위 판정 1�
 | **M9** | 런 루프 | — | ⬜ 문에 다음 방 보상 미리 표시<br>⬜ 사망 · 클리어 처리 → 로비 복귀<br>⬜ 골드 · 상점<br>⬜ 소모품 인벤토리 · 스탯창<br>⬜ 설정 화면<br>⬜ 피해 숫자 |
 
 </details>
-
-<br>
-
-## 진행 상황 참고자료 (스크린샷)
-
-<details>
-<summary>펼치기 / 접기</summary>
-
-<br>
-
-| 타이틀 | 로비 도착 배너 |
-|:---:|:---:|
-| ![타이틀](Docs/Screenshots/01_title.png) | ![로비 도착 배너](Docs/Screenshots/02_lobby_banner.png) |
-| **영혼의 제단 (메타 강화)** | **정지 메뉴** |
-| ![영혼의 제단](Docs/Screenshots/03_soul_altar.png) | ![정지 메뉴](Docs/Screenshots/04_pause_menu.png) |
-| **포털 확인 팝업** | **종료 확인 팝업** |
-| ![포털 확인 팝업](Docs/Screenshots/06_portal_confirm.png) | ![종료 확인 팝업](Docs/Screenshots/05_quit_confirm.png) |
-| **던전 인게임 (HP 바)** | |
-| ![던전 인게임](Docs/Screenshots/07_dungeon_skill.png) | |
-
-</details>

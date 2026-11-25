@@ -24,6 +24,29 @@
 
 <br>
 
+## 핵심 기능
+
+### UI (MVVM)
+
+<details>
+<summary>펼치기 / 접기</summary>
+
+<br>
+
+화면(위젯)은 뷰모델 값에 바인딩만 하고, 게임 코드는 뷰모델 값만 바꿉니다. 값이 바뀌면 화면이 자동으로 갱신됩니다.
+
+| 타이틀 | 로비 도착 배너 |
+|:---:|:---:|
+| ![타이틀](Docs/Gifs/ui_01_title.gif) | ![로비 도착 배너](Docs/Gifs/ui_02_lobby_banner.gif) |
+| **정지 메뉴** | **영혼의 제단 (메타 강화)** |
+| ![정지 메뉴](Docs/Gifs/ui_03_pause_menu.gif) | ![영혼의 제단](Docs/Gifs/ui_04_soul_altar.gif) |
+| **기록판** | |
+| ![기록판](Docs/Gifs/ui_05_record_board.gif) | |
+
+</details>
+
+<br>
+
 ## AI 환경 및 활용 사례
 
 ### 환경

@@ -95,9 +95,9 @@ $\color{#A371F7}{\textbf{\textsf{구현}}}$
 |:---:|
 | ![플로우 필드](Docs/Gifs/mass_flowfield.gif) |
 
-- 초록 다각형 = 네비메쉬 다각형
-- 노란 화살표 = 다각형마다 플레이어 쪽으로 넘어갈 방향
-- 빨간 화살표 = 몬스터마다 갈 위치
+- $\color{#3FB950}{\textbf{\textsf{초록 다각형}}}$ = 네비메쉬 다각형
+- $\color{#E3B341}{\textbf{\textsf{노란 화살표}}}$ = 다각형마다 플레이어 쪽으로 넘어갈 방향
+- $\color{#F85149}{\textbf{\textsf{빨간 화살표}}}$ = 몬스터마다 갈 위치
 
 </details>
 

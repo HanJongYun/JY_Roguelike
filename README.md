@@ -54,7 +54,7 @@ $\color{#A371F7}{\textbf{\textsf{측정}}}$ (한 프레임에 걸린 시간, 3�
 
 <br>
 
-### 몬스터 복제 (서버 → 클라)
+### 몬스터 네트워크 동기화 (Replication)
 
 <details>
 <summary>펼치기 / 접기</summary>
@@ -65,7 +65,7 @@ $\color{#A371F7}{\textbf{\textsf{측정}}}$ (한 프레임에 걸린 시간, 3�
 |:---:|
 | ![몬스터 복제](Docs/Gifs/mass_replication.gif) |
 
-- 서버가 계산한 몬스터 위치를 두 클라가 받아 같은 움직임으로 그립니다.
+- 서버가 계산한 몬스터 위치를 클라로 복제해, 두 클라가 같은 움직임을 그립니다.
 
 </details>
 

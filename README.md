@@ -90,6 +90,37 @@ $\color{#A371F7}{\textbf{\textsf{측정}}}$ (한 프레임에 걸린 시간, 3�
 
 <br>
 
+### 몬스터 길찾기 (플로우 필드)
+
+<details>
+<summary>펼치기 / 접기</summary>
+
+<br>
+
+| 플레이어가 움직이면 길 표가 다시 만들어진다 |
+|:---:|
+| ![플로우 필드](Docs/Gifs/mass_flowfield.gif) |
+
+- 초록 = 길 다각형, 노랑 = 다각형마다 플레이어 쪽으로 넘어갈 문, 빨강 = 몬스터마다 갈 곳.
+- 작동 방식: [플로우 필드 흐름 보기](https://hanjongyun.github.io/JY_Roguelike/mass_flow.html)
+
+$\color{#A371F7}{\textbf{\textsf{측정}}}$ (한 번 갱신하는 시간, 20회 평균을 2번 잰 평균)
+
+| 몬스터 수 | 몬스터마다 길찾기 | 플로우 필드 | 차이 |
+|:---:|:---:|:---:|:---:|
+| 50 | 0.104ms | 0.044ms | 2.4배 |
+| 100 | 0.242ms | 0.046ms | 5.3배 |
+| 200 | 0.447ms | 0.042ms | 10.6배 |
+| 500 | 2.230ms | 0.043ms | 52배 |
+
+![길찾기 측정](Docs/Screenshots/11_path_bench.png)
+
+- per-enemy path = 몬스터마다 길찾기, flow field = 플로우 필드, found = 길을 찾은 몬스터 수.
+
+</details>
+
+<br>
+
 ## AI 환경 및 활용 사례
 
 ### 환경

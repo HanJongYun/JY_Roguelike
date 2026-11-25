@@ -26,33 +26,14 @@
 
 ## 핵심 기능
 
-### UI (MVVM)
+### 몬스터 대량 처리 최적화 (액터 → Mass Entity)
 
 <details>
 <summary>펼치기 / 접기</summary>
 
 <br>
 
-화면(위젯)은 뷰모델 값에 바인딩만 하고, 게임 코드는 뷰모델 값만 바꿉니다. 값이 바뀌면 화면이 자동으로 갱신됩니다.
-
-| 타이틀 | 로비 도착 배너 |
-|:---:|:---:|
-| ![타이틀](Docs/Gifs/ui_01_title.gif) | ![로비 도착 배너](Docs/Gifs/ui_02_lobby_banner.gif) |
-| **정지 메뉴** | **영혼의 제단 (메타 강화)** |
-| ![정지 메뉴](Docs/Gifs/ui_03_pause_menu.gif) | ![영혼의 제단](Docs/Gifs/ui_04_soul_altar.gif) |
-| **기록판** | |
-| ![기록판](Docs/Gifs/ui_05_record_board.gif) | |
-
-</details>
-
-<br>
-
-### 몬스터 (Mass Entity)
-
-<details>
-<summary>펼치기 / 접기</summary>
-
-<br>
+몬스터를 액터 대신 Mass Entity로 만들어 같은 늑대 500마리에서 프레임 시간을 비교했습니다.
 
 | Mass Entity 500마리 | 액터 500마리 |
 |:---:|:---:|
@@ -104,6 +85,27 @@ $\color{#A371F7}{\textbf{\textsf{측정}}}$ (한 프레임에 걸린 시간, 3�
 - 초록 다각형 = 내비메시 다각형
 - 노란 화살표 = 다각형마다 플레이어 쪽으로 넘어갈 방향
 - 빨간 화살표 = 몬스터마다 갈 위치
+
+</details>
+
+<br>
+
+### UI (MVVM)
+
+<details>
+<summary>펼치기 / 접기</summary>
+
+<br>
+
+화면(위젯)은 뷰모델 값에 바인딩만 하고, 게임 코드는 뷰모델 값만 바꿉니다. 값이 바뀌면 화면이 자동으로 갱신됩니다.
+
+| 타이틀 | 로비 도착 배너 |
+|:---:|:---:|
+| ![타이틀](Docs/Gifs/ui_01_title.gif) | ![로비 도착 배너](Docs/Gifs/ui_02_lobby_banner.gif) |
+| **정지 메뉴** | **영혼의 제단 (메타 강화)** |
+| ![정지 메뉴](Docs/Gifs/ui_03_pause_menu.gif) | ![영혼의 제단](Docs/Gifs/ui_04_soul_altar.gif) |
+| **기록판** | |
+| ![기록판](Docs/Gifs/ui_05_record_board.gif) | |
 
 </details>
 
